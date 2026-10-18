@@ -453,8 +453,16 @@
     const indicador = digitando();
 
     let resposta = '';
-    // 1º: perguntas sobre os dados do painel (faturamento, frota, estrutura) → resposta exata da planilha
-    if (window.FOLHITO_CONSULTAS?.pareceDados(texto)) {
+    // 1º: com a IA do servidor ligada, ela responde tudo, consultando as bases dos painéis (faturamento, produção,
+    // qualidade, RH…) pelas ferramentas do servidor
+    try {
+      if (modoIA) resposta = await perguntarIA(indicador);
+    } catch (erro) {
+      console.warn('Folhito: IA do servidor indisponível.', erro);
+      if (!/HTTP 429/.test(erro.message)) definirModo(false);
+    }
+    // 2º: sem a IA do servidor, perguntas de faturamento/frota/estrutura → resposta exata da planilha, calculada aqui
+    if (!resposta && window.FOLHITO_CONSULTAS?.pareceDados(texto)) {
       try {
         const r = await window.FOLHITO_CONSULTAS.responder(texto);
         if (r) {
@@ -463,12 +471,6 @@
           adicionarMensagem('assistant', resposta);
         }
       } catch (erro) { console.warn('Folhito: falha ao consultar os dados.', erro); }
-    }
-    try {
-      if (!resposta && modoIA) resposta = await perguntarIA(indicador);
-    } catch (erro) {
-      console.warn('Folhito: IA do servidor indisponível.', erro);
-      definirModo(false);
     }
     if (!resposta && iaLocal.estado === 'pronta') {
       try { resposta = await perguntarIALocal(indicador, texto); }
@@ -513,17 +515,27 @@
         const linha = ev.split('\n').find(l => l.startsWith('data: '));
         if (!linha) continue;
         const dado = JSON.parse(linha.slice(6));
-        if (dado.tipo === 'erro') throw new Error(dado.mensagem);
+        if (dado.tipo === 'erro') { if (texto) { indicador.remove(); return texto; } throw new Error(dado.mensagem); }
+        if (dado.tipo === 'status') {
+          // "Consultando as planilhas…" enquanto o servidor busca os números
+          const bolha = indicador.isConnected ? indicador.querySelector('.folhito-bolha') : null;
+          if (bolha) { bolha.classList.add('com-status'); bolha.innerHTML = `<i></i><i></i><i></i><span>${dado.texto.replace(/[<>&]/g, '')}</span>`; }
+          else if (el) { indicador = digitando(); indicador.querySelector('.folhito-bolha').innerHTML = `<i></i><i></i><i></i><span>${dado.texto.replace(/[<>&]/g, '')}</span>`; indicador.querySelector('.folhito-bolha').classList.add('com-status'); }
+          rolarFim();
+        }
         if (dado.tipo === 'texto') {
           texto += dado.texto;
-          if (!el) { if (!visivel()) continue; indicador.remove(); el = adicionarMensagem('assistant', visivel()); }
-          else atualizarBolha(el, 'assistant', texto);
+          if (!texto.trim()) continue;
+          indicador.remove();
+          if (!el) el = adicionarMensagem('assistant', texto.trimStart());
+          else atualizarBolha(el, 'assistant', texto.trimStart());
           rolarFim();
         }
       }
     }
-    if (!texto) throw new Error('resposta vazia');
-    return texto;
+    indicador.remove();
+    if (!texto.trim()) throw new Error('resposta vazia');
+    return texto.trim();
   }
 
   function definirModo(ia) {

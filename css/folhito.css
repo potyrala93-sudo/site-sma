@@ -258,3 +258,4 @@
 @media (prefers-reduced-motion: reduce) {
   .folhito-lancador, .folhito-boasvindas img { animation: none; }
 }
+.folhito-digitando .folhito-bolha.com-status span { margin-left: .35rem; font-size: .8rem; color: var(--texto-suave, #b8d8cf); }

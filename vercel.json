@@ -3,7 +3,7 @@
   "functions": {
     "api/[...rota].js": {
       "maxDuration": 60,
-      "includeFiles": "{js/dados.js,assets/img/fotos/**,assets/img/colaboradores/**,assets/img/avatares/**}"
+      "includeFiles": "{js/dados.js,js/planilhas.js,js/experimento-motor.js,assets/img/fotos/**,assets/img/colaboradores/**,assets/img/avatares/**}"
     }
   },
   "headers": [

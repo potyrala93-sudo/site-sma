@@ -11,6 +11,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { colecao, fotosNoBanco, TEM_BANCO, ONDE_SALVA } from './armazenamento.mjs';
+import { consultar, valoresDoCampo, descricaoBases, preaquecer } from './motor-dados.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const NA_VERCEL = Boolean(process.env.VERCEL);
@@ -47,7 +48,7 @@ Observação: Jefferson Becker é a mesma pessoa e aparece sob duas supervisoras
 Etapas do ciclo florestal (seção "O que é Silvicultura"):
 ${D.CICLO.map((e, i) => `${i + 1}. ${e.titulo}: ${e.texto}`).join('\n')}
 
-Páginas de setores (todas ainda "em construção"): ${D.SETORES.filter(s => s.id !== 'home').map(s => `${s.nome} (${s.href})`).join(', ')}.
+Páginas do site: Faturamento (faturamento.html: faturamento por equipe/supervisor, diário, frota), Produção (producao.html: produção realizada, produção por RF, plantio e programação de atividades), Qualidade (qualidade.html: avaliações de campo 45/60/90/120 dias e simulador ARS), Experimento (experimento.html: análises livres e gráficos sobre todas as bases), RH (rh.html: catálogo de colaboradores), Custos (custos.html: só um botão para o painel externo Cost Flow; você não tem acesso a esses dados), Segurança (seguranca.html) e Estoque (estoque.html) ainda em construção e sem base de dados.
 Seções da página inicial: início/hero (#inicio), O que é Silvicultura (#silvicultura), vídeo sobre eucalipto do canal Richard Rasmussen (#video), Nossa Estrutura (#estrutura), Organograma Operacional (#organograma).`;
 }
 
@@ -61,7 +62,7 @@ Quem conversa com você são colaboradores, lideranças e visitantes do site. Se
 Como responder:
 - Sempre em português do Brasil, com tom acolhedor, claro e direto, como um colega experiente de campo. Pode usar um emoji de vez em quando (🌱🌳🦺🚜), sem exagero.
 - Respostas curtas: em geral de 2 a 6 frases. Use listas curtas com "- " quando ajudar. Use **negrito** só para destacar o essencial. Não use títulos (#) nem tabelas.
-- Para dados da unidade (números da frota, colaboradores, nomes, cargos e equipes), use somente as informações abaixo. Se algo não estiver nelas (telefones, salários, escalas, metas, indicadores, documentos internos), diga com sinceridade que não tem essa informação e sugira procurar o encarregado, o supervisor ou o RH. Nunca invente nomes, números ou procedimentos internos da empresa.
+- Para números e informações da operação (faturamento, produção, frota, qualidade, colaboradores, equipes, programação), CONSULTE AS BASES com as ferramentas consultar_dados e valores_do_campo antes de responder, e use só o que elas devolverem. Nunca invente nomes, números ou procedimentos internos. Se a informação não existir nas bases (salários, telefones, escalas, custos, segurança, estoque, documentos internos), diga com sinceridade que não tem esse dado e sugira procurar o encarregado, o supervisor ou o RH.
 - Em temas de segurança, priorize sempre a vida: em caso de acidente, emergência ou risco grave, oriente a parar a atividade, acionar a liderança e os serviços de emergência (SAMU 192, Bombeiros 193). Você não substitui procedimentos oficiais, treinamentos nem orientação médica.
 - Em conselhos pessoais, seja gentil e respeitoso, e sugira ajuda profissional quando o assunto for sério.
 
@@ -124,56 +125,133 @@ export function json(res, status, dados) {
   res.end(JSON.stringify(dados));
 }
 
-/* ---------- Conversa com o Folhito (streaming via Server-Sent Events) ---------- */
+/* ---------- Ferramentas: o Folhito consulta as bases dos painéis ---------- */
+const FERRAMENTAS = [
+  {
+    name: 'consultar_dados',
+    description: `Consulta as bases de dados dos painéis (as mesmas planilhas do site) e devolve uma tabela já calculada e formatada.
+Use para qualquer pergunta com números ou listas da operação. Monte: agrupar_por (0 a 2 campos), metricas (base + campo + agregação), filtros e período.
+Regras: o período de apontamento é ANO + RF da base (não o mês civil da data); RF atual = mês atual. "dias trabalhados" = agregacao dias_distintos. Rendimento por dia = soma de AREA ÷ dias_distintos (use calculadas com formula "m1 / m2"). Para cruzar bases, use as mesmas dimensões em agrupar_por (ex.: EQUIPE). Para listar nomes (ex.: colaboradores de uma equipe), agrupe pelo campo de nome com agregacao contagem. Valores de filtro de texto precisam ser exatamente os da base: se não tiver certeza, use valores_do_campo antes.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        agrupar_por: { type: 'array', items: { type: 'string' }, description: 'Campos para agrupar (0 a 2). Precisam existir em todas as bases das métricas.' },
+        metricas: {
+          type: 'array', minItems: 1,
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' }, fonte: { type: 'string', description: 'id da base' }, campo: { type: 'string' },
+              agregacao: { type: 'string', enum: ['soma', 'media', 'contagem', 'contagem_distinta', 'dias_distintos', 'min', 'max'] }, rotulo: { type: 'string' }
+            },
+            required: ['id', 'fonte', 'agregacao']
+          }
+        },
+        calculadas: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, rotulo: { type: 'string' }, formula: { type: 'string', description: 'ex.: "m1 / m2"' }, formato: { type: 'string', enum: ['num', 'pct', 'brl', 'ha', 'ha_dia'] } }, required: ['id', 'formula'] } },
+        filtros: { type: 'array', items: { type: 'object', properties: { campo: { type: 'string' }, operador: { type: 'string', enum: ['=', '!=', '>', '<', '>=', '<=', 'entre', 'contem', 'em', 'nao_em'] }, valor: {} }, required: ['campo', 'operador', 'valor'] } },
+        periodo: { type: 'object', description: '{"tipo":"rf","ano":2026,"rf":10} | {"tipo":"ultimos_rfs","n":3} | {"tipo":"ano","ano":2026} | {"tipo":"global"} (todos os períodos)', properties: { tipo: { type: 'string', enum: ['global', 'rf', 'ultimos_rfs', 'ano'] }, ano: { type: 'integer' }, rf: { type: 'integer' }, n: { type: 'integer' } }, required: ['tipo'] },
+        ordenar: { type: 'object', properties: { campo: { type: 'string', description: 'id de métrica ou campo de agrupar_por' }, direcao: { type: 'string', enum: ['asc', 'desc'] } } },
+        limite: { type: 'integer', description: 'máximo de linhas (padrão 200)' }
+      },
+      required: ['metricas']
+    }
+  },
+  {
+    name: 'valores_do_campo',
+    description: 'Lista os valores que existem num campo de uma base (ex.: códigos de equipe, fazendas, funções, nomes de colaboradores, supervisores), com a quantidade de linhas de cada um. Use "busca" para procurar por parte do texto.',
+    input_schema: {
+      type: 'object',
+      properties: { base: { type: 'string' }, campo: { type: 'string' }, busca: { type: 'string' }, limite: { type: 'integer' } },
+      required: ['base', 'campo']
+    }
+  }
+];
+const DESCRICAO_BASES = (() => { try { return descricaoBases(); } catch (erro) { console.error('Folhito: bases indisponíveis —', erro.message); return ''; } })();
+const SISTEMA_DADOS = DESCRICAO_BASES ? `\n\n## Bases de dados que você pode consultar (ferramentas consultar_dados e valores_do_campo)\n${DESCRICAO_BASES}\n\nComo usar: consulte sem anunciar ("vou verificar…"); depois responda direto com os números, citando o período (ex.: RF10/2026) e a base. Se a consulta voltar vazia ou com erro, ajuste (veja os valores do campo) e tente de novo; se mesmo assim não houver dado, diga isso. Valores em reais no padrão R$ 1.234,56; áreas em ha.` : '';
+
+async function executarFerramenta(nome, entrada) {
+  const comPrazo = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r({ erro: 'As planilhas ainda estão carregando (a de apontamentos é grande). Diga à pessoa para tentar de novo em 1 minuto.' }), ms))]);
+  try {
+    if (nome === 'consultar_dados') return await comPrazo(consultar(entrada), 35_000);
+    if (nome === 'valores_do_campo') return await comPrazo(valoresDoCampo(entrada), 35_000);
+    return { erro: `Ferramenta desconhecida: ${nome}` };
+  } catch (erro) { return { erro: `Falha na consulta: ${erro.message}` }; }
+}
+
+function contextoDoMomento(pagina) {
+  const agora = new Date(), tz = 'America/Sao_Paulo';
+  const [dia, mes, ano] = agora.toLocaleDateString('pt-BR', { timeZone: tz }).split('/').map(Number);
+  const pag = DADOS.SETORES.find(s => s.id === pagina);
+  return `Hoje é ${agora.toLocaleDateString('pt-BR', { timeZone: tz, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}. Período atual: RF${String(mes).padStart(2, '0')}/${ano} (dia ${dia}).${pag ? ` A pessoa está na página ${pag.nome}.` : ''}`;
+}
+
+/* ---------- Conversa com o Folhito (streaming via Server-Sent Events, com consultas às bases) ---------- */
 async function conversar(req, res) {
   const ip = ipDe(req);
   if (!dentroDoLimite(ip)) return json(res, 429, { erro: 'Muitas mensagens em pouco tempo. Aguarde um minutinho. 🌱' });
   if (!cliente || !iaDisponivel) return json(res, 503, { erro: 'IA não configurada no servidor.' });
 
-  let mensagens;
+  let mensagens, pagina;
   try {
-    mensagens = validarMensagens(JSON.parse(await lerCorpo(req)).mensagens);
+    const corpo = JSON.parse(await lerCorpo(req));
+    mensagens = validarMensagens(corpo.mensagens);
+    pagina = String(corpo.pagina || '').slice(0, 30);
   } catch {
     return json(res, 400, { erro: 'Requisição inválida.' });
   }
   if (!mensagens) return json(res, 400, { erro: 'Mensagem inválida.' });
+  if (SISTEMA_DADOS) preaquecer();   // começa a baixar as planilhas enquanto a IA pensa
 
-  const enviar = dado => res.write(`data: ${JSON.stringify(dado)}\n\n`);
   let iniciou = false;
+  const abrir = () => { if (!iniciou) { res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', Connection: 'keep-alive' }); iniciou = true; } };
+  const enviar = dado => { abrir(); res.write(`data: ${JSON.stringify(dado)}\n\n`); };
+  const ROTULOS = { consultar_dados: 'Consultando as planilhas…', valores_do_campo: 'Conferindo os nomes nas planilhas…' };
 
   try {
-    const stream = cliente.beta.messages.stream({
-      model: MODELO,
-      max_tokens: 16000,
-      // Conversa de chat: esforço baixo responde rápido e bem; o Opus 5.5 decide sozinho quando pensar mais
-      output_config: { effort: 'low' },
-      // Se um filtro de segurança recusar, a própria API tenta outro modelo adequado
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      // Prompt do sistema estável → cache de prompt
-      system: [{ type: 'text', text: SISTEMA, cache_control: { type: 'ephemeral' } }],
-      messages: mensagens
-    });
+    const conversa = [...mensagens];
+    let escreveu = false;
+    for (let rodada = 0; rodada < 6; rodada++) {
+      const stream = cliente.beta.messages.stream({
+        model: MODELO,
+        max_tokens: 16000,
+        // Chat com consultas: esforço médio equilibra rapidez e acerto na montagem das consultas
+        output_config: { effort: SISTEMA_DADOS ? 'medium' : 'low' },
+        // Se um filtro de segurança recusar, a própria API tenta outro modelo adequado
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        // Prompt do sistema estável → cache de prompt; data/página vão num bloco à parte
+        system: [
+          { type: 'text', text: SISTEMA + SISTEMA_DADOS, cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: contextoDoMomento(pagina) }
+        ],
+        ...(SISTEMA_DADOS ? { tools: FERRAMENTAS } : {}),
+        messages: conversa
+      });
 
-    for await (const evento of stream) {
-      if (evento.type === 'content_block_delta' && evento.delta.type === 'text_delta') {
-        if (!iniciou) {
-          res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
-          iniciou = true;
+      let separar = escreveu;   // texto de uma nova rodada começa em outro parágrafo
+      for await (const evento of stream) {
+        if (evento.type === 'content_block_delta' && evento.delta.type === 'text_delta') {
+          enviar({ tipo: 'texto', texto: (separar ? '\n\n' : '') + evento.delta.text });
+          separar = false; escreveu = true;
+        } else if (evento.type === 'content_block_start' && evento.content_block.type === 'tool_use') {
+          enviar({ tipo: 'status', texto: ROTULOS[evento.content_block.name] || 'Consultando…' });
         }
-        enviar({ tipo: 'texto', texto: evento.delta.text });
       }
-    }
 
-    const final = await stream.finalMessage();
-    if (!iniciou) {
-      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store' });
-      iniciou = true;
-    }
-    if (final.stop_reason === 'refusal') {
-      enviar({ tipo: 'texto', texto: '\n\nDesculpe, não posso ajudar com esse assunto. Posso te ajudar com outra coisa? 🌱' });
-    } else if (final.stop_reason === 'max_tokens') {
-      enviar({ tipo: 'texto', texto: '…' });
+      const final = await stream.finalMessage();
+      if (final.stop_reason === 'refusal') {
+        enviar({ tipo: 'texto', texto: '\n\nDesculpe, não posso ajudar com esse assunto. Posso te ajudar com outra coisa? 🌱' });
+        break;
+      }
+      if (final.stop_reason === 'max_tokens') { enviar({ tipo: 'texto', texto: '…' }); break; }
+      if (final.stop_reason !== 'tool_use') break;
+
+      // A IA pediu consultas: executa e devolve os resultados para ela continuar
+      const pedidos = final.content.filter(b => b.type === 'tool_use');
+      const resultados = await Promise.all(pedidos.map(async b => ({
+        type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(await executarFerramenta(b.name, b.input)).slice(0, 40_000)
+      })));
+      conversa.push({ role: 'assistant', content: final.content }, { role: 'user', content: resultados });
     }
     enviar({ tipo: 'fim' });
     res.end();
@@ -200,6 +278,9 @@ async function conversar(req, res) {
 const PLANILHAS_PERMITIDAS = new Set(['1gGcRAaVruH9wq3m531pEcA7iGSfpzJolqne5brBn8Ls', '1LZRtGcDHSfW4gIB9BhPaL1bjDZ0ekeOdLtXc-0abtYg', '1-h8nbKYjwksLczYMpCdluBVqCZpgsrGJGICxH14sQC8', '14j_RYF0RMpJonbUksQbVmGMJ6D9Ca2qTUb9MxirWuwo', '1wZLC-MZiasGY-jTyc6hTZAGoHBeq3uEOi9HEOu_vzxw', '1b14belPXohyMAVPHgtMVijDLBT_m5v8R', '11OZX_ieEj_SQ-Rc4xqbDfJiVWezTN5i26S_YnzFdH3s', '1RjlknbDlu5draerYFSZqJwwVJsdq6N67VljUjaYEJjs']);
 const cachePlanilhas = new Map(); // chave → { quando, csv }
 
+// Na Vercel, a resposta fica alguns minutos no cache da rede dela (o botão "Atualizar" pede fresco=1 e não usa esse cache)
+const cacheRede = url => (NA_VERCEL && url.searchParams.get('fresco') !== '1' ? { 'Vercel-CDN-Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' } : {});
+
 async function buscarPlanilha(req, res) {
   const url = new URL(req.url, 'http://x');
   const id = url.searchParams.get('id') || '';
@@ -209,7 +290,7 @@ async function buscarPlanilha(req, res) {
   const chave = `${id}:${gid}`;
   const emCache = cachePlanilhas.get(chave);
   if (emCache && Date.now() - emCache.quando < 60_000 && url.searchParams.get('fresco') !== '1') {
-    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'X-Cache': 'HIT' });
+    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'X-Cache': 'HIT', ...cacheRede(url) });
     return res.end(emCache.csv);
   }
   try {
@@ -218,7 +299,7 @@ async function buscarPlanilha(req, res) {
     const csv = await resposta.text();
     if (/^\s*<!DOCTYPE html/i.test(csv)) throw new Error('A planilha não está pública');
     cachePlanilhas.set(chave, { quando: Date.now(), csv });
-    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', ...cacheRede(url) });
     res.end(csv);
   } catch (erro) {
     if (emCache) { res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'X-Cache': 'STALE' }); return res.end(emCache.csv); }

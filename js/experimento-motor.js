@@ -64,6 +64,15 @@
     programacao: {
       nome: 'Calendário / programação de atividades', descricao: 'Planejamento: área e tarifa por fazenda, UP e atividade.',
       campos: { RF: ['numero'], FAZENDA: ['texto'], UP: ['texto'], ATIVIDADE: ['texto'], GRUPO_ATIVIDADE: ['texto'], AREA: ['numero', 'ha'], TARIFA: ['numero', 'R$/ha'], VALOR: ['numero', 'R$', 'área × tarifa'] }
+    },
+    rh: {
+      nome: 'RH · colaboradores', descricao: 'Uma linha por colaborador e mês de referência: chapa, função, equipe, modalidade, situação e tempo de casa.',
+      campos: {
+        MES_REFERENCIA: ['texto', '', 'mês da lista de colaboradores (ex.: ABRIL)'], CHAPA: ['texto'], COLABORADOR: ['texto', '', 'nome completo'],
+        SITUACAO: ['texto', '', 'ATIVO, AFASTADO…'], FUNCAO: ['texto'], EQUIPE: ['texto', '', 'código da equipe (ex.: BA), igual às outras bases'],
+        NOME_EQUIPE: ['texto', '', 'nome do líder/equipe'], MODALIDADE: ['texto', '', 'MANUAL, SEMI-MECANIZADA, MECANIZADO, APOIO'], SUBCONTRATO: ['texto'],
+        ADMISSAO: ['data'], ANOS_DE_CASA: ['numero', 'anos', 'tempo de casa em anos']
+      }
     }
   };
   const CHAVES = ['FAZENDA', 'UP', 'EQUIPE', 'SUPERVISOR', 'ATIVIDADE', 'GRUPO_ATIVIDADE', 'DATA', 'MES', 'ANO', 'RF', 'PERIODO'];
@@ -75,24 +84,38 @@
   const erros = {};
   let carregadoEm = null;
 
-  async function carregarBases(fresco = false) {
-    const R = D.PRODUCAO.realizada, Q = D.QUALIDADE, PR = D.PRODUCAO;
-    const [fat, pgo, qual, ups, prog] = await Promise.allSettled([
-      P.obterDados({ fresco }),
-      P.lerPlanilha(R.planilha, R.aba, { fresco, coluna: 'AREA APONTADA' }),
-      P.lerPlanilha(Q.planilha, Q.abas.avaliacoes, { fresco, coluna: 'UP', cabecalho: true }),
-      P.lerPlanilha(Q.planilha, Q.abas.ups, { fresco, coluna: 'UP', cabecalho: true }),
-      P.lerPlanilha(PR.planilha, PR.aba, { fresco, coluna: 'FAZENDA', cabecalho: true })
+  // Planilha de onde vem cada base (a de apontamentos PGO é grande: só é baixada quando precisa)
+  const GRUPO_DA_BASE = { faturamento: 'fat', faturamento_diario: 'fat', frota: 'fat', estrutura: 'fat', pgo: 'pgo', qualidade: 'qual', base_ups: 'ups', programacao: 'prog', rh: 'rh' };
+  const PULAR = Symbol('pular');
+  // apenas: lista de ids de base (sem ela, carrega todas). As demais bases ficam como estavam.
+  async function carregarBases(fresco = false, apenas = null) {
+    const R = D.PRODUCAO.realizada, Q = D.QUALIDADE, PR = D.PRODUCAO, RH = D.RH;
+    const alvo = apenas ? Object.keys(BASES).filter(k => apenas.includes(k)) : Object.keys(BASES);
+    const grupos = new Set(alvo.map(k => GRUPO_DA_BASE[k]));
+    if (grupos.has('pgo')) grupos.add('fat');   // o supervisor das equipes vem da estrutura
+    const se = (g, f) => (grupos.has(g) ? f() : Promise.resolve(PULAR));
+    const [fat, pgo, qual, ups, prog, rh] = await Promise.allSettled([
+      se('fat', () => P.obterDados({ fresco })),
+      se('pgo', () => P.lerPlanilha(R.planilha, R.aba, { fresco, coluna: 'AREA APONTADA' })),
+      se('qual', () => P.lerPlanilha(Q.planilha, Q.abas.avaliacoes, { fresco, coluna: 'UP', cabecalho: true })),
+      se('ups', () => P.lerPlanilha(Q.planilha, Q.abas.ups, { fresco, coluna: 'UP', cabecalho: true })),
+      se('prog', () => P.lerPlanilha(PR.planilha, PR.aba, { fresco, coluna: 'FAZENDA', cabecalho: true })),
+      se('rh', () => (RH ? P.lerPlanilha(RH.planilha, RH.aba, { fresco, coluna: 'CHAPA', cabecalho: true }) : Promise.reject(new Error('sem RH'))))
     ]);
-    Object.keys(BASES).forEach(k => { dados[k] = []; delete erros[k]; });
+    const pulou = r => r.status === 'fulfilled' && r.value === PULAR;
+    const recarregadas = Object.keys(BASES).filter(k => grupos.has(GRUPO_DA_BASE[k]));
+    recarregadas.forEach(k => { dados[k] = []; delete erros[k]; });
+    // bases fora do pedido: mantém o que já havia
+    [[fat, ['faturamento', 'faturamento_diario', 'frota', 'estrutura']], [pgo, ['pgo']], [qual, ['qualidade']], [ups, ['base_ups']], [prog, ['programacao']], [rh, ['rh']]]
+      .forEach(([r, ks]) => { if (pulou(r)) ks.forEach(k => { dados[k] ||= []; }); });
 
     // Supervisor de cada equipe por RF (estrutura); sem o RF, o mais recente
-    const est = fat.status === 'fulfilled' ? (fat.value.dados.estrutura || []) : [];
+    const est = fat.status === 'fulfilled' && !pulou(fat) ? (fat.value.dados.estrutura || []) : [];
     const supPorRF = new Map(), supAtual = new Map();
     est.forEach(e => { const rf = P.num(e.RF); supPorRF.set(`${e.EQUIPE}|${rf}`, e.SUPERVISOR); if (!supAtual.has(e.EQUIPE) || rf >= supAtual.get(e.EQUIPE)[1]) supAtual.set(e.EQUIPE, [e.SUPERVISOR, rf]); });
     const supervisor = (eq, rf, daLinha) => daLinha || supPorRF.get(`${eq}|${rf}`) || supAtual.get(eq)?.[0] || '';
 
-    if (fat.status === 'fulfilled') {
+    if (pulou(fat)) { /* fora do pedido */ } else if (fat.status === 'fulfilled') {
       const F = fat.value.dados;
       dados.faturamento = (F.anderson || []).filter(l => l.EQUIPE).map(l => comPeriodo({
         ANO: P.num(l.ANO), RF: P.num(l.RF), EQUIPE: l.EQUIPE, SUPERVISOR: supervisor(l.EQUIPE, P.num(l.RF), l.SUPERVISOR),
@@ -110,7 +133,7 @@
       dados.estrutura = est.filter(e => e.EQUIPE).map(e => ({ RF: P.num(e.RF), SUPERVISOR: e.SUPERVISOR, EQUIPE: e.EQUIPE, ESTRUTURA: e.ESTRUTURA, QUANTIDADE: P.num(e.TOTAL) }));
     } else ['faturamento', 'faturamento_diario', 'frota', 'estrutura'].forEach(k => { erros[k] = fat.reason; });
 
-    if (pgo.status === 'fulfilled') {
+    if (pulou(pgo)) { /* fora do pedido */ } else if (pgo.status === 'fulfilled') {
       dados.pgo = pgo.value.filter(l => (l.ATIVIDADE || '').trim() && (l.DATA || '').trim()).map(l => {
         const ativ = P.atividades.normalizar(l.ATIVIDADE), area = P.num(l['AREA APONTADA']), tarifa = P.num(l.TARIFA);
         const ano = P.num(l.ANO), rf = P.num(l.RF), equipe = (l.EQUIPE || '').trim();
@@ -122,7 +145,7 @@
       });
     } else erros.pgo = pgo.reason;
 
-    if (qual.status === 'fulfilled') {
+    if (pulou(qual)) { /* fora do pedido */ } else if (qual.status === 'fulfilled') {
       dados.qualidade = qual.value.filter(l => l.UP && !/^teste$/i.test((l.USUARIO || '').trim())).map(l => {
         const d = P.dataBR(l.DATA);
         return comPeriodo({ ANO: d ? d.getFullYear() : null, DATA: d, FAZENDA: limparNome(l.FAZENDA), UP: l.UP.trim(), MONITORAMENTO: (l.MONITORAMENTO || '').trim(), AVALIADOR: (l.USUARIO || '').trim(),
@@ -130,16 +153,29 @@
       });
     } else erros.qualidade = qual.reason;
 
-    if (ups.status === 'fulfilled') {
+    if (pulou(ups)) { /* fora do pedido */ } else if (ups.status === 'fulfilled') {
       dados.base_ups = ups.value.filter(l => l.UP).map(l => ({ FAZENDA: limparNome(l.FAZENDA), UP: l.UP.trim(), AREA_UP: P.num(l.AREA), IDADE: P.num(l.IDADE), PLANTIO: P.dataBR(l.PLANTIO), MATERIAL: (l.MATERIAL || '').trim(), MES_AVALIATORIO: (l['MES AVALIATORIO'] || '').trim() }));
     } else erros.base_ups = ups.reason;
 
-    if (prog.status === 'fulfilled') {
+    if (pulou(prog)) { /* fora do pedido */ } else if (prog.status === 'fulfilled') {
       dados.programacao = prog.value.filter(l => l.FAZENDA && l.UP).map(l => {
         const ativ = P.atividades.normalizar(l.ATIVIDADE || ''), area = P.num(l.AREA), tarifa = P.num(l.TARIFA);
         return { RF: P.num(l.RF), FAZENDA: limparNome(l.FAZENDA), UP: l.UP.trim(), ATIVIDADE: ativ, GRUPO_ATIVIDADE: P.atividades.grupo(ativ).nome, AREA: area, TARIFA: tarifa, VALOR: area * tarifa };
       });
     } else erros.programacao = prog.reason;
+
+    if (pulou(rh)) { /* fora do pedido */ } else if (rh.status === 'fulfilled') {
+      const hoje = new Date();
+      dados.rh = rh.value.filter(l => (l.COLABORADOR || '').trim()).map(l => {
+        const cod = limparNome(l['COD. EQUIPE']), adm = P.dataBR(l.ADMISSAO);
+        return {
+          MES_REFERENCIA: limparNome(l.MES).toUpperCase(), CHAPA: (l.CHAPA || '').trim(), COLABORADOR: limparNome(l.COLABORADOR),
+          SITUACAO: limparNome(l.SITUACAO).toUpperCase(), FUNCAO: limparNome(l.FUNCAO), EQUIPE: (cod.split(/\s*-\s*/).slice(1).join(' - ') || cod).trim(),
+          NOME_EQUIPE: limparNome(l.EQUIPE), MODALIDADE: limparNome(l['MODALIDADE EQP.']).toUpperCase(), SUBCONTRATO: limparNome(l.SUBCONTRATO),
+          ADMISSAO: adm, ANOS_DE_CASA: adm ? Math.round((hoje - adm) / (365.2425 * 864e5) * 10) / 10 : null
+        };
+      });
+    } else erros.rh = rh.reason;
 
     // Nomes de fazenda iguais com/sem acento viram uma grafia só (a acentuada)
     const grafias = new Map();
@@ -593,7 +629,7 @@
   }
 
   window.SMA_EXPERIMENTO = {
-    BASES, TIPOS, AGREGACOES, carregarBases, catalogo, catalogoParaIA, validar, executar, interpretar, ajustarLocal, analisarLocal,
+    BASES, GRUPO_DA_BASE, TIPOS, AGREGACOES, carregarBases, catalogo, catalogoParaIA, validar, executar, interpretar, ajustarLocal, analisarLocal,
     formatar, formatarChave, periodosExistentes, dados, erros, carregadoEm: () => carregadoEm
   };
 })();
