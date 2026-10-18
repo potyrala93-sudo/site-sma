@@ -1,0 +1,16 @@
+{
+  "name": "sma-silvicultura-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site da operação de silvicultura da Unidade São Miguel, com o assistente Folhito.",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/folhito-server.mjs"
+  },
+  "engines": {
+    "node": ">=22.9"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0"
+  }
+}

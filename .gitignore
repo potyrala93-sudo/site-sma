@@ -1,0 +1,27 @@
+# Dependências e segredos
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Dados salvos pelo site (programações, experimentos)
+server/dados/
+
+# Fotos de pessoas (dados pessoais): ficam só neste computador
+assets/img/colaboradores/*
+!assets/img/colaboradores/Avatar_*
+assets/img/equipe/
+assets/img/colaboradores/fotos.js
+
+# Imagens soltas na raiz (originais; o site usa as cópias de assets/)
+/*.jpg
+/*.jpeg
+/*.png
+/*.webp
+
+# Sistema e editor
+.claude/settings.local.json
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log

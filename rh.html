@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RH · SMA Silvicultura · Unidade São Miguel</title>
+  <meta name="description" content="RH da Unidade São Miguel: catálogo de colaboradores com tempo de casa, nível, equipe e modalidade.">
+  <meta name="theme-color" content="#040d0c">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/faturamento.css">
+  <link rel="stylesheet" href="css/qualidade.css">
+  <link rel="stylesheet" href="css/ars.css">
+  <link rel="stylesheet" href="css/producao.css">
+  <link rel="stylesheet" href="css/rh.css">
+  <link rel="stylesheet" href="css/folhito.css">
+  <script src="js/dados.js" defer></script>
+  <script src="js/planilhas.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="js/pdf.js" defer></script>
+  <script src="js/rh-avatar.js" defer></script>
+  <script src="js/rh.js" defer></script>
+  <script src="js/folhito-consultas.js" defer></script>
+  <script src="js/folhito.js" defer></script>
+</head>
+<body data-page="rh" class="pagina-fat pagina-rh">
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="fat-fundo" aria-hidden="true"><div class="fat-grade"></div><div class="particles" id="particles"></div></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="conteudo">
+    <!-- ===== Cabeçalho ===== -->
+    <section class="fat-hero" aria-labelledby="h-titulo">
+      <div class="container fat-hero-inner">
+        <div>
+          <span class="pill reveal"><span class="tag">Painel</span><span>RH · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
+          <h1 class="fat-titulo reveal" id="h-titulo" style="--d:.08s">Catálogo de <span class="serif">Colaboradores</span></h1>
+          <p class="fat-sub reveal" style="--d:.16s">Quem faz a operação acontecer: equipe, função, modalidade e tempo de casa de cada colaborador, em cartas colecionáveis.</p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="h-status">Carregando colaboradores…</span></p>
+        </div>
+        <div class="h-contador glass reveal" style="--d:.2s">
+          <span class="h-contador-ico"><i data-lucide="book-user"></i></span>
+          <div><strong id="h-catalogados">—</strong><small id="h-catalogados-sub">colaboradores catalogados</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Filtros ===== -->
+    <div class="fat-barra-wrap">
+      <div class="container">
+        <div class="fat-barra glass h-barra" role="toolbar" aria-label="Filtros do catálogo">
+          <div class="h-barra-linha">
+            <label class="p-busca h-busca"><i data-lucide="search"></i><input type="search" id="h-busca" placeholder="Buscar por nome ou chapa" aria-label="Buscar por nome ou chapa"></label>
+            <label class="p-filtro"><i data-lucide="hash"></i><span>Cód. equipe</span><select data-filtro="codEquipe"></select></label>
+            <div class="p-multi h-combo" id="h-funcao">
+              <button type="button" class="p-filtro p-multi-btn" aria-haspopup="listbox" aria-expanded="false"><i data-lucide="briefcase"></i><span>Função</span><b>Todas</b><i data-lucide="chevron-down"></i></button>
+              <div class="q-combo-pop glass p-multi-pop" hidden>
+                <label class="q-combo-busca"><i data-lucide="search"></i><input type="search" placeholder="Buscar função…" aria-label="Buscar função"></label>
+                <div class="p-multi-lista" role="listbox" aria-label="Funções"></div>
+              </div>
+            </div>
+            <label class="p-filtro"><i data-lucide="user-check"></i><span>Situação</span><select data-filtro="situacao"></select></label>
+          </div>
+          <div class="h-barra-linha">
+            <label class="p-filtro"><i data-lucide="arrow-down-up"></i><span>Ordenar</span><select id="h-ordem">
+              <option value="nome">Nome (A–Z)</option>
+              <option value="tempo-desc">Tempo de casa (maior)</option>
+              <option value="tempo-asc">Tempo de casa (menor)</option>
+              <option value="admissao">Data de admissão</option>
+              <option value="chapa">Chapa</option>
+            </select></label>
+            <div class="fat-or h-modo" id="h-modo" role="group" aria-label="Forma de visualização">
+              <span class="fat-or-indicador" aria-hidden="true"></span>
+              <button type="button" data-modo="cards"><i data-lucide="layout-grid"></i>Cards</button>
+              <button type="button" data-modo="carrossel"><i data-lucide="gamepad-2"></i>Carrossel</button>
+            </div>
+            <div class="fat-barra-dir h-acoes">
+              <button type="button" class="fat-btn" id="h-limpar"><i data-lucide="filter-x"></i><span>Limpar</span></button>
+              <button type="button" class="fat-btn" id="h-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+              <button type="button" class="fat-btn" id="h-xls"><i data-lucide="sheet"></i><span>Excel</span></button>
+              <button type="button" class="fat-btn" id="h-pdf" title="Cartas em PDF (A4, 9 por página)"><i data-lucide="printer"></i><span>Cartas PDF</span></button>
+              <button type="button" class="fat-btn fat-atualizar" id="h-atualizar" title="Recarregar a planilha"><i data-lucide="refresh-cw"></i><span>Atualizar</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container"><div class="fat-erros" id="h-erros" role="alert" hidden></div><p class="h-fotos-aviso" id="h-fotos-aviso" hidden></p></div>
+
+    <div class="fat-conteudo carregando" id="rh">
+      <!-- KPIs -->
+      <section class="container fat-secao" aria-label="Indicadores de RH">
+        <div class="h-kpis">
+          <article class="kpi glass spot"><span class="icon-box"><i data-lucide="users"></i></span><span class="kpi-rot">Colaboradores</span><strong class="kpi-val" data-h="total">—</strong></article>
+          <article class="kpi glass spot"><span class="icon-box"><i data-lucide="user-check"></i></span><span class="kpi-rot">Ativos</span><strong class="kpi-val" data-h="ativos">—</strong></article>
+          <article class="kpi glass spot h-kpi-niveis"><span class="kpi-rot">Por nível</span><div class="h-niveis" id="h-niveis"></div></article>
+        </div>
+      </section>
+
+      <!-- Conteúdo lúdico -->
+      <section class="container fat-secao h-palco" aria-label="Catálogo">
+        <div class="h-cartas" id="h-cartas"></div>
+        <div class="h-carrossel" id="h-carrossel" hidden>
+          <div class="h-aparelho" id="h-aparelho" tabindex="0" aria-label="Ficha do colaborador. Use as setas para navegar.">
+            <div class="h-ap-topo">
+              <span class="h-led l1"></span><span class="h-led l2"></span><span class="h-led l3"></span>
+              <span class="h-ap-marca">CATÁLOGO · SMA</span>
+              <button type="button" class="h-som" id="h-som" aria-pressed="false" title="Efeito sonoro"><i data-lucide="volume-x"></i></button>
+            </div>
+            <div class="h-ap-corpo">
+              <div class="h-tela-foto">
+                <div class="h-foto-grande" id="h-foto-grande"></div>
+                <div class="h-scan" aria-hidden="true"></div>
+                <button type="button" class="h-trocar-foto" id="h-trocar-foto"><i data-lucide="camera"></i><span>Adicionar/trocar foto</span></button>
+                <input type="file" id="h-arquivo" accept="image/*" hidden>
+              </div>
+              <div class="h-tela-ficha" id="h-ficha" aria-live="polite"></div>
+            </div>
+            <div class="h-ap-base">
+              <div class="h-dpad" role="group" aria-label="Navegação">
+                <button type="button" class="h-d cima" data-nav="-10" aria-label="Voltar 10"><i data-lucide="chevron-up"></i></button>
+                <button type="button" class="h-d esq" data-nav="-1" aria-label="Anterior"><i data-lucide="chevron-left"></i></button>
+                <span class="h-d centro" aria-hidden="true"></span>
+                <button type="button" class="h-d dir" data-nav="1" aria-label="Próximo"><i data-lucide="chevron-right"></i></button>
+                <button type="button" class="h-d baixo" data-nav="10" aria-label="Avançar 10"><i data-lucide="chevron-down"></i></button>
+              </div>
+              <span class="h-posicao" id="h-posicao">—</span>
+              <div class="h-alto-falante" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="h-miniaturas" id="h-miniaturas" role="listbox" aria-label="Colaboradores"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+</body>
+</html>

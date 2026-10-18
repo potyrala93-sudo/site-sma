@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Experimento · SMA Silvicultura · Unidade São Miguel</title>
+  <meta name="description" content="Laboratório de análise livre: descreva o que quer ver e o painel cria o gráfico, a tabela ou o indicador cruzando as bases do dashboard.">
+  <meta name="theme-color" content="#02080a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/faturamento.css">
+  <link rel="stylesheet" href="css/qualidade.css">
+  <link rel="stylesheet" href="css/ars.css">
+  <link rel="stylesheet" href="css/producao.css">
+  <link rel="stylesheet" href="css/experimento.css">
+  <link rel="stylesheet" href="css/folhito.css">
+  <script src="js/dados.js" defer></script>
+  <script src="js/planilhas.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="js/pdf.js" defer></script>
+  <script src="js/experimento-motor.js" defer></script>
+  <script src="js/experimento.js" defer></script>
+  <script src="js/folhito-consultas.js" defer></script>
+  <script src="js/folhito.js" defer></script>
+</head>
+<body data-page="experimento" class="pagina-fat pagina-exp">
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="fat-fundo x-fundo" aria-hidden="true"><div class="fat-grade"></div><div class="x-aurora"></div><div class="particles" id="particles"></div></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="conteudo">
+    <!-- ===== Cabeçalho ===== -->
+    <section class="fat-hero x-hero" aria-labelledby="x-titulo">
+      <div class="container fat-hero-inner">
+        <div>
+          <span class="pill reveal"><span class="tag">Laboratório</span><span>Análise livre · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
+          <h1 class="fat-titulo x-titulo reveal" id="x-titulo" style="--d:.08s">Experimento <span class="serif">analítico</span></h1>
+          <p class="fat-sub reveal" style="--d:.16s">Escreva o que você quer ver. O painel cruza as bases do dashboard e materializa o gráfico, a tabela ou o indicador, com uma leitura dos números.</p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> <span id="x-status">Conectando às bases…</span></p>
+        </div>
+        <div class="x-nucleo glass reveal" style="--d:.2s" aria-label="Estado do núcleo analítico">
+          <div class="x-nucleo-orbe" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div><span class="eyebrow">Núcleo analítico</span><strong id="x-modo">Inicializando…</strong><small id="x-modo-sub">lendo o catálogo de dados</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Abas ===== -->
+    <div class="container">
+      <div class="q-abas glass x-abas" role="tablist" aria-label="Experimento">
+        <span class="q-abas-ind" aria-hidden="true"></span>
+        <button type="button" role="tab" id="tab-trabalho" aria-selected="true" aria-controls="aba-trabalho" data-aba="trabalho"><i data-lucide="flask-conical"></i><span>Área de trabalho</span></button>
+        <button type="button" role="tab" id="tab-salvos" aria-selected="false" aria-controls="aba-salvos" data-aba="salvos"><i data-lucide="bookmark"></i><span>Salvos <b id="x-n-salvos">0</b></span></button>
+      </div>
+    </div>
+
+    <!-- ===== Filtros globais ===== -->
+    <div class="fat-barra-wrap">
+      <div class="container">
+        <div class="fat-barra glass x-barra" role="toolbar" aria-label="Filtros globais do experimento">
+          <div class="fat-barra-dir r-barra-esq">
+            <label class="p-filtro"><i data-lucide="calendar"></i><span>Ano</span><select id="x-f-ano"></select></label>
+            <label class="p-filtro"><i data-lucide="hash"></i><span>RF</span><select id="x-f-rf"></select></label>
+            <div class="p-multi" data-multi="FAZENDA">
+              <button type="button" class="p-filtro p-multi-btn" aria-haspopup="true" aria-expanded="false"><i data-lucide="map"></i><span>Fazenda</span><b>Todas</b><i data-lucide="chevron-down"></i></button>
+              <div class="q-combo-pop glass p-multi-pop" hidden>
+                <label class="q-combo-busca"><i data-lucide="search"></i><input type="search" placeholder="Buscar fazenda…" aria-label="Buscar fazenda"></label>
+                <div class="p-multi-topo"><button type="button" data-limpar>Todas</button></div>
+                <div class="p-multi-lista"></div>
+              </div>
+            </div>
+            <div class="p-multi" data-multi="EQUIPE">
+              <button type="button" class="p-filtro p-multi-btn" aria-haspopup="true" aria-expanded="false"><i data-lucide="users-round"></i><span>Equipe</span><b>Todas</b><i data-lucide="chevron-down"></i></button>
+              <div class="q-combo-pop glass p-multi-pop" hidden>
+                <div class="p-multi-topo"><button type="button" data-limpar>Todas</button></div>
+                <div class="p-multi-lista"></div>
+              </div>
+            </div>
+          </div>
+          <div class="fat-barra-dir">
+            <button type="button" class="fat-btn fat-atualizar" id="x-atualizar" title="Recarregar todas as bases"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container"><div class="fat-erros" id="x-erros" role="alert" hidden></div></div>
+
+    <!-- ===== Área de trabalho ===== -->
+    <div id="aba-trabalho" role="tabpanel" aria-labelledby="tab-trabalho">
+      <section class="container fat-secao" aria-labelledby="x-pedido-tit">
+        <form class="x-pedido glass" id="x-form" autocomplete="off">
+          <label for="x-pedido" class="x-pedido-rot" id="x-pedido-tit"><i data-lucide="sparkles"></i>O que você quer analisar?</label>
+          <div class="x-pedido-linha">
+            <textarea id="x-pedido" rows="3" maxlength="1500" placeholder="Ex.: compare a área realizada por equipe nos últimos 3 RFs" required></textarea>
+            <button type="submit" class="x-criar" id="x-criar"><i data-lucide="wand-sparkles"></i><span>Criar</span></button>
+          </div>
+          <div class="x-ajudas">
+            <div class="x-chips" id="x-exemplos" aria-label="Exemplos de pedidos"></div>
+            <div class="x-historico" id="x-historico" hidden></div>
+          </div>
+        </form>
+      </section>
+
+      <section class="container fat-secao x-area-sec" aria-label="Visualizações">
+        <div class="x-area" id="x-area"></div>
+        <div class="x-vazio" id="x-vazio">
+          <div class="x-vazio-holo" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p>Nenhuma visualização ainda. Escreva um pedido acima ou toque em um exemplo.</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== Salvos ===== -->
+    <div id="aba-salvos" role="tabpanel" aria-labelledby="tab-salvos" hidden>
+      <section class="container fat-secao" aria-labelledby="x-salvos-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Biblioteca</span><h2 class="fat-sec-titulo" id="x-salvos-tit">Experimentos <span class="serif">salvos</span></h2></div>
+          <div class="p-salvas-topo"><span class="p-salvas-onde" id="x-salvos-onde"></span>
+            <label class="p-busca"><i data-lucide="search"></i><input type="search" id="x-salvos-busca" placeholder="Buscar por nome ou pedido" aria-label="Buscar experimentos salvos"></label></div>
+        </div>
+        <p class="x-dica"><i data-lucide="move"></i>Arraste os cards (ou use as setas) para reorganizar.</p>
+        <div class="x-salvos" id="x-salvos"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Salvar -->
+  <div class="fat-previa p-modal" id="x-modal-salvar" role="dialog" aria-modal="true" aria-labelledby="x-salvar-tit" hidden>
+    <div class="fat-previa-caixa p-modal-caixa x-modal">
+      <header><h2 id="x-salvar-tit"><i data-lucide="bookmark-plus"></i>Salvar experimento</h2>
+        <button type="button" class="fat-btn" data-fechar aria-label="Cancelar"><i data-lucide="x"></i></button></header>
+      <label class="p-eq-campo p-salvar-nome"><span>Nome</span><input type="text" id="x-salvar-nome" maxlength="120"></label>
+      <p class="p-salvar-info" id="x-salvar-info"></p>
+      <footer><button type="button" class="fat-btn fat-atualizar" id="x-salvar-ok"><i data-lucide="save"></i><span>Salvar</span></button></footer>
+    </div>
+  </div>
+
+  <footer class="site-footer" id="site-footer"></footer>
+</body>
+</html>

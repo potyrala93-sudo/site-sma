@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMA Silvicultura · Unidade São Miguel</title>
+  <meta name="description" content="Operação de silvicultura da Unidade São Miguel: segurança, qualidade e produtividade no manejo sustentável de florestas plantadas.">
+  <meta name="theme-color" content="#040d0c">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/folhito.css">
+  <link rel="preload" as="image" href="assets/img/hero/hero-01-hd.jpg" media="(min-width: 701px)">
+  <link rel="preload" as="image" href="assets/img/hero/hero-01.jpg" media="(max-width: 700px)">
+  <script src="js/dados.js" defer></script>
+  <script src="js/planilhas.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="js/folhito-consultas.js" defer></script>
+  <script src="js/folhito.js" defer></script>
+</head>
+<body data-page="home">
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="conteudo">
+
+    <!-- ===== Hero ===== -->
+    <section class="hero" id="inicio" aria-labelledby="hero-titulo">
+      <div class="hero-media" id="hero-media" role="region" aria-roledescription="carrossel" aria-label="Imagens da silvicultura">
+        <!-- Telas largas usam a versão HD (1920 px, recorte 16:10); celulares usam a original em retrato -->
+        <div class="slide active" data-legenda="Tecnologia que impulsiona o crescimento"><picture><source media="(min-width: 701px)" srcset="assets/img/hero/hero-01-hd.jpg"><img src="assets/img/hero/hero-01.jpg" alt="Muda jovem crescendo com elementos de tecnologia ao fundo" fetchpriority="high"></picture></div>
+        <div class="slide" data-legenda="Produtividade medida em cada etapa"><picture><source media="(min-width: 701px)" srcset="assets/img/hero/hero-02-hd.jpg"><img src="assets/img/hero/hero-02.jpg" alt="Mudas em linha com gráfico de crescimento em verde"></picture></div>
+        <div class="slide" data-legenda="Inovação plantada no solo"><picture><source media="(min-width: 701px)" srcset="assets/img/hero/hero-03-hd.jpg"><img src="assets/img/hero/hero-03.jpg" alt="Broto nascendo sobre um chip no solo, simbolizando tecnologia no campo"></picture></div>
+        <div class="slide" data-legenda="Genética e qualidade desde a raiz"><picture><source media="(min-width: 701px)" srcset="assets/img/hero/hero-04-hd.jpg"><img src="assets/img/hero/hero-04.jpg" alt="Planta com raízes entrelaçadas a uma hélice de DNA luminosa"></picture></div>
+        <div class="slide" data-legenda="Sustentabilidade como compromisso"><picture><source media="(min-width: 701px)" srcset="assets/img/hero/hero-05-hd.jpg"><img src="assets/img/hero/hero-05.jpg" alt="Muda cercada por ícones de sustentabilidade"></picture></div>
+      </div>
+      <div class="hero-overlay" aria-hidden="true"></div>
+      <div class="hero-scan" aria-hidden="true"></div>
+      <div class="particles" id="particles" aria-hidden="true"></div>
+
+      <div class="container hero-content">
+        <a class="pill reveal" href="#estrutura">
+          <span class="tag">Unidade São Miguel</span>
+          <span class="sep-txt">Operação de silvicultura</span>
+          <span class="chev"><i data-lucide="chevron-right"></i></span>
+        </a>
+        <h1 class="hero-title reveal" id="hero-titulo" style="--d:.08s">
+          Unindo Segurança, <span class="serif">Qualidade</span> e Produtividade.
+        </h1>
+        <p class="hero-sub reveal" style="--d:.16s">Comprometidos com a excelência em silvicultura e no manejo sustentável de florestas.</p>
+        <div class="hero-ctas reveal" style="--d:.24s">
+          <a class="btn btn-primary" href="#estrutura">
+            Conheça nossa estrutura <span class="btn-arrow"><i data-lucide="arrow-right"></i></span>
+          </a>
+          <a class="btn btn-ghost" href="#organograma">
+            <i data-lucide="network"></i> Ver organograma
+          </a>
+        </div>
+        <ul class="seals reveal" style="--d:.32s">
+          <li><i data-lucide="circle-check"></i> Segurança em primeiro lugar</li>
+          <li><i data-lucide="circle-check"></i> Qualidade em cada etapa</li>
+          <li><i data-lucide="circle-check"></i> Manejo sustentável</li>
+        </ul>
+      </div>
+
+      <div class="container">
+        <div class="hero-cards">
+          <article class="hcard spot reveal" style="--d:.35s">
+            <div class="hcard-top"><span class="icon-box"><i data-lucide="shield-check"></i></span><h3>Segurança em primeiro lugar</h3></div>
+            <p>Cultura de prevenção, uso correto de EPIs e equipes treinadas em todas as frentes.</p>
+            <div class="hcard-vis" aria-hidden="true">
+              <div class="radar">
+                <span></span><span></span><span></span>
+                <div class="varredura"></div>
+                <div class="orbita"><i></i><i></i><i></i></div>
+                <div class="nucleo"><i data-lucide="shield-check"></i></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="hcard spot reveal" style="--d:.45s">
+            <div class="hcard-top"><span class="icon-box"><i data-lucide="badge-check"></i></span><h3>Qualidade em cada etapa</h3></div>
+            <p>Padrões técnicos e acompanhamento em cada operação.</p>
+            <div class="hcard-vis" aria-hidden="true">
+              <div class="grafico">
+                <span class="grafico-tag"><i data-lucide="trending-up"></i> Melhoria contínua</span>
+                <svg viewBox="0 0 300 120" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="gradArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#c8f560" stop-opacity=".35"/>
+                      <stop offset="1" stop-color="#c8f560" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <path class="linha-g2" d="M0,100 C40,96 70,88 100,84 S160,70 190,62 S250,50 300,40"/>
+                  <path class="area" d="M0,110 C40,104 60,80 95,86 S140,58 170,62 S215,24 240,30 S280,14 300,8 L300,120 L0,120 Z"/>
+                  <path class="linha-g" d="M0,110 C40,104 60,80 95,86 S140,58 170,62 S215,24 240,30 S280,14 300,8"/>
+                  <circle class="ponto" cx="240" cy="30" r="5"/>
+                </svg>
+              </div>
+            </div>
+          </article>
+
+          <article class="hcard spot reveal" style="--d:.55s">
+            <div class="hcard-top"><span class="icon-box"><i data-lucide="trending-up"></i></span><h3>Produtividade sustentável</h3></div>
+            <p>Pessoas, máquinas e planejamento integrados para entregar mais, com responsabilidade.</p>
+            <div class="hcard-vis" aria-hidden="true">
+              <div class="fluxo">
+                <div class="fluxo-col">
+                  <span><i data-lucide="users"></i></span>
+                  <span><i data-lucide="tractor"></i></span>
+                  <span><i data-lucide="truck"></i></span>
+                  <span><i data-lucide="sprout"></i></span>
+                </div>
+                <svg class="curvas" viewBox="0 0 300 120" preserveAspectRatio="none">
+                  <path class="curva" d="M34,12 C140,12 150,60 236,60"/>
+                  <path class="curva" d="M34,47 C140,47 150,60 236,60"/>
+                  <path class="curva" d="M34,82 C140,82 150,60 236,60"/>
+                  <path class="curva" d="M34,116 C140,116 150,60 236,60"/>
+                </svg>
+                <div class="fluxo-centro"><i data-lucide="trees"></i></div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="hero-foot">
+          <a class="scroll-hint" href="#silvicultura"><span class="mouse" aria-hidden="true"></span> Role para explorar</a>
+          <div class="hero-dots" role="tablist" aria-label="Escolher imagem de fundo"></div>
+          <p class="slide-legenda" id="slide-legenda" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Silvicultura ===== -->
+    <section class="section section-alt" id="silvicultura" aria-labelledby="silv-titulo">
+      <div class="glow-orb" style="right:-200px;top:-120px" aria-hidden="true"></div>
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Nossa atividade</span>
+          <h2 class="section-title" id="silv-titulo">O que é <span class="serif">Silvicultura</span></h2>
+          <p class="section-sub">A ciência e a prática de implantar, conduzir e manejar florestas plantadas de forma produtiva e sustentável, do viveiro à colheita.</p>
+        </div>
+
+        <div class="ciclo reveal">
+          <div class="ciclo-tabs" role="tablist" aria-label="Etapas do ciclo florestal" id="ciclo-tabs"></div>
+          <div class="ciclo-panel" role="tabpanel" id="ciclo-panel">
+            <img src="assets/img/silvicultura/01-mudas.webp" alt="" id="ciclo-img" loading="lazy">
+            <span class="credito" id="ciclo-credito"></span>
+            <div class="ciclo-info" aria-live="polite">
+              <span class="tab-step" id="ciclo-step"></span>
+              <h3 id="ciclo-titulo"></h3>
+              <p id="ciclo-texto"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="video-wrap" id="video">
+          <div class="video-card reveal" id="video-card" data-youtube="1yJTobpgtUQ">
+            <img src="https://i.ytimg.com/vi/1yJTobpgtUQ/maxresdefault.jpg" alt="Capa do vídeo sobre o cultivo de eucalipto" loading="lazy">
+            <button class="video-play" id="video-play" type="button" aria-label="Reproduzir vídeo: O segredo do eucalipto que ninguém te conta">
+              <span><i data-lucide="play"></i></span>
+            </button>
+            <span class="video-badge"><i data-lucide="youtube"></i> Assistir no site</span>
+          </div>
+          <div class="video-text reveal" style="--d:.1s">
+            <span class="eyebrow">Na prática</span>
+            <h3>O <span class="serif">eucalipto</span>, da muda à floresta</h3>
+            <p>Entenda por que o eucalipto é uma das culturas florestais mais importantes do Brasil e como o manejo correto transforma mudas em florestas produtivas.</p>
+            <div class="video-meta">
+              <span class="chip"><i data-lucide="user-round"></i> Richard Rasmussen</span>
+              <span class="chip"><i data-lucide="youtube"></i> YouTube</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pilares">
+          <article class="pilar glass spot reveal">
+            <div class="icon-box"><i data-lucide="leaf"></i></div>
+            <h3>Sustentabilidade</h3>
+            <p>Manejo responsável, conservação do solo e da água e respeito às áreas de preservação em cada operação.</p>
+          </article>
+          <article class="pilar glass spot reveal" style="--d:.1s">
+            <div class="icon-box"><i data-lucide="cpu"></i></div>
+            <h3>Tecnologia no campo</h3>
+            <p>Equipamentos modernos, acompanhamento de indicadores e planejamento orientado por dados para operar com precisão.</p>
+          </article>
+          <article class="pilar glass spot reveal" style="--d:.2s">
+            <div class="icon-box"><i data-lucide="hard-hat"></i></div>
+            <h3>Pessoas e segurança</h3>
+            <p>Equipes treinadas, uso correto de EPIs e cultura de segurança: todos voltam para casa bem, todos os dias.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Estrutura ===== -->
+    <section class="section section-grid" id="estrutura" aria-labelledby="est-titulo">
+      <div class="glow-orb" style="left:-220px;top:20%" aria-hidden="true"></div>
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Recursos</span>
+          <h2 class="section-title" id="est-titulo">Nossa <span class="serif">Estrutura</span> em São Miguel</h2>
+          <p class="section-sub">Equipe e frota preparadas para cada etapa da operação.</p>
+        </div>
+        <div class="estrutura-grid" id="estrutura-grid"></div>
+      </div>
+    </section>
+
+    <!-- ===== Organograma ===== -->
+    <section class="section section-alt" id="organograma" aria-labelledby="org-titulo">
+      <div class="glow-orb" style="left:50%;top:30%;transform:translateX(-50%)" aria-hidden="true"></div>
+      <div class="container">
+        <div class="section-head center reveal">
+          <span class="eyebrow">Pessoas</span>
+          <h2 class="section-title" id="org-titulo">Organograma <span class="serif">Operacional</span></h2>
+          <p class="section-sub">Quem lidera cada frente da operação na Unidade São Miguel. Passe o mouse ou toque em um card para ver os detalhes.</p>
+        </div>
+        <div class="org-wrap" id="org-wrap">
+          <svg class="org-lines" id="org-lines" aria-hidden="true"></svg>
+          <ul class="org-tree" id="org-tree"></ul>
+        </div>
+        <div class="org-legenda" id="org-legenda"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+</body>
+</html>

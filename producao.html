@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Produção · SMA Silvicultura · Unidade São Miguel</title>
+  <meta name="description" content="Produção da silvicultura da Unidade São Miguel: programação de atividades por fazenda e UP, com equipes, máquinas e calendário.">
+  <meta name="theme-color" content="#040d0c">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/faturamento.css">
+  <link rel="stylesheet" href="css/qualidade.css">
+  <link rel="stylesheet" href="css/ars.css">
+  <link rel="stylesheet" href="css/producao.css">
+  <link rel="stylesheet" href="css/folhito.css">
+  <script src="js/dados.js" defer></script>
+  <script src="js/planilhas.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <script src="js/pdf.js" defer></script>
+  <script src="js/programacao.js" defer></script>
+  <script src="js/producao-realizada.js" defer></script>
+  <script src="js/producao-rf.js" defer></script>
+  <script src="js/producao-plantio.js" defer></script>
+  <script src="js/folhito-consultas.js" defer></script>
+  <script src="js/folhito.js" defer></script>
+</head>
+<body data-page="producao" class="pagina-fat pagina-prod">
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="fat-fundo" aria-hidden="true"><div class="fat-grade"></div><div class="particles" id="particles"></div></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="conteudo">
+
+    <!-- ===== Cabeçalho ===== -->
+    <section class="fat-hero" aria-labelledby="p-titulo">
+      <div class="container fat-hero-inner">
+        <div>
+          <span class="pill reveal"><span class="tag">Painel</span><span>Produção · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
+          <h1 class="fat-titulo reveal" id="p-titulo" style="--d:.08s">Painel de <span class="serif">Produção</span></h1>
+          <p class="fat-sub reveal" style="--d:.16s">Programe a execução das atividades por fazenda e UP: o sistema distribui as áreas pelas equipes e monta o calendário.</p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="p-status">Carregando dados…</span><span id="r-status" hidden>Carregando apontamentos…</span><span id="f-status" hidden>Carregando base do RF…</span><span id="pl-status" hidden>Carregando plantio…</span></p>
+        </div>
+        <div class="fat-destaque reveal" id="p-destaque" style="--d:.2s">
+          <div class="fat-destaque-foto"><img data-foto-sup alt="" id="p-destaque-foto"></div>
+          <div class="fat-destaque-txt">
+            <span class="eyebrow">Supervisor responsável</span>
+            <strong id="p-destaque-nome">Selecione</strong>
+            <small id="p-destaque-cargo">escolha na barra abaixo</small>
+            <span class="fat-destaque-ader">Equipes <b id="p-destaque-equipes">—</b></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Abas da Produção ===== -->
+    <div class="container">
+      <div class="q-abas glass p-abas" role="tablist" aria-label="Seções da produção">
+        <span class="q-abas-ind" aria-hidden="true"></span>
+        <button type="button" role="tab" id="tab-real" aria-selected="true" aria-controls="aba-real" data-aba="real"><i data-lucide="bar-chart-3"></i><span>Produção Realizada</span></button>
+        <button type="button" role="tab" id="tab-rf" aria-selected="false" aria-controls="aba-rf" data-aba="rf"><i data-lucide="git-compare-arrows"></i><span>Produção por RF</span></button>
+        <button type="button" role="tab" id="tab-plantio" aria-selected="false" aria-controls="aba-plantio" data-aba="plantio"><i data-lucide="trees"></i><span>Plantio</span></button>
+        <button type="button" role="tab" id="tab-prog" aria-selected="false" aria-controls="aba-prog" data-aba="prog"><i data-lucide="calendar-days"></i><span>Programação de Atividades</span></button>
+      </div>
+    </div>
+
+    <div id="aba-prog" role="tabpanel" aria-labelledby="tab-prog" hidden>
+    <!-- ===== Barra: supervisor, filtros e atualizar ===== -->
+    <div class="fat-barra-wrap">
+      <div class="container">
+        <div class="fat-barra glass" role="toolbar" aria-label="Supervisor e filtros">
+          <div class="fat-pessoas" id="p-sups" role="group" aria-label="Supervisor responsável"></div>
+          <div class="fat-barra-dir">
+            <label class="p-filtro"><i data-lucide="hash"></i><span>RF</span><select id="p-f-rf"></select></label>
+            <div class="p-multi">
+              <button type="button" class="p-filtro p-multi-btn" id="p-f-ativ-btn" aria-haspopup="true" aria-expanded="false"><i data-lucide="list-checks"></i><span>Atividade</span><b id="p-f-ativ-rot">Todas</b><i data-lucide="chevron-down"></i></button>
+              <div class="q-combo-pop glass p-multi-pop" id="p-f-ativ-pop" hidden>
+                <div class="p-multi-topo"><span>Marque uma ou mais atividades</span><button type="button" data-ativ-todas="marcar">Marcar todas</button><button type="button" data-ativ-todas="limpar">Limpar</button></div>
+                <div class="p-multi-lista" id="p-f-ativ-lista"></div>
+              </div>
+            </div>
+            <button type="button" class="fat-btn fat-atualizar" id="p-atualizar" title="Recarregar a planilha"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container"><div class="fat-erros" id="p-erros" role="alert" hidden></div></div>
+
+    <div class="prog" id="prog">
+
+      <!-- Planilha vazia ou sem acesso -->
+      <section class="container fat-secao" id="p-vazio" hidden>
+        <div class="fat-aviso glass p-vazio">
+          <span class="fat-aviso-icone"><i data-lucide="sheet"></i></span>
+          <h2 id="p-vazio-tit">A planilha de programação está vazia</h2>
+          <p id="p-vazio-txt">Preencha as colunas <b>RF | Fazenda | UP | Area | Atividade | Tarifa</b> e toque em "Atualizar dados". Lembre que a planilha precisa estar compartilhada como <b>"Qualquer pessoa com o link – Leitor"</b>.</p>
+          <div class="fat-aviso-pessoas">
+            <a class="fat-btn" href="https://docs.google.com/spreadsheets/d/14j_RYF0RMpJonbUksQbVmGMJ6D9Ca2qTUb9MxirWuwo/edit?gid=0" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Abrir a planilha</a>
+            <button type="button" class="fat-btn" id="p-exemplo"><i data-lucide="flask-conical"></i>Ver com dados de exemplo</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Programações salvas -->
+      <section class="container fat-secao p-salvas-sec" id="p-salvas-sec" aria-labelledby="p-salvas-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Arquivo</span><h2 class="fat-sec-titulo" id="p-salvas-tit">Programações <span class="serif">salvas</span></h2></div>
+          <div class="p-salvas-topo"><span class="p-salvas-onde" id="p-salvas-onde"></span>
+            <label class="p-busca"><i data-lucide="search"></i><input type="search" id="p-salvas-busca" placeholder="Buscar por nome, supervisor ou fazenda" aria-label="Buscar programações salvas"></label></div>
+        </div>
+        <div class="p-salvas" id="p-salvas"></div>
+      </section>
+
+      <div id="p-conteudo" hidden>
+        <div class="container"><p class="p-editando" id="p-editando" hidden></p></div>
+        <div class="container"><p class="p-aviso-exemplo" id="p-aviso-exemplo" hidden><i data-lucide="flask-conical"></i><span><b>Dados de exemplo</b>: a planilha ainda está vazia. Nada aqui é real; preencha a planilha e toque em "Atualizar dados".</span><button type="button" id="p-sair-exemplo">Sair do exemplo</button></p></div>
+
+        <!-- ===== Assistente ===== -->
+        <section class="container fat-secao" aria-labelledby="p-assist-tit">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Assistente</span><h2 class="fat-sec-titulo" id="p-assist-tit">Monte a <span class="serif">programação</span></h2></div>
+            <p class="fat-sec-sub">Siga as etapas. A configuração fica salva neste navegador.</p>
+          </div>
+          <ol class="p-passos glass" id="p-passos">
+            <li><button type="button" data-passo="1"><b>1</b><span>Fazendas</span></button></li>
+            <li><button type="button" data-passo="2"><b>2</b><span>UPs</span></button></li>
+            <li><button type="button" data-passo="3"><b>3</b><span>Data de entrada</span></button></li>
+            <li><button type="button" data-passo="4"><b>4</b><span>Equipes e máquinas</span></button></li>
+            <li><button type="button" data-passo="5"><b>5</b><span>Fim de semana</span></button></li>
+          </ol>
+
+          <div class="fat-painel glass p-etapa" id="p-etapa"></div>
+          <div class="p-nav">
+            <button type="button" class="fat-btn" id="p-voltar"><i data-lucide="arrow-left"></i>Voltar</button>
+            <span class="p-nav-info" id="p-nav-info"></span>
+            <button type="button" class="fat-btn" id="p-proximo">Próximo<i data-lucide="arrow-right"></i></button>
+            <button type="button" class="fat-btn fat-atualizar p-gerar" id="p-gerar"><i data-lucide="calendar-check"></i><span>Gerar programação</span></button>
+          </div>
+        </section>
+
+        <!-- ===== Resultado ===== -->
+        <div id="p-resultado" hidden>
+          <!-- Cabeçalho que só aparece no PDF -->
+          <header class="p-print-cab" id="p-print-cab"></header>
+
+          <section class="container fat-secao" aria-labelledby="p-res-tit">
+            <div class="fat-sec-head">
+              <div><span class="eyebrow">Resultado</span><h2 class="fat-sec-titulo" id="p-res-tit">Programação <span class="serif">gerada</span></h2></div>
+              <div class="ars-acoes p-acoes">
+                <button type="button" class="fat-btn" id="p-salvar"><i data-lucide="save"></i><span>Salvar programação</span></button>
+                <button type="button" class="fat-btn fat-atualizar" id="p-imprimir"><i data-lucide="file-down"></i><span>Gerar PDF</span></button>
+              </div>
+            </div>
+            <div class="p-sup-res glass" id="p-sup-res"></div>
+            <div class="p-cards" id="p-cards"></div>
+          </section>
+
+          <section class="container fat-secao p-quebra" aria-labelledby="p-eq-tit">
+            <div class="fat-sec-head"><div><span class="eyebrow">Recursos</span><h2 class="fat-sec-titulo" id="p-eq-tit">Equipes <span class="serif">programadas</span></h2></div></div>
+            <div class="fat-painel glass" id="p-tab-equipes"></div>
+          </section>
+
+          <section class="container fat-secao p-quebra" aria-labelledby="p-tab-tit">
+            <div class="fat-sec-head"><div><span class="eyebrow">Sequência</span><h2 class="fat-sec-titulo" id="p-tab-tit">Tabela da <span class="serif">programação</span></h2></div></div>
+            <div class="fat-painel glass" id="p-tab-prog"></div>
+          </section>
+
+          <section class="container fat-secao p-quebra-antes" aria-labelledby="p-cal-tit">
+            <div class="fat-sec-head">
+              <div><span class="eyebrow">Calendário</span><h2 class="fat-sec-titulo" id="p-cal-tit">Dia a <span class="serif">dia</span></h2></div>
+              <div class="p-legenda" id="p-legenda"></div>
+            </div>
+            <div class="p-meses" id="p-meses"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+    </div><!-- /aba-prog -->
+
+    <!-- ===================== PRODUÇÃO REALIZADA ===================== -->
+    <div id="aba-real" role="tabpanel" aria-labelledby="tab-real">
+      <div class="fat-barra-wrap">
+        <div class="container">
+          <div class="fat-barra glass r-barra" role="toolbar" aria-label="Filtros da produção realizada">
+            <div class="fat-barra-dir r-barra-esq">
+              <div class="fat-periodo-wrap">
+                <button type="button" class="fat-btn" id="r-periodo" aria-haspopup="dialog" aria-expanded="false" aria-controls="r-periodo-pop">
+                  <i data-lucide="calendar-days"></i><span id="r-periodo-rotulo">—</span><i data-lucide="chevron-down"></i>
+                </button>
+                <div class="fat-pop glass" id="r-periodo-pop" role="dialog" aria-label="Escolher ano e RF" hidden>
+                  <span class="fat-pop-titulo">Ano</span><div class="fat-anos" id="r-anos"></div>
+                  <span class="fat-pop-titulo">RF (período de apontamento)</span><div class="fat-rfs" id="r-rfs"></div>
+                  <button type="button" class="fat-pop-hoje" data-hoje><i data-lucide="calendar-check"></i> Voltar para o RF atual</button>
+                </div>
+              </div>
+              <div class="p-multi" data-multi="fazenda">
+                <button type="button" class="p-filtro p-multi-btn" aria-haspopup="true" aria-expanded="false"><i data-lucide="map"></i><span>Fazenda</span><b>Todas</b><i data-lucide="chevron-down"></i></button>
+                <div class="q-combo-pop glass p-multi-pop" hidden>
+                  <label class="q-combo-busca"><i data-lucide="search"></i><input type="search" placeholder="Buscar fazenda…" aria-label="Buscar fazenda"></label>
+                  <div class="p-multi-topo"><button type="button" data-todas>Todas</button><button type="button" data-limpar>Limpar</button></div>
+                  <div class="p-multi-lista"></div>
+                </div>
+              </div>
+              <div class="p-multi" data-multi="equipe">
+                <button type="button" class="p-filtro p-multi-btn" aria-haspopup="true" aria-expanded="false"><i data-lucide="users-round"></i><span>Equipe</span><b>Todas</b><i data-lucide="chevron-down"></i></button>
+                <div class="q-combo-pop glass p-multi-pop" hidden>
+                  <div class="p-multi-topo"><button type="button" data-todas>Todas</button><button type="button" data-limpar>Limpar</button></div>
+                  <div class="p-multi-lista"></div>
+                </div>
+              </div>
+            </div>
+            <div class="fat-barra-dir">
+              <button type="button" class="fat-btn" id="r-limpar"><i data-lucide="filter-x"></i><span>Limpar filtros</span></button>
+              <button type="button" class="fat-btn" id="r-csv" title="Exportar as tabelas em CSV"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+              <button type="button" class="fat-btn" id="r-xls" title="Exportar as tabelas para o Excel"><i data-lucide="sheet"></i><span>Excel</span></button>
+              <button type="button" class="fat-btn" id="r-pdf" title="Baixar o relatório em PDF"><i data-lucide="file-down"></i><span>PDF</span></button>
+              <button type="button" class="fat-btn fat-atualizar" id="r-atualizar" title="Recarregar a planilha"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container"><div class="fat-erros" id="r-erros" role="alert" hidden></div></div>
+
+      <div class="fat-conteudo carregando" id="real">
+        <!-- KPIs -->
+        <section class="container fat-secao" aria-label="Indicadores da produção realizada">
+          <div class="r-kpis">
+            <article class="kpi glass spot r-kpi-area"><span class="icon-box"><i data-lucide="land-plot"></i></span><span class="kpi-rot">Área total realizada</span><strong class="kpi-val" data-r="area">—</strong><small class="kpi-ajuda" id="r-periodo-txt"></small></article>
+            <article class="kpi glass spot"><span class="icon-box"><i data-lucide="list-checks"></i></span><span class="kpi-rot">Atividades</span><strong class="kpi-val" data-r="ativs">—</strong></article>
+            <article class="kpi glass spot"><span class="icon-box"><i data-lucide="map-pinned"></i></span><span class="kpi-rot">Fazendas atendidas</span><strong class="kpi-val" data-r="faz">—</strong></article>
+          </div>
+        </section>
+
+        <!-- Grupos: tabela + gráfico -->
+        <section class="container fat-secao" aria-labelledby="r-grupos-tit">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Tabela 1</span><h2 class="fat-sec-titulo" id="r-grupos-tit">Produção por <span class="serif">grupo</span></h2></div>
+            <p class="fat-sec-sub">Clique em um grupo para ver só as atividades dele na tabela abaixo (clique de novo para mostrar todas).</p>
+          </div>
+          <div class="fat-painel glass" id="r-tab-grupos"><div class="esqueleto tabela-esq"></div></div>
+          <div class="fat-analise" id="r-analise" hidden></div>
+        </section>
+
+        <!-- Atividades -->
+        <section class="container fat-secao" aria-labelledby="r-ativ-tit">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Tabela 2</span><h2 class="fat-sec-titulo" id="r-ativ-tit">Produção por <span class="serif">atividade</span></h2></div>
+            <div class="r-ativ-ferr">
+              <span class="chip-filtro mini ativo r-chip-grupo" id="r-chip-grupo" hidden></span>
+              <label class="p-busca"><i data-lucide="search"></i><input type="search" id="r-busca" placeholder="Buscar atividade" aria-label="Buscar atividade"></label>
+            </div>
+          </div>
+          <div class="fat-painel glass" id="r-tab-ativ"><div class="esqueleto tabela-esq"></div></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===================== PRODUÇÃO POR RF ===================== -->
+    <div id="aba-rf" role="tabpanel" aria-labelledby="tab-rf" hidden>
+      <div class="fat-barra-wrap">
+        <div class="container">
+          <div class="fat-barra glass r-barra" role="toolbar" aria-label="Filtros da produção por RF">
+            <div class="fat-barra-dir r-barra-esq">
+              <div class="fat-periodo-wrap">
+                <button type="button" class="fat-btn" id="f-periodo" aria-haspopup="dialog" aria-expanded="false" aria-controls="f-periodo-pop">
+                  <i data-lucide="calendar-days"></i><span id="f-periodo-rotulo">—</span><i data-lucide="chevron-down"></i>
+                </button>
+                <div class="fat-pop glass" id="f-periodo-pop" role="dialog" aria-label="Escolher ano e RF" hidden>
+                  <span class="fat-pop-titulo">Ano</span><div class="fat-anos" id="f-anos"></div>
+                  <span class="fat-pop-titulo">RF (período de apontamento)</span><div class="fat-rfs" id="f-rfs"></div>
+                  <button type="button" class="fat-pop-hoje" data-hoje><i data-lucide="calendar-check"></i> Voltar para o RF atual</button>
+                </div>
+              </div>
+              <div class="p-multi" data-fmulti="fazenda">
+                <button type="button" class="p-filtro p-multi-btn" aria-haspopup="true" aria-expanded="false"><i data-lucide="map"></i><span>Fazenda</span><b>Todas</b><i data-lucide="chevron-down"></i></button>
+                <div class="q-combo-pop glass p-multi-pop" hidden>
+                  <label class="q-combo-busca"><i data-lucide="search"></i><input type="search" placeholder="Buscar fazenda…" aria-label="Buscar fazenda"></label>
+                  <div class="p-multi-topo"><button type="button" data-limpar>Todas</button></div>
+                  <div class="p-multi-lista"></div>
+                </div>
+              </div>
+              <div class="p-multi" data-fmulti="atividade">
+                <button type="button" class="p-filtro p-multi-btn" aria-haspopup="true" aria-expanded="false"><i data-lucide="list-checks"></i><span>Atividade</span><b>Todas</b><i data-lucide="chevron-down"></i></button>
+                <div class="q-combo-pop glass p-multi-pop" hidden>
+                  <label class="q-combo-busca"><i data-lucide="search"></i><input type="search" placeholder="Buscar atividade…" aria-label="Buscar atividade"></label>
+                  <div class="p-multi-topo"><button type="button" data-limpar>Todas</button></div>
+                  <div class="p-multi-lista"></div>
+                </div>
+              </div>
+            </div>
+            <div class="fat-barra-dir">
+              <button type="button" class="fat-btn" id="f-limpar"><i data-lucide="filter-x"></i><span>Limpar filtros</span></button>
+              <button type="button" class="fat-btn fat-atualizar" id="f-atualizar" title="Recarregar as duas bases"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container"><div class="fat-erros" id="f-erros" role="alert" hidden></div></div>
+
+      <div class="fat-conteudo carregando" id="frf">
+        <!-- Conferência do RF atual -->
+        <section class="container fat-secao" aria-labelledby="f-b2-tit">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Conferência por RF</span><h2 class="fat-sec-titulo" id="f-b2-tit">RF × <span class="serif">minha produção</span></h2></div>
+            <p class="fat-sec-sub">Comparação por UP + atividade normalizada (sem acento, sem "(D)"). A fazenda aparece, mas não entra na chave. <b id="f-b2-periodo"></b></p>
+          </div>
+          <p class="p-aviso-exemplo f-aviso-rf" id="f-aviso-rf" hidden></p>
+          <div class="f-sits" id="f-sits" role="group" aria-label="Filtrar por situação"></div>
+          <div class="fat-painel glass">
+            <div class="f-ferr">
+              <label class="p-busca"><i data-lucide="search"></i><input type="search" id="f-busca" placeholder="Buscar UP, atividade ou fazenda" aria-label="Buscar na conferência"></label>
+              <div class="ars-acoes">
+                <button type="button" class="fat-btn" id="f-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+                <button type="button" class="fat-btn" id="f-xls"><i data-lucide="sheet"></i><span>Excel</span></button>
+              </div>
+            </div>
+            <div id="f-tab-comp"><div class="esqueleto tabela-esq"></div></div>
+          </div>
+          <div class="fat-analise" id="f-analise" hidden></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===================== PLANTIO ===================== -->
+    <div id="aba-plantio" role="tabpanel" aria-labelledby="tab-plantio" hidden>
+      <div class="fat-barra-wrap">
+        <div class="container">
+          <div class="fat-barra glass r-barra" role="toolbar" aria-label="Filtros do acompanhamento de plantio">
+            <div class="fat-barra-dir r-barra-esq">
+              <div class="fat-periodo-wrap">
+                <button type="button" class="fat-btn" id="pl-periodo" aria-haspopup="dialog" aria-expanded="false" aria-controls="pl-periodo-pop">
+                  <i data-lucide="calendar-days"></i><span id="pl-periodo-rotulo">—</span><i data-lucide="chevron-down"></i>
+                </button>
+                <div class="fat-pop glass" id="pl-periodo-pop" role="dialog" aria-label="Escolher ano e RF" hidden>
+                  <span class="fat-pop-titulo">Ano</span><div class="fat-anos" id="pl-anos"></div>
+                  <span class="fat-pop-titulo">RF (período de apontamento)</span><div class="fat-rfs" id="pl-rfs"></div>
+                  <button type="button" class="fat-pop-hoje" data-todos><i data-lucide="layers"></i> Todos os RFs do ano</button>
+                  <button type="button" class="fat-pop-hoje" data-hoje><i data-lucide="calendar-check"></i> Voltar para o RF atual</button>
+                </div>
+              </div>
+              <div class="p-multi" data-plmulti="fazenda"><button type="button" class="p-filtro p-multi-btn" aria-haspopup="true" aria-expanded="false"><i data-lucide="map"></i><span>Fazenda</span><b>Todas</b><i data-lucide="chevron-down"></i></button>
+                <div class="q-combo-pop glass p-multi-pop" hidden><label class="q-combo-busca"><i data-lucide="search"></i><input type="search" placeholder="Buscar fazenda…" aria-label="Buscar fazenda"></label><div class="p-multi-topo"><button type="button" data-limpar>Todas</button></div><div class="p-multi-lista"></div></div></div>
+              <div class="pl-status-f" id="pl-f-status" role="group" aria-label="Status"></div>
+            </div>
+            <div class="fat-barra-dir">
+              <button type="button" class="fat-btn" id="pl-limpar"><i data-lucide="filter-x"></i><span>Limpar filtros</span></button>
+              <button type="button" class="fat-btn fat-atualizar" id="pl-atualizar" title="Recarregar as planilhas de plantio"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container"><div class="fat-erros" id="pl-erros" role="alert" hidden></div></div>
+
+      <div class="fat-conteudo carregando" id="plantio">
+        <!-- Parte A -->
+        <section class="container fat-secao" aria-labelledby="pl-a-tit">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Acompanhamento</span><h2 class="fat-sec-titulo" id="pl-a-tit">Plantio <span class="serif">por UP</span></h2></div>
+            <p class="fat-sec-sub" id="pl-a-sub"></p>
+          </div>
+          <p class="p-aviso-exemplo" id="pl-aviso" hidden></p>
+          <div class="pl-kpis">
+            <article class="kpi glass spot"><span class="icon-box"><i data-lucide="map-pin"></i></span><span class="kpi-rot">Há a fazer</span><strong class="kpi-val" data-pl="total">—</strong></article>
+            <article class="kpi glass spot pl-kpi-real"><span class="icon-box"><i data-lucide="sprout"></i></span><span class="kpi-rot">Há realizada</span><strong class="kpi-val" data-pl="real">—</strong></article>
+            <article class="kpi glass spot pl-kpi-dif"><span class="icon-box"><i data-lucide="diff"></i></span><span class="kpi-rot">Diferença</span><strong class="kpi-val" data-pl="dif">—</strong></article>
+            <article class="kpi glass spot pl-kpi-pct"><span class="icon-box"><i data-lucide="gauge"></i></span><span class="kpi-rot">% realizado</span><strong class="kpi-val" data-pl="pct">—</strong><span class="pl-barra"><i id="pl-barra-pct"></i></span></article>
+            <article class="kpi glass spot pl-kpi-status"><span class="kpi-rot">UPs por status</span><div class="pl-cont" id="pl-cont"></div></article>
+          </div>
+          <div class="fat-painel glass pl-graf-painel">
+            <h3 class="q-painel-tit"><i data-lucide="bar-chart-3"></i> Há a fazer × Há realizada, UP por UP <small class="q-tit-sub">agrupado por fazenda · arraste para o lado quando houver muitas UPs</small></h3>
+            <div class="pl-graf-rolagem" id="pl-graf-rolagem"><div class="pl-graf-largo" id="pl-graf-largo"><canvas id="pl-graf" role="img" aria-label="Área a fazer e realizada por UP"></canvas></div></div>
+          </div>
+          <div class="fat-painel glass">
+            <div class="f-ferr">
+              <label class="p-busca"><i data-lucide="search"></i><input type="search" id="pl-busca" placeholder="Buscar UP, fazenda, encarregado…" aria-label="Buscar no plantio"></label>
+              <div class="ars-acoes">
+                <button type="button" class="fat-btn" id="pl-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+                <button type="button" class="fat-btn" id="pl-xls"><i data-lucide="sheet"></i><span>Excel</span></button>
+              </div>
+            </div>
+            <div id="pl-tabela"><div class="esqueleto tabela-esq"></div></div>
+          </div>
+        </section>
+
+        <!-- Parte B -->
+        <section class="container fat-secao" aria-labelledby="pl-b-tit">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Plantio acumulado</span><h2 class="fat-sec-titulo" id="pl-b-tit">Plantio <span class="serif">× meta</span></h2></div>
+            <div class="pl-anos-b" id="pl-anos-b" role="group" aria-label="Ano do plantio acumulado"></div>
+          </div>
+          <div class="pl-b-kpis" id="pl-b-kpis"></div>
+          <div class="fat-painel glass">
+            <h3 class="q-painel-tit"><i data-lucide="chart-line"></i> Meta de plantio × total plantado por RF</h3>
+            <div class="fat-grafico pl-graf-b"><canvas id="pl-graf-b" role="img" aria-label="Plantio por RF com meta e acumulado"></canvas></div>
+          </div>
+          <p class="x-dica pl-dica"><i data-lucide="mouse-pointer-click"></i>Toque em um card para ver as UPs plantadas naquele RF.</p>
+          <div class="pl-cards" id="pl-cards"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Detalhe do RF (Parte C) -->
+    <div class="fat-previa p-modal" id="pl-modal" role="dialog" aria-modal="true" aria-labelledby="pl-modal-tit" hidden>
+      <div class="fat-previa-caixa p-modal-caixa pl-modal-caixa">
+        <header><h2 id="pl-modal-tit"><i data-lucide="trees"></i><span>Detalhe do plantio</span></h2>
+          <button type="button" class="fat-btn" data-fechar aria-label="Fechar"><i data-lucide="x"></i></button></header>
+        <div class="pl-det-resumo" id="pl-det-resumo"></div>
+        <div class="f-ferr">
+          <label class="p-busca"><i data-lucide="search"></i><input type="search" id="pl-det-busca" placeholder="Buscar fazenda, UP ou tipo" aria-label="Buscar no detalhe"></label>
+          <div class="ars-acoes">
+            <button type="button" class="fat-btn" id="pl-det-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+            <button type="button" class="fat-btn" id="pl-det-xls"><i data-lucide="sheet"></i><span>Excel</span></button>
+          </div>
+        </div>
+        <div class="pl-det-tab" id="pl-det-tab"></div>
+      </div>
+    </div>
+
+    <!-- Salvar programação -->
+    <div class="fat-previa p-modal" id="p-modal-salvar" role="dialog" aria-modal="true" aria-labelledby="p-salvar-tit" hidden>
+      <div class="fat-previa-caixa p-modal-caixa">
+        <header><h2 id="p-salvar-tit"><i data-lucide="save"></i>Salvar programação</h2>
+          <button type="button" class="fat-btn" data-fechar aria-label="Cancelar"><i data-lucide="x"></i></button></header>
+        <label class="p-eq-campo p-salvar-nome"><span>Nome da programação</span><input type="text" id="p-salvar-nome" maxlength="120" placeholder="Ex.: Juliano · Adubação · Novembro"></label>
+        <label class="p-eq-campo"><span>Observação (opcional)</span><textarea id="p-salvar-obs" rows="2" maxlength="500" placeholder="Ex.: considerar chuva na 2ª semana"></textarea></label>
+        <p class="p-salvar-info" id="p-salvar-info"></p>
+        <footer>
+          <button type="button" class="fat-btn" id="p-salvar-nova" hidden><i data-lucide="copy-plus"></i>Salvar como nova</button>
+          <button type="button" class="fat-btn fat-atualizar" id="p-salvar-ok"><i data-lucide="save"></i><span>Salvar</span></button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Pergunta obrigatória: sábado e domingo -->
+    <div class="fat-previa p-modal" id="p-modal" role="dialog" aria-modal="true" aria-labelledby="p-modal-tit" hidden>
+      <div class="fat-previa-caixa p-modal-caixa">
+        <header><h2 id="p-modal-tit"><i data-lucide="calendar-clock"></i>Antes de gerar: fins de semana do período</h2>
+          <button type="button" class="fat-btn" id="p-modal-fechar" aria-label="Cancelar"><i data-lucide="x"></i></button></header>
+        <p class="p-fds-intro">Com os dias necessários para as atividades, estes são os sábados e domingos que caem na programação. Vai trabalhar em cada um?</p>
+        <p class="p-fds-resumo" id="p-fds-resumo"></p>
+        <div class="p-fds-rapido" id="p-fds-rapido">
+          <span>Responder todos:</span>
+          <button type="button" class="chip-filtro mini" data-rapido="sab:sim">Sábados: Sim</button>
+          <button type="button" class="chip-filtro mini" data-rapido="sab:nao">Sábados: Não</button>
+          <button type="button" class="chip-filtro mini" data-rapido="dom:sim">Domingos: Sim</button>
+          <button type="button" class="chip-filtro mini" data-rapido="dom:nao">Domingos: Não</button>
+        </div>
+        <div class="p-fds-lista" id="p-fds-lista"></div>
+        <div class="p-feriados">
+          <span><i data-lucide="calendar-off"></i>Feriados ou dias parados <small>(opcional, também são pulados)</small></span>
+          <div class="p-feriados-add"><input type="date" id="p-feriado-data" aria-label="Data do feriado"><button type="button" class="fat-btn" id="p-feriado-add"><i data-lucide="plus"></i>Adicionar</button></div>
+          <div class="p-feriados-lista" id="p-feriados-lista"></div>
+        </div>
+        <p class="p-modal-erro" id="p-modal-erro" hidden></p>
+        <footer><button type="button" class="fat-btn fat-atualizar" id="p-modal-ok"><i data-lucide="calendar-check"></i><span>Gerar programação</span></button></footer>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+</body>
+</html>

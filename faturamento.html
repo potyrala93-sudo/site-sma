@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Faturamento · SMA Silvicultura · Unidade São Miguel</title>
+  <meta name="description" content="Painel de faturamento da operação de silvicultura da Unidade São Miguel: metas, produção, aderência por equipe e por supervisor.">
+  <meta name="theme-color" content="#040d0c">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/faturamento.css">
+  <link rel="stylesheet" href="css/folhito.css">
+  <script src="js/dados.js" defer></script>
+  <script src="js/planilhas.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="js/faturamento.js" defer></script>
+  <script src="js/folhito-consultas.js" defer></script>
+  <script src="js/folhito.js" defer></script>
+</head>
+<body data-page="faturamento" class="pagina-fat">
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="fat-fundo" aria-hidden="true"><div class="fat-grade"></div><div class="particles" id="particles"></div></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="conteudo">
+
+    <!-- ===== Cabeçalho da página ===== -->
+    <section class="fat-hero" aria-labelledby="fat-titulo">
+      <div class="container fat-hero-inner">
+        <div>
+          <span class="pill reveal"><span class="tag">Painel</span><span>Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
+          <h1 class="fat-titulo reveal" id="fat-titulo" style="--d:.08s">Painel de <span class="serif">Faturamento</span></h1>
+          <p class="fat-sub reveal" style="--d:.16s">Metas, produção e aderência de cada equipe, atualizados direto da planilha.</p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="fat-status">Carregando dados…</span></p>
+        </div>
+
+        <div class="fat-destaque reveal" id="fat-destaque" hidden style="--d:.2s">
+          <div class="fat-destaque-foto"><img id="fat-destaque-foto" data-foto-pessoa="" alt=""></div>
+          <div class="fat-destaque-txt">
+            <span class="eyebrow">Responsável</span>
+            <strong id="fat-destaque-nome"></strong>
+            <small id="fat-destaque-cargo"></small>
+            <span class="fat-destaque-ader">Aderência <b id="fat-destaque-ader">—</b></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Filtros globais ===== -->
+    <div class="fat-barra-wrap">
+      <div class="container">
+        <div class="fat-barra glass" role="toolbar" aria-label="Filtros do painel">
+          <div class="fat-pessoas" id="fat-pessoas" role="group" aria-label="Responsável"></div>
+          <div class="fat-barra-dir">
+            <div class="fat-periodo-wrap">
+              <button type="button" class="fat-btn" id="fat-periodo" aria-haspopup="dialog" aria-expanded="false" aria-controls="fat-periodo-pop">
+                <i data-lucide="calendar-days"></i><span id="fat-periodo-rotulo">—</span><i data-lucide="chevron-down"></i>
+              </button>
+              <div class="fat-pop glass" id="fat-periodo-pop" role="dialog" aria-label="Escolher ano e RF" hidden>
+                <span class="fat-pop-titulo">Ano</span>
+                <div class="fat-anos" id="fat-anos"></div>
+                <span class="fat-pop-titulo">RF (mês)</span>
+                <div class="fat-rfs" id="fat-rfs"></div>
+                <button type="button" class="fat-pop-hoje" data-hoje><i data-lucide="calendar-check"></i> Voltar para o mês atual</button>
+              </div>
+            </div>
+            <div class="fat-or" id="fat-or" role="group" aria-label="Outras receitas">
+              <span class="fat-or-indicador" aria-hidden="true"></span>
+              <button type="button" data-or="com" aria-pressed="true">Com Outras Receitas</button>
+              <button type="button" data-or="sem" aria-pressed="false">Sem Outras Receitas</button>
+            </div>
+            <div class="fat-or fat-neg" id="fat-neg" role="group" aria-label="Valores a serem negociados no total e na aderência">
+              <span class="fat-or-indicador" aria-hidden="true"></span>
+              <button type="button" data-neg="sim" aria-pressed="true" title="Soma os valores a serem negociados no TOTAL e na ADERÊNCIA">Somar a negociar</button>
+              <button type="button" data-neg="nao" aria-pressed="false" title="Mostra só o que já foi produzido e negociado">Sem a negociar</button>
+            </div>
+            <div class="fat-rel" role="group" aria-label="Relatório técnico">
+              <button type="button" class="fat-btn" id="fat-rel-pdf" title="Relatório técnico resumido: abre a impressão, escolha Salvar como PDF"><i data-lucide="file-text"></i><span>Relatório gerencial (PDF)</span></button>
+              <button type="button" class="fat-btn" id="fat-rel-img" title="Baixar o relatório como imagem (PNG)"><i data-lucide="image-down"></i><span>Resumo (imagem)</span></button>
+            </div>
+            <button type="button" class="fat-btn fat-atualizar" id="fat-atualizar" title="Atualizar dados (atualiza sozinho a cada 5 minutos)"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container"><div class="fat-erros" id="fat-erros" role="alert" hidden></div></div>
+
+    <div class="fat-area">
+      <!-- Aviso enquanto ninguém foi selecionado -->
+      <div class="fat-aviso glass" id="fat-aviso">
+        <span class="fat-aviso-icone"><i data-lucide="user-round-search"></i></span>
+        <h2>Selecione um responsável para visualizar</h2>
+        <p>Escolha Anderson para a visão geral de todas as equipes, ou um supervisor para ver somente as equipes dele.</p>
+        <div class="fat-aviso-pessoas" id="fat-aviso-pessoas"></div>
+      </div>
+
+      <div class="fat-conteudo carregando bloqueado" id="fat">
+
+        <!-- ===== KPIs ===== -->
+        <section class="container fat-secao" aria-label="Indicadores principais">
+          <div class="fat-kpis" id="fat-kpis">
+            <article class="kpi kpi-mm glass spot"><span class="icon-box"><i data-lucide="target"></i></span><span class="kpi-rot">Meta mensal</span><strong class="kpi-val" data-kpi="metaMensal">—</strong></article>
+            <article class="kpi kpi-md glass spot"><span class="icon-box"><i data-lucide="calendar-clock"></i></span><span class="kpi-rot">Meta diária</span><strong class="kpi-val" data-kpi="metaDiaria">—</strong></article>
+            <article class="kpi kpi-du glass spot"><span class="icon-box"><i data-lucide="calendar-range"></i></span><span class="kpi-rot">D.U / D.P</span><strong class="kpi-val"><span data-kpi="du">—</span> <em>/</em> <span data-kpi="dp">—</span></strong><small class="kpi-ajuda">dias úteis / dias produzidos</small></article>
+
+            <article class="kpi kpi-total glass spot">
+              <div class="kpi-topo"><span class="icon-box"><i data-lucide="wallet"></i></span><span class="kpi-rot" id="fat-total-rot">Total</span></div>
+              <strong class="kpi-val grande" data-kpi="total">—</strong>
+              <div class="kpi-barra" id="fat-total-barra" aria-hidden="true"></div>
+              <dl class="kpi-detalhe">
+                <div><dt><i class="ponto p1"></i>Produzido</dt><dd data-kpi="produzido">—</dd></div>
+                <div><dt><i class="ponto p2"></i>Negociação</dt><dd data-kpi="negociacao">—</dd></div>
+                <div class="kpi-neg"><dt><i class="ponto p3"></i>Valores a serem negociados <span class="neg-status" id="fat-neg-status">somado ao total</span></dt><dd data-kpi="aNegociar">—</dd></div>
+              </dl>
+            </article>
+
+            <article class="kpi kpi-acum glass spot"><span class="icon-box"><i data-lucide="flag"></i></span><span class="kpi-rot">Meta acumulada</span><strong class="kpi-val" data-kpi="metaAcum">—</strong></article>
+            <article class="kpi kpi-dif glass spot" data-card="dif"><span class="icon-box" data-kpi="difIcone"><i data-lucide="trending-up"></i></span><span class="kpi-rot">DIF</span><strong class="kpi-val" data-kpi="dif">—</strong><small class="kpi-ajuda">total − meta acumulada</small></article>
+
+            <article class="kpi kpi-ader glass spot">
+              <span class="kpi-rot" id="fat-ader-rot">Aderência</span>
+              <div class="anel" id="fat-anel" role="img" aria-label="Aderência">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="anel-fundo" cx="60" cy="60" r="52"/>
+                  <circle class="anel-valor" cx="60" cy="60" r="52" pathLength="100"/>
+                </svg>
+                <strong class="anel-txt" data-kpi="aderencia">—</strong>
+              </div>
+              <small class="kpi-ajuda" id="fat-anel-extra" hidden></small>
+              <small class="kpi-ajuda">total ÷ meta acumulada</small>
+            </article>
+          </div>
+          <div class="fat-analise" id="fat-analise-kpi" hidden></div>
+        </section>
+
+        <!-- ===== Tabela por equipe ===== -->
+        <section class="container fat-secao" aria-labelledby="fat-sec-tabela">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Equipes</span><h2 class="fat-sec-titulo" id="fat-sec-tabela">Desempenho por <span class="serif">equipe</span></h2></div>
+            <p class="fat-sec-sub">Clique no cabeçalho de uma coluna para ordenar. A cor de cada equipe indica o supervisor.</p>
+          </div>
+          <div class="glass fat-painel" id="fat-tabela"><div class="esqueleto tabela-esq"></div></div>
+        </section>
+
+        <!-- ===== Gráfico equipe x aderência ===== -->
+        <section class="container fat-secao" aria-labelledby="fat-sec-ader">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Comparativo</span><h2 class="fat-sec-titulo" id="fat-sec-ader">Equipe × <span class="serif">aderência</span></h2></div>
+            <p class="fat-sec-sub">A parte de cima de cada barra mostra o peso dos valores a serem negociados.</p>
+          </div>
+          <div class="glass fat-painel fat-grafico alto"><canvas id="fat-grafico-ader" role="img" aria-label="Gráfico de barras da aderência por equipe"></canvas></div>
+          <div class="fat-analise" id="fat-analise-ader" hidden></div>
+        </section>
+
+        <!-- ===== Ranking de supervisores ===== -->
+        <section class="container fat-secao" aria-labelledby="fat-sec-ranking">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Ranking</span><h2 class="fat-sec-titulo" id="fat-sec-ranking">Top 3 <span class="serif">supervisores</span></h2></div>
+            <p class="fat-sec-sub" id="fat-sec-ranking-sub"></p>
+          </div>
+          <div class="fat-podio" id="fat-podio"></div>
+          <div class="fat-analise" id="fat-analise-ranking" hidden></div>
+          <div class="fat-supervisores" id="fat-supervisores"></div>
+        </section>
+
+        <!-- ===== Filtro operacional (diário + frota) ===== -->
+        <section class="container fat-secao" aria-labelledby="fat-sec-diario">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Dia a dia</span><h2 class="fat-sec-titulo" id="fat-sec-diario">Faturamento <span class="serif">diário</span></h2></div>
+            <p class="fat-sec-sub">Dias com total R$ 0 ficam ocultos. O filtro abaixo vale também para a produção por frota.</p>
+          </div>
+          <div class="fat-op glass" id="fat-op">
+            <div class="fat-op-linha" id="fat-op-sups" role="group" aria-label="Supervisor"></div>
+            <div class="fat-op-linha" id="fat-op-equipes" role="group" aria-label="Equipe" hidden></div>
+          </div>
+          <div class="fat-resumo" id="fat-diario-resumo"></div>
+          <div class="glass fat-painel fat-grafico">
+            <canvas id="fat-grafico-diario" role="img" aria-label="Gráfico de linha do faturamento por dia"></canvas>
+            <p class="fat-vazio-graf" id="fat-diario-vazio" hidden><i data-lucide="calendar-x"></i> Nenhum faturamento lançado neste período.</p>
+          </div>
+          <div class="fat-analise" id="fat-analise-diario" hidden></div>
+        </section>
+
+        <!-- ===== Produção por frota ===== -->
+        <section class="container fat-secao" id="fat-frota" aria-labelledby="fat-sec-frota" hidden>
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Máquinas</span><h2 class="fat-sec-titulo" id="fat-sec-frota">Produção por <span class="serif">frota</span></h2></div>
+            <p class="fat-sec-sub">Escolha as frotas no seletor. As de maior variação de produção ficam destacadas.</p>
+          </div>
+          <div class="fat-frota-chips glass" id="fat-frota-chips" role="group" aria-label="Frotas exibidas"></div>
+          <div class="fat-frota-grid">
+            <div class="glass fat-painel fat-grafico alto"><canvas id="fat-grafico-frota" role="img" aria-label="Gráfico de linha da produção por frota"></canvas></div>
+            <aside class="glass fat-painel fat-alertas" aria-labelledby="fat-alertas-titulo">
+              <h3 id="fat-alertas-titulo"><i data-lucide="triangle-alert"></i> Alertas da frota</h3>
+              <ul id="fat-frota-alertas"></ul>
+            </aside>
+          </div>
+          <div class="fat-analise" id="fat-analise-frota" hidden></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <!-- Relatório técnico (aparece só na impressão/PDF ou ao gerar a imagem) -->
+  <article class="fat-relatorio" id="fat-relatorio" aria-hidden="true"></article>
+  <div class="fat-resumo-img" id="fat-resumo-img" aria-hidden="true"></div>
+
+  <!-- Prévia do resumo em imagem -->
+  <div class="fat-previa" id="fat-previa" role="dialog" aria-modal="true" aria-labelledby="fat-previa-titulo" hidden>
+    <div class="fat-previa-caixa glass">
+      <header>
+        <h2 id="fat-previa-titulo"><i data-lucide="image"></i> Resumo pronto</h2>
+        <button type="button" class="fat-btn" data-fechar-previa aria-label="Fechar"><i data-lucide="x"></i></button>
+      </header>
+      <p class="fat-previa-aviso" id="fat-previa-aviso" hidden></p>
+      <div class="fat-previa-img"><img id="fat-previa-img" alt="Resumo do faturamento em imagem"></div>
+      <footer>
+        <button type="button" class="fat-btn fat-atualizar" id="fat-previa-baixar"><i data-lucide="download"></i><span>Baixar PNG</span></button>
+        <button type="button" class="fat-btn" id="fat-previa-copiar"><i data-lucide="copy"></i><span>Copiar imagem</span></button>
+        <button type="button" class="fat-btn" data-fechar-previa><span>Fechar</span></button>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Qualidade · SMA Silvicultura · Unidade São Miguel</title>
+  <meta name="description" content="Painel de qualidade da silvicultura da Unidade São Miguel: avaliações de 120 dias, uniformidade das parcelas, comparação entre avaliadores e nota projetada do mês.">
+  <meta name="theme-color" content="#040d0c">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/faturamento.css">
+  <link rel="stylesheet" href="css/qualidade.css">
+  <link rel="stylesheet" href="css/ars.css">
+  <link rel="stylesheet" href="css/folhito.css">
+  <script src="js/dados.js" defer></script>
+  <script src="js/planilhas.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="js/qualidade.js" defer></script>
+  <script src="js/ars.js" defer></script>
+  <script src="js/folhito-consultas.js" defer></script>
+  <script src="js/folhito.js" defer></script>
+</head>
+<body data-page="qualidade" class="pagina-fat pagina-qual">
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="fat-fundo" aria-hidden="true"><div class="fat-grade"></div><div class="particles" id="particles"></div></div>
+  <header class="site-header" id="site-header"></header>
+
+  <main id="conteudo">
+
+    <!-- ===== Cabeçalho da página ===== -->
+    <section class="fat-hero" aria-labelledby="q-titulo">
+      <div class="container fat-hero-inner">
+        <div>
+          <span class="pill reveal"><span class="tag">Painel</span><span>Qualidade · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
+          <h1 class="fat-titulo reveal" id="q-titulo" style="--d:.08s">Painel de <span class="serif">Qualidade</span></h1>
+          <p class="fat-sub reveal" id="q-sub" style="--d:.16s">Notas das avaliações de campo, uniformidade das mudas em cada parcela e a nota projetada do mês, direto da planilha.</p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="q-status">Carregando dados…</span></p>
+        </div>
+        <div class="q-hero-legenda glass reveal" style="--d:.2s" aria-label="Faixas de nota">
+          <span class="eyebrow">Faixas da nota (0 a 10)</span>
+          <div class="q-faixas">
+            <span style="--c:#ff3b4e"><b>até 6,9</b>Crítica</span>
+            <span style="--c:#ffc83d"><b>7,0 – 8,4</b>Atenção</span>
+            <span style="--c:#22e07a"><b>8,5 – 10</b>Boa</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Abas da Qualidade ===== -->
+    <div class="container">
+      <div class="q-abas glass" role="tablist" aria-label="Seções da qualidade">
+        <span class="q-abas-ind" aria-hidden="true"></span>
+        <button type="button" role="tab" id="tab-120" aria-controls="aba-120" aria-selected="true" data-aba="120"><i data-lucide="clipboard-check"></i><span>Avaliação de 120 dias</span></button>
+        <button type="button" role="tab" id="tab-ars" aria-controls="aba-ars" aria-selected="false" data-aba="ars"><i data-lucide="calendar-range"></i><span>Simulador de Janelas ARS</span></button>
+      </div>
+    </div>
+
+    <div id="aba-120" role="tabpanel" aria-labelledby="tab-120">
+    <!-- ===== Filtros do Bloco A ===== -->
+    <div class="fat-barra-wrap">
+      <div class="container">
+        <div class="fat-barra glass q-barra" role="toolbar" aria-label="Filtros das avaliações">
+          <div class="q-barra-esq">
+            <div id="q-f-fazenda"></div>
+            <div id="q-f-up"></div>
+            <div class="q-mons" id="q-mons" role="group" aria-label="Monitoramento"></div>
+          </div>
+          <div class="fat-barra-dir">
+            <button type="button" class="fat-btn" id="q-limpar"><i data-lucide="filter-x"></i><span>Limpar filtros</span></button>
+            <button type="button" class="fat-btn fat-atualizar" id="q-atualizar" title="Atualizar dados da planilha"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container"><div class="fat-erros" id="q-erros" role="alert" hidden></div></div>
+
+    <div class="fat-conteudo carregando" id="qual">
+
+      <!-- ===== Avaliações (nota de cada avaliador lado a lado) ===== -->
+      <section class="container fat-secao" aria-labelledby="q-sec-aval">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Bloco A · Monitoramentos</span><h2 class="fat-sec-titulo" id="q-sec-aval">Avaliações <span class="serif">de campo</span></h2></div>
+          <p class="fat-sec-sub">Cada linha é uma UP em um monitoramento, com a nota de cada avaliador lado a lado. Clique em uma nota para ver as parcelas dela no mapa. <b id="q-tab-total"></b></p>
+        </div>
+        <div class="fat-painel glass q-tabela-wrap" id="q-tabela"><div class="esqueleto tabela-esq"></div></div>
+        <div class="fat-analise" id="q-analise-notas" hidden></div>
+      </section>
+
+      <!-- ===== Parcelas: mapa + alturas ===== -->
+      <section class="container fat-secao" id="q-sec-parcelas" aria-labelledby="q-parc-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Uniformidade</span><h2 class="fat-sec-titulo" id="q-parc-tit">Parcelas <span class="serif">no mapa</span></h2></div>
+          <p class="fat-sec-sub">Cada ponto é uma parcela. A cor mostra o CV das alturas: quanto mais verde, mais uniforme. As que pulsam têm a maior variação.</p>
+        </div>
+        <div class="fat-painel glass q-mapa-painel">
+          <div class="q-mapa-foco" id="q-mapa-foco" hidden></div>
+          <div class="q-mapa" id="q-mapa" tabindex="0" aria-label="Mapa das parcelas"></div>
+          <p class="q-mapa-aviso" id="q-mapa-aviso" hidden></p>
+          <div class="q-mapa-legenda">
+            <span><i style="--c:#22e07a"></i>Uniforme · CV até 20%</span>
+            <span><i style="--c:#ffd23f"></i>Intermediária · 20 a 30%</span>
+            <span><i style="--c:#ff4d5e"></i>Maior variação · acima de 30%</span>
+            <span class="q-leg-pulso"><i class="pulso"></i><em id="q-mapa-legenda-dest">Maior variação</em></span>
+          </div>
+        </div>
+
+        <div class="fat-op glass q-foco-barra">
+          <label class="q-foco-sel"><i data-lucide="crosshair"></i><span>Avaliação em foco</span><select id="q-foco" aria-label="Avaliação em foco"></select></label>
+          <p class="q-foco-info" id="q-foco-info"></p>
+        </div>
+        <div class="q-parc-coluna">
+          <div class="fat-painel glass q-tabela-wrap" id="q-parcelas"></div>
+          <div class="fat-painel glass">
+            <h3 class="q-painel-tit"><i data-lucide="chart-column-stacked"></i> Distribuição das alturas por parcela <small class="q-tit-sub">mudas por faixa, em relação à altura média da avaliação</small></h3>
+            <div class="fat-grafico alto"><canvas id="q-graf-parc" role="img" aria-label="Distribuição de alturas e desvio padrão por parcela"></canvas></div>
+          </div>
+        </div>
+        <div class="fat-analise" id="q-analise-parc" hidden></div>
+      </section>
+
+      <!-- ===== Bloco B: projeção do mês ===== -->
+      <section class="container fat-secao q-bloco-b" aria-labelledby="q-proj-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Bloco B · Mês avaliatório</span><h2 class="fat-sec-titulo" id="q-proj-tit">Nota do mês <span class="serif">projetada</span></h2></div>
+          <p class="fat-sec-sub">UPs que completam 120 dias no mês. Sem avaliação, a nota é projetada pela média; você pode editar qualquer nota e ela fica salva neste navegador.</p>
+        </div>
+
+        <div class="fat-op glass q-p-filtros">
+          <div class="fat-op-linha"><span class="q-p-rot"><i data-lucide="calendar"></i> Ano</span><div class="fat-op-linha" id="q-p-anos"></div></div>
+          <div class="fat-op-linha"><span class="q-p-rot"><i data-lucide="calendar-range"></i> Mês</span><div class="fat-op-linha" id="q-p-meses"></div></div>
+        </div>
+
+        <div class="q-p-topo">
+          <article class="kpi glass q-p-card" id="q-p-card">
+            <span class="kpi-rot">Nota final do mês · <span id="q-p-titulo-mes">—</span></span>
+            <strong class="q-p-nota" id="q-p-nota">—</strong>
+            <small class="kpi-ajuda" id="q-p-formula">Σ(nota × área) ÷ Σ(área)</small>
+          </article>
+          <article class="kpi glass"><span class="icon-box"><i data-lucide="land-plot"></i></span><span class="kpi-rot">Área total</span><strong class="kpi-val" id="q-p-area">—</strong></article>
+          <article class="kpi glass"><span class="icon-box"><i data-lucide="layers"></i></span><span class="kpi-rot">Origem das notas</span><div class="q-p-cont" id="q-p-cont"></div></article>
+          <article class="kpi glass"><span class="icon-box"><i data-lucide="badge-check"></i></span><span class="kpi-rot">Só as avaliadas</span><div class="q-p-av" id="q-p-av">—</div></article>
+        </div>
+
+        <div class="fat-painel glass q-tabela-wrap">
+          <div class="q-p-acoes">
+            <button type="button" class="fat-btn" id="q-p-restaurar"><i data-lucide="rotate-ccw"></i><span>Restaurar todas as projeções</span></button>
+            <button type="button" class="fat-btn" id="q-p-exportar"><i data-lucide="file-spreadsheet"></i><span>Exportar CSV</span></button>
+            <button type="button" class="fat-btn" id="q-p-excel"><i data-lucide="sheet"></i><span>Exportar Excel</span></button>
+          </div>
+          <div id="q-p-tabela"></div>
+        </div>
+        <div class="fat-analise" id="q-analise-proj" hidden></div>
+      </section>
+
+    </div>
+    </div>
+
+    <!-- ===== Simulador de Janelas ARS ===== -->
+    <div id="aba-ars" role="tabpanel" aria-labelledby="tab-ars" hidden>
+      <div class="ars" id="ars">
+
+        <!-- Entradas -->
+        <section class="container fat-secao ars-topo">
+          <div class="ars-entradas glass">
+            <div class="ars-plantio">
+              <span class="ars-plantio-ico"><i data-lucide="sprout"></i></span>
+              <label for="ars-plantio"><span class="eyebrow">Dia 0 · data de plantio</span>
+                <input type="date" id="ars-plantio" required></label>
+              <p class="ars-plantio-rel" id="ars-plantio-rel"></p>
+            </div>
+
+            <div class="ars-campos">
+              <label class="ars-campo"><span><i data-lucide="axe"></i>Data do corte</span><input type="date" id="ars-corte"><small>Só para a Formiga Pré-corte</small></label>
+              <label class="ars-campo"><span><i data-lucide="calendar-check"></i>Data de referência</span><input type="date" id="ars-ref"><small>Status calculado nesta data (padrão: hoje)</small></label>
+              <label class="ars-campo"><span><i data-lucide="leaf"></i>Dessecação realizada em</span><input type="date" id="ars-dessec"><small>Opcional · usada na regra dos 45 dias do TUIT</small></label>
+
+              <div class="ars-campo"><span><i data-lucide="package"></i>Fertilização de base</span>
+                <div class="fat-or ars-or" data-campo="tuit" role="group" aria-label="Fertilização de base">
+                  <span class="fat-or-indicador" aria-hidden="true"></span>
+                  <button type="button" data-valor="com">Com TUIT antes</button><button type="button" data-valor="sem">Sem TUIT antes</button>
+                </div></div>
+              <div class="ars-campo"><span><i data-lucide="sprout"></i>Pré/Pós-emergente (1ª monta)</span>
+                <div class="fat-or ars-or" data-campo="pos" role="group" aria-label="Pré/Pós-emergente">
+                  <span class="fat-or-indicador" aria-hidden="true"></span>
+                  <button type="button" data-valor="com">Com pós-emergente</button><button type="button" data-valor="sem">Sem pós-emergente</button>
+                </div></div>
+              <div class="ars-campo"><span><i data-lucide="bug"></i>Combate à formiga (pré-plantio)</span>
+                <div class="fat-or ars-or" data-campo="formiga" role="group" aria-label="Combate à formiga">
+                  <span class="fat-or-indicador" aria-hidden="true"></span>
+                  <button type="button" data-valor="liquido">Líquido (monta)</button><button type="button" data-valor="isca">Isca I (1º repasse)</button>
+                </div></div>
+              <div class="ars-campo"><span><i data-lucide="mountain"></i>Área declivosa?</span>
+                <div class="fat-or ars-or" data-campo="declivosa" role="group" aria-label="Área declivosa">
+                  <span class="fat-or-indicador" aria-hidden="true"></span>
+                  <button type="button" data-valor="sim">Sim</button><button type="button" data-valor="nao">Não</button>
+                </div></div>
+            </div>
+          </div>
+
+          <figure class="ars-mini glass">
+            <button type="button" id="ars-img-abrir" title="Ampliar as métricas do ARS"><img src="assets/img/ars-metricas.png" alt="Métricas do ARS: janelas de pré-plantio, plantio e pós-plantio" loading="lazy"><span><i data-lucide="maximize-2"></i></span></button>
+            <figcaption>Métricas do ARS<small>toque para ampliar</small></figcaption>
+          </figure>
+        </section>
+
+        <!-- Alertas -->
+        <section class="container ars-alertas-wrap">
+          <div class="ars-nao-esquecer">
+            <span class="ars-ne-ico"><i data-lucide="siren"></i></span>
+            <div><strong>Não esquecer</strong>
+              <ul>
+                <li>Não fazer <b>aplicação aérea de TUIT</b>.</li>
+                <li>TUIT <b>apenas 2x ao ano</b>.</li>
+                <li>TUIT + dessecante: é obrigatório ter feito o uso de <b>outro dessecante em período menor que 45 dias</b> e <b>preencher o formulário</b>.</li>
+              </ul></div>
+          </div>
+          <div class="ars-validacoes" id="ars-validacoes"></div>
+        </section>
+
+        <!-- Cards -->
+        <section class="container fat-secao ars-cards">
+          <article class="kpi glass ars-card-plantio"><span class="kpi-rot">Data de plantio · Dia 0</span><strong class="ars-dia0" id="ars-k-plantio">—</strong><small class="kpi-ajuda" id="ars-k-plantio-sub"></small></article>
+          <article class="kpi glass ars-card" style="--c:#22e07a"><span class="icon-box"><i data-lucide="play-circle"></i></span><span class="kpi-rot">Na janela agora</span><strong class="kpi-val" id="ars-k-janela">—</strong></article>
+          <article class="kpi glass ars-card" style="--c:#ff4d5e"><span class="icon-box"><i data-lucide="alarm-clock-off"></i></span><span class="kpi-rot">Vencidas</span><strong class="kpi-val" id="ars-k-vencidas">—</strong></article>
+          <article class="kpi glass ars-card" style="--c:#fbbf24"><span class="icon-box"><i data-lucide="calendar-clock"></i></span><span class="kpi-rot">Abrem nos próximos 7 dias</span><strong class="kpi-val" id="ars-k-proximas">—</strong></article>
+        </section>
+
+        <!-- Linha do tempo -->
+        <section class="container fat-secao" aria-labelledby="ars-gantt-tit">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Linha do tempo</span><h2 class="fat-sec-titulo" id="ars-gantt-tit">Janelas <span class="serif">das operações</span></h2></div>
+            <div class="ars-leg">
+              <span><i style="--c:#c8f560"></i>Pré-plantio</span><span><i style="--c:#3dffa8"></i>Plantio</span><span><i style="--c:#38bdf8"></i>Pós-plantio</span><span><i class="tracejado"></i>Fora do ARS</span><span><i class="linha-ref"></i>Referência</span>
+            </div>
+          </div>
+          <div class="fat-painel glass ars-gantt" id="ars-gantt"></div>
+        </section>
+
+        <!-- Tabela -->
+        <section class="container fat-secao" aria-labelledby="ars-tab-tit">
+          <div class="fat-sec-head">
+            <div><span class="eyebrow">Datas recomendadas</span><h2 class="fat-sec-titulo" id="ars-tab-tit">Tabela <span class="serif">de janelas</span></h2></div>
+            <div class="ars-acoes">
+              <button type="button" class="fat-btn" id="ars-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+              <button type="button" class="fat-btn" id="ars-xls"><i data-lucide="sheet"></i><span>Excel</span></button>
+              <button type="button" class="fat-btn" id="ars-imprimir"><i data-lucide="printer"></i><span>Imprimir</span></button>
+            </div>
+          </div>
+          <div class="fat-painel glass" id="ars-tabela"></div>
+        </section>
+      </div>
+
+      <div class="ars-zoom" id="ars-zoom" hidden>
+        <div class="ars-zoom-caixa glass">
+          <button type="button" class="ars-zoom-fechar" id="ars-zoom-fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
+          <img src="assets/img/ars-metricas.png" alt="Métricas do ARS ampliadas">
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+</body>
+</html>
