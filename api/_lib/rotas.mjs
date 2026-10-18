@@ -10,7 +10,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
-import { colecao } from './armazenamento.mjs';
+import { colecao, fotosNoBanco, TEM_BANCO, ONDE_SALVA } from './armazenamento.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const NA_VERCEL = Boolean(process.env.VERCEL);
@@ -299,28 +299,40 @@ export function gravarManifestoFotos(lista = fotosColab(), avatares = avataresCo
   const alvo = path.join(PASTA_COLAB, 'fotos.js');
   try { if (!fs.existsSync(alvo) || fs.readFileSync(alvo, 'utf8') !== conteudo) fs.writeFileSync(alvo, conteudo); } catch { /* pasta só leitura */ }
 }
-function listarFotosColab(res) {
+async function listarFotosColab(res) {
   const lista = fotosColab(), avatares = avataresColab();
   if (!NA_VERCEL) gravarManifestoFotos(lista, avatares);
+  // fotos enviadas pelo painel no site publicado (banco): entram com o nome = CHAPA
+  if (TEM_BANCO) { try { lista.push(...await fotosNoBanco.listar()); } catch (erro) { console.error('Fotos no banco:', erro.message); } }
   json(res, 200, { arquivos: lista, avatares });
 }
 async function rotaFotoColab(req, res, chapa) {
-  // Na Vercel o disco é só leitura: fotos novas entram pela pasta do projeto (GitHub); o painel guarda no navegador
-  if (NA_VERCEL) return json(res, 501, { erro: 'No site publicado, adicione a foto na pasta assets/img/colaboradores do projeto.' });
   if (!/^[A-Za-z0-9_-]{1,40}$/.test(chapa)) return json(res, 400, { erro: 'Chapa inválida.' });
   const arquivo = path.join(PASTA_COLAB, `${chapa}.jpg`);
   try {
+    if (req.method === 'GET') {
+      const bytes = TEM_BANCO ? await fotosNoBanco.ler(chapa) : null;
+      if (!bytes) return json(res, 404, { erro: 'Foto não encontrada.' });
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': bytes.length, 'Cache-Control': 'public, max-age=31536000, immutable' });
+      return res.end(bytes);
+    }
+    // Na Vercel sem banco o disco é só leitura: o painel guarda a foto só no navegador
+    if (NA_VERCEL && !TEM_BANCO) return json(res, 501, { erro: 'Banco não configurado no site publicado; a foto fica só neste navegador.' });
     if (req.method === 'PUT') {
       const { imagem } = JSON.parse(await lerCorpo(req, 1_500_000));
       const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(imagem || ''));
       if (!m) return json(res, 400, { erro: 'Envie a foto em JPEG.' });
       const bytes = Buffer.from(m[1], 'base64');
       if (bytes.length > 900_000 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return json(res, 400, { erro: 'Imagem inválida ou grande demais.' });
+      if (NA_VERCEL) return json(res, 200, { ok: true, url: await fotosNoBanco.gravar(chapa, bytes) });
       fs.mkdirSync(PASTA_COLAB, { recursive: true });
       fs.writeFileSync(arquivo, bytes);
       return json(res, 200, { ok: true, url: `assets/img/colaboradores/${chapa}.jpg?v=${Date.now()}` });
     }
-    if (req.method === 'DELETE') { fs.rmSync(arquivo, { force: true }); return json(res, 200, { ok: true }); }
+    if (req.method === 'DELETE') {
+      if (NA_VERCEL) await fotosNoBanco.apagar(chapa); else fs.rmSync(arquivo, { force: true });
+      return json(res, 200, { ok: true });
+    }
   } catch (erro) { return json(res, 400, { erro: `Não foi possível salvar a foto: ${erro.message}` }); }
   return json(res, 405, { erro: 'Método não permitido.' });
 }
@@ -420,6 +432,7 @@ export function tratarApi(req, res) {
   if (expIA && req.method === 'POST') return Promise.resolve(rotaExperimentoIA(req, res, expIA[1]));
   const fotos = rota.match(/^\/api\/fotos\/([a-z]+)$/);
   if (fotos && req.method === 'GET') return Promise.resolve(listarFotos(res, fotos[1]));
+  if (rota === '/api/status' && req.method === 'GET') return Promise.resolve(json(res, 200, { ia: Boolean(cliente && iaDisponivel), modelo: MODELO, salvamento: ONDE_SALVA, vercel: NA_VERCEL }));
   if (rota === '/api/folhito/status' && req.method === 'GET') return Promise.resolve(json(res, 200, { ia: Boolean(cliente && iaDisponivel), modelo: MODELO }));
   if (rota === '/api/folhito' && req.method === 'POST') return Promise.resolve(conversar(req, res));
   return Promise.resolve(json(res, 404, { erro: 'Rota não encontrada.' }));
