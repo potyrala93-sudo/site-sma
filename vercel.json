@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/[...rota].js": {
+      "maxDuration": 60,
+      "includeFiles": "{js/dados.js,assets/img/fotos/**,assets/img/colaboradores/**,assets/img/avatares/**}"
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)\\.(html|js|css)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}

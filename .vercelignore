@@ -1,0 +1,13 @@
+# Não vai para o site publicado na Vercel (continua no GitHub)
+# Servidor local e dados salvos no computador (na Vercel a API roda em api/)
+server/
+# Anotações e configuração do editor
+*.md
+.claude/
+.env
+.env.*
+# Imagens soltas na raiz: originais; o site usa as cópias de assets/
+/*.jpg
+/*.jpeg
+/*.png
+/*.webp
