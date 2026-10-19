@@ -214,7 +214,7 @@ const CLIMA = {
   planilha: '1ue2hVLybVraqHHoZMrAhh9vFmaikp5PYUfIMEmsg6R4',
   aba: 0,
   faixas: { lat: [-35, -5], lon: [-75, -30] },   // coordenadas fora disso são descartadas
-  gradeGraus: 0.1,      // fazendas a menos de ~11 km usam o mesmo ponto de previsão (limite gratuito do Open-Meteo)
+  gradeGraus: 0.2,      // fazendas a menos de ~22 km usam o mesmo ponto de previsão (~130 pontos: cabe no limite gratuito do Open-Meteo)
   cacheMin: 30,
   // Janela de aplicação (pulverização), hora a hora
   janela: {

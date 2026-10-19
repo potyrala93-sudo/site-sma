@@ -276,7 +276,7 @@ async function conversar(req, res) {
 }
 /* ---------- Planilhas do Google (Faturamento) ---------- */
 // Só as planilhas do painel podem ser buscadas por aqui (evita virar um proxy aberto)
-const PLANILHAS_PERMITIDAS = new Set(['1gGcRAaVruH9wq3m531pEcA7iGSfpzJolqne5brBn8Ls', '1LZRtGcDHSfW4gIB9BhPaL1bjDZ0ekeOdLtXc-0abtYg', '1-h8nbKYjwksLczYMpCdluBVqCZpgsrGJGICxH14sQC8', '14j_RYF0RMpJonbUksQbVmGMJ6D9Ca2qTUb9MxirWuwo', '1wZLC-MZiasGY-jTyc6hTZAGoHBeq3uEOi9HEOu_vzxw', '1b14belPXohyMAVPHgtMVijDLBT_m5v8R', '11OZX_ieEj_SQ-Rc4xqbDfJiVWezTN5i26S_YnzFdH3s', '1RjlknbDlu5draerYFSZqJwwVJsdq6N67VljUjaYEJjs', '1OBxsF_fmTIX04ck6V5ORlnlGiiiyB-q_jMPTXVsLzzM']);
+const PLANILHAS_PERMITIDAS = new Set(['1gGcRAaVruH9wq3m531pEcA7iGSfpzJolqne5brBn8Ls', '1LZRtGcDHSfW4gIB9BhPaL1bjDZ0ekeOdLtXc-0abtYg', '1-h8nbKYjwksLczYMpCdluBVqCZpgsrGJGICxH14sQC8', '14j_RYF0RMpJonbUksQbVmGMJ6D9Ca2qTUb9MxirWuwo', '1wZLC-MZiasGY-jTyc6hTZAGoHBeq3uEOi9HEOu_vzxw', '1b14belPXohyMAVPHgtMVijDLBT_m5v8R', '11OZX_ieEj_SQ-Rc4xqbDfJiVWezTN5i26S_YnzFdH3s', '1RjlknbDlu5draerYFSZqJwwVJsdq6N67VljUjaYEJjs', '1OBxsF_fmTIX04ck6V5ORlnlGiiiyB-q_jMPTXVsLzzM', '1ue2hVLybVraqHHoZMrAhh9vFmaikp5PYUfIMEmsg6R4']);
 const cachePlanilhas = new Map(); // chave → { quando, csv }
 
 // Na Vercel, a resposta fica alguns minutos no cache da rede dela (o botão "Atualizar" pede fresco=1 e não usa esse cache)
@@ -507,7 +507,7 @@ async function rotaClima(req, res, ponto) {
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
       // na Vercel, a mesma resposta serve todo mundo por 30 min (protege o limite gratuito do Open-Meteo)
-      ...(NA_VERCEL && url.searchParams.get('fresco') !== '1' ? { 'Vercel-CDN-Cache-Control': `public, s-maxage=${CFG.cacheMin * 60}, stale-while-revalidate=600` } : {})
+      ...(NA_VERCEL && url.searchParams.get('fresco') !== '1' ? { 'Vercel-CDN-Cache-Control': `public, s-maxage=${dados.semPrevisao ? 180 : CFG.cacheMin * 60}, stale-while-revalidate=600` } : {})
     });
     res.end(JSON.stringify(dados));
   } catch (erro) {

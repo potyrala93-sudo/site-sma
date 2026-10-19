@@ -58,12 +58,54 @@
   const chartjs = () => (chartLib ||= (window.Chart ? Promise.resolve() : carregar('script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js' })));
 
   /* ---------- Dados ---------- */
+  // 1º o servidor (resultado compartilhado, em cache); se ele não responder a tempo, o próprio navegador
+  // calcula com o mesmo motor (js/clima-motor.js), consultando o Open-Meteo direto.
+  let motorLocal = null;
+  const horariasLocais = new Map();
+  const motor = async () => (motorLocal ||= await import(new URL('js/clima-motor.js', location.href).href));
   async function buscar(fresco = false) {
-    if (!comServidor) throw new Error('abra o site pelo servidor (npm start) ou pelo endereço publicado');
-    const r = await fetch(`api/clima${fresco ? '?fresco=1' : ''}`, { cache: fresco ? 'no-store' : 'default' });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
-    return j;
+    if (comServidor) {
+      try {
+        const r = await fetch(`api/clima${fresco ? '?fresco=1' : ''}`, { cache: fresco ? 'no-store' : 'default', signal: AbortSignal.timeout(25_000) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
+        if (!j.semPrevisao || j.semPrevisao < Object.keys(j.pontos || {}).length / 4) return { ...j, origem: 'servidor' };
+        throw new Error(`${j.semPrevisao} pontos sem previsão no servidor`);
+      } catch (erro) { console.warn('Clima: servidor não respondeu a tempo; calculando no navegador.', erro.message); }
+    }
+    return calcularNoNavegador();
+  }
+  async function calcularNoNavegador() {
+    const M = await motor();
+    const tentativas = [
+      ...(comServidor ? [`api/planilha?id=${CFG.planilha}&gid=${CFG.aba}`] : []),
+      `https://docs.google.com/spreadsheets/d/${CFG.planilha}/export?format=csv&gid=${CFG.aba}`
+    ];
+    let texto = null, ultimoErro;
+    for (const url of tentativas) {
+      try { const r = await fetch(url, { signal: AbortSignal.timeout(25_000) }); const t = await r.text(); if (!r.ok || /^\s*[{<]/.test(t)) throw new Error(`planilha: erro ${r.status}`); texto = t; break; } catch (e) { ultimoErro = e; }
+    }
+    if (!texto) throw ultimoErro || new Error('planilha de coordenadas indisponível');
+    const d = await M.montarResumo(texto, CFG, (id, h) => horariasLocais.set(id, { quando: Date.now(), hourly: h }));
+    if (!Object.keys(d.pontos).length) throw new Error('o Open-Meteo não respondeu');
+    return { ...d, origem: 'navegador' };
+  }
+  async function detalheDoPonto(id) {
+    if (comServidor && estado.dados?.origem !== 'navegador') {
+      try {
+        const r = await fetch(`api/clima/ponto/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(20_000) });
+        if (r.ok) return r.json();
+      } catch { /* cai para o navegador */ }
+    }
+    const M = await motor();
+    let h = horariasLocais.get(id);
+    if (!h || Date.now() - h.quando > CFG.cacheMin * 60_000) {
+      const p = M.pontoValido(id, CFG); if (!p) throw new Error('ponto inválido');
+      const [hourly] = await M.previsao([p]);
+      if (!hourly) throw new Error('o Open-Meteo não respondeu');
+      h = { quando: Date.now(), hourly }; horariasLocais.set(id, h);
+    }
+    return M.montarDetalhe(id, h.hourly, CFG, h.quando);
   }
   const CHAVE_CACHE = 'clima:resumo';
   function doCache() { try { const c = JSON.parse(localStorage.getItem(CHAVE_CACHE) || 'null'); return c && Date.now() - c.quando < CFG.cacheMin * 60_000 ? c.dados : null; } catch { return null; } }
@@ -125,7 +167,7 @@
   }
   function renderRodape() {
     const d = estado.dados;
-    $('#clima-hora').textContent = d ? `Atualizado às ${new Date(d.atualizado).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}` : '—';
+    $('#clima-hora').textContent = d ? `Atualizado às ${new Date(d.atualizado).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}${d.origem === 'navegador' ? ' (calculado neste navegador)' : ''}` : '—';
     const inv = d?.invalidos?.qtd || 0, av = $('#clima-aviso');
     av.hidden = !inv;
     av.textContent = inv ? `${inv} ${inv === 1 ? 'ponto' : 'pontos'} com coordenada inválida` : '';
@@ -424,7 +466,7 @@
     icones();
     $('.clima-detalhe-fechar').focus();
     try {
-      const [r] = await Promise.all([fetch(`api/clima/ponto/${encodeURIComponent(f.ponto)}`).then(x => (x.ok ? x.json() : Promise.reject(new Error(`erro ${x.status}`)))), chartjs()]);
+      const [r] = await Promise.all([detalheDoPonto(f.ponto), chartjs()]);
       if (el.dataset.fazenda !== nome || el.hidden) return;
       desenharGrafico(r.horas72);
     } catch (erro) { const c = $('.clima-d-carregando'); if (c) c.textContent = `Não consegui carregar as próximas horas (${erro.message}).`; }
