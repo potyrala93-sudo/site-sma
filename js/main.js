@@ -33,6 +33,9 @@ function renderCabecalho() {
         <span class="brand-text">SMA <small>· Silvicultura</small></span>
       </a>
       <ul class="nav-links">${links}</ul>
+      <button class="tema-btn" type="button" id="tema-btn" aria-label="Alternar entre modo claro e escuro" title="Modo claro / escuro">
+        <i data-lucide="sun" class="ico-sol"></i><i data-lucide="moon" class="ico-lua"></i>
+      </button>
       <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-drawer" aria-label="Abrir menu">
         <i data-lucide="menu" class="ico-menu"></i><i data-lucide="x" class="ico-x"></i>
       </button>
@@ -559,6 +562,76 @@ function iniciarRevelar() {
   alvos.forEach(el => io.observe(el));
 }
 
+
+/* ---------- Tema claro / escuro ---------- */
+// A escolha fica no navegador ('sma:tema'); o <head> de cada página já aplica antes de desenhar (sem piscar).
+const temaAtual = () => (document.documentElement.dataset.tema === 'claro' ? 'claro' : 'escuro');
+function definirTema(tema) {
+  const html = document.documentElement;
+  html.classList.add('tema-trocando');
+  if (tema === 'claro') html.dataset.tema = 'claro'; else delete html.dataset.tema;
+  try { localStorage.setItem('sma:tema', tema); } catch { /* sem armazenamento: vale só nesta página */ }
+  const b = document.getElementById('tema-btn');
+  if (b) b.setAttribute('aria-pressed', String(tema === 'claro'));
+  atualizarGraficosDoTema();
+  window.dispatchEvent(new CustomEvent('sma:tema', { detail: { tema } }));
+  setTimeout(() => html.classList.remove('tema-trocando'), 400);
+}
+function iniciarTema() {
+  const b = document.getElementById('tema-btn');
+  if (!b) return;
+  b.setAttribute('aria-pressed', String(temaAtual() === 'claro'));
+  b.addEventListener('click', () => definirTema(temaAtual() === 'claro' ? 'escuro' : 'claro'));
+  prepararGraficosDoTema();
+}
+
+// Gráficos (Chart.js): no tema claro, os textos e linhas de grade claros viram escuros (e voltam no escuro)
+// Regra geral: cor clara e acinzentada (texto, grade) → escura no tema claro; cores vivas ficam como estão
+function lerCor(c) {
+  const t = String(c).trim().toLowerCase();
+  let m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(t);
+  if (m) { const h = m[1].length === 3 ? [...m[1]].map(x => x + x).join('') : m[1]; return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).concat(1); }
+  m = /^rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(t);
+  return m ? [+m[1], +m[2], +m[3], m[4] == null ? 1 : +m[4]] : null;
+}
+function corDoTema(c) {
+  if (temaAtual() !== 'claro' || typeof c !== 'string') return c;
+  const v = lerCor(c); if (!v) return c;
+  const [r, g, b, a] = v, luz = (0.299 * r + 0.587 * g + 0.114 * b) / 255, sat = (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+  if (luz < 0.55 || sat > 0.25) return c;
+  if (a < 1) return `rgba(13, 52, 44, ${a})`;
+  return luz > 0.85 ? '#10302a' : '#49625c';
+}
+function aplicarTemaNoGrafico(chart) {
+  const o = chart.options; if (!o) return;
+  const alvos = [];
+  Object.values(o.scales || {}).forEach(sc => { if (!sc) return; alvos.push([sc.ticks, 'color'], [sc.grid, 'color'], [sc.border, 'color'], [sc.title, 'color'], [sc.pointLabels, 'color'], [sc.angleLines, 'color']); });
+  alvos.push([o.plugins?.legend?.labels, 'color'], [o.plugins?.title, 'color'], [o, 'color']);
+  chart.$temaOrig ||= new Map();
+  alvos.forEach(([obj, k]) => {
+    if (!obj) return;
+    if (!chart.$temaOrig.has(obj)) chart.$temaOrig.set(obj, obj[k]);
+    const orig = chart.$temaOrig.get(obj);
+    if (typeof orig === 'string') obj[k] = corDoTema(orig);
+  });
+}
+let graficosPreparados = false;
+function prepararGraficosDoTema() {
+  const C = window.Chart;
+  if (!C || graficosPreparados) return;
+  graficosPreparados = true;
+  C.register({ id: 'temaSMA', beforeUpdate: aplicarTemaNoGrafico, beforeInit: aplicarTemaNoGrafico });
+}
+function atualizarGraficosDoTema() {
+  const C = window.Chart; if (!C) return;
+  prepararGraficosDoTema();
+  if (!C.$temaDefaults) C.$temaDefaults = { color: C.defaults.color, borderColor: C.defaults.borderColor };
+  C.defaults.color = corDoTema(C.$temaDefaults.color);
+  C.defaults.borderColor = corDoTema(C.$temaDefaults.borderColor);
+  Object.values(C.instances || {}).forEach(ch => { try { ch.update('none'); } catch { /* gráfico já removido */ } });
+}
+window.SMA_TEMA = { atual: temaAtual, definir: definirTema, prepararGraficos: () => { prepararGraficosDoTema(); atualizarGraficosDoTema(); } };
+
 /* ---------- Inicialização ---------- */
 
 function iniciar() {
@@ -571,6 +644,7 @@ function iniciar() {
   if (window.lucide) window.lucide.createIcons();
 
   iniciarMenu();
+  iniciarTema();
   iniciarRolagem();
   iniciarSpotlight();
   iniciarParticulas();

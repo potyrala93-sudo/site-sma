@@ -55,7 +55,7 @@
     window.L ? null : carregar('script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js' })
   ]));
   let chartLib = null;
-  const chartjs = () => (chartLib ||= (window.Chart ? Promise.resolve() : carregar('script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js' })));
+  const chartjs = () => (chartLib ||= (window.Chart ? Promise.resolve() : carregar('script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js' })).then(() => window.SMA_TEMA?.prepararGraficos()));
 
   /* ---------- Dados ---------- */
   // 1º o servidor (resultado compartilhado, em cache); se ele não responder a tempo, o próprio navegador

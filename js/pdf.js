@@ -91,7 +91,7 @@
   // Foto de um elemento da tela (para PNG). As cores são convertidas na cópia, sem mexer na página.
   async function capturar(el, opcoes = {}) {
     await bibliotecas();
-    const base = { scale: 2, backgroundColor: opcoes.fundo || '#04100f', useCORS: true, logging: false, onclone: (_doc, copia) => sanitizarCores(copia) };
+    const base = { scale: 2, backgroundColor: opcoes.fundo || getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#04100f', useCORS: true, logging: false, onclone: (_doc, copia) => sanitizarCores(copia) };
     try { return await window.html2canvas(el, base); }
     catch { return window.html2canvas(el, { ...base, useCORS: false, ignoreElements: n => n.tagName === 'IMG' }); }
   }
