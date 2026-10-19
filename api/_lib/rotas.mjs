@@ -13,6 +13,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { colecao, fotosNoBanco, TEM_BANCO, ONDE_SALVA } from './armazenamento.mjs';
 import { consultar, valoresDoCampo, descricaoBases, preaquecer } from './motor-dados.mjs';
 import { resumoClima, detalheClima } from './clima.mjs';
+import { listaMapas } from './mapas.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const NA_VERCEL = Boolean(process.env.VERCEL);
@@ -515,6 +516,21 @@ async function rotaClima(req, res, ponto) {
     json(res, erro.status || 502, { erro: `Não foi possível carregar o clima: ${erro.message}` });
   }
 }
+/* ---------- Mapas micro: lista dos PDFs da pasta do Drive ---------- */
+async function rotaMapas(req, res) {
+  const CFG = DADOS.MAPAS;
+  if (!CFG) return json(res, 503, { erro: 'Mapas não configurados.' });
+  const fresco = new URL(req.url, 'http://x').searchParams.get('fresco') === '1';
+  try {
+    const dados = await listaMapas(CFG, fresco);
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+      ...(NA_VERCEL && !fresco ? { 'Vercel-CDN-Cache-Control': `public, s-maxage=${(CFG.cacheMin || 30) * 60}, stale-while-revalidate=3600` } : {}) });
+    res.end(JSON.stringify(dados));
+  } catch (erro) {
+    json(res, 502, { erro: `Não foi possível ler a pasta de mapas: ${erro.message}` });
+  }
+}
+
 /* ---------- Roteador: devolve false se não era da API; senão, uma Promise que termina com a resposta ---------- */
 export function tratarApi(req, res) {
   const rota = req.url.split('?')[0];
@@ -532,6 +548,7 @@ export function tratarApi(req, res) {
   if (expIA && req.method === 'POST') return Promise.resolve(rotaExperimentoIA(req, res, expIA[1]));
   const fotos = rota.match(/^\/api\/fotos\/([a-z]+)$/);
   if (fotos && req.method === 'GET') return Promise.resolve(listarFotos(res, fotos[1]));
+  if (rota === '/api/mapas' && req.method === 'GET') return Promise.resolve(rotaMapas(req, res));
   if (rota === '/api/clima' && req.method === 'GET') return Promise.resolve(rotaClima(req, res));
   const climaPonto = rota.match(/^\/api\/clima\/ponto\/([^/]+)$/);
   if (climaPonto && req.method === 'GET') return Promise.resolve(rotaClima(req, res, climaPonto[1]));

@@ -5,8 +5,8 @@
 
 .pagina-prod { --ader-cor: #3dffa8; --ader-cor-suave: rgba(61,255,168,.3); }
 /* Abas da Produção (3): o indicador anda conforme --i */
-.p-abas { --i: 0; max-width: 1040px; grid-template-columns: repeat(4, 1fr); }
-.p-abas .q-abas-ind { width: calc((100% - 10px) / 4); transform: translateX(calc(var(--i) * 100%)); }
+.p-abas { --i: 0; max-width: 1200px; grid-template-columns: repeat(5, 1fr); }
+.p-abas .q-abas-ind { width: calc((100% - 10px) / 5); transform: translateX(calc(var(--i) * 100%)); }
 .p-abas.sem .q-abas-ind { transform: translateX(calc(var(--i) * 100%)); }
 
 /* ---------- Plantio ---------- */
@@ -622,4 +622,63 @@ img[data-foto-sup] { transition: opacity .35s; }
   body.imprimindo-prog .p-dia.termino { outline: 2px solid #db2777; }
   body.imprimindo-prog .p-dia-faz { background: color-mix(in srgb, var(--c) 70%, #fff) !important; }
   body.imprimindo-prog .p-dia-n em { display: inline; border: 1px solid #0b2a23; }
+}
+
+/* ==========================================================================
+   Produção · Mapas micro das fazendas
+   ========================================================================== */
+.m-barra { gap: .6rem; }
+.m-busca { flex: 1 1 320px; }
+.m-tipos { display: flex; flex-wrap: wrap; gap: .3rem; }
+.m-tipos button { display: inline-flex; align-items: center; gap: .35rem; min-height: 38px; padding: 0 .8rem; border-radius: 999px; border: 1px solid var(--borda); font-size: .8rem; font-weight: 800; color: var(--texto-suave); transition: background .2s, color .2s, border-color .2s; }
+.m-tipos button b { font-size: .72rem; padding: 0 .4rem; border-radius: 999px; background: rgb(var(--tinta-rgb) / .08); }
+.m-tipos button:hover { color: var(--texto-forte); border-color: var(--borda-forte); }
+.m-tipos button.ativo { background: var(--neon-fundo, var(--neon)); border-color: var(--neon-fundo, var(--neon)); color: #04201a; }
+.m-tipos button.ativo b { background: rgba(4, 32, 26, .15); }
+.m-total { font-size: .8rem; font-weight: 700; color: var(--texto-suave); }
+
+.m-area { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.m-lista { display: grid; gap: .35rem; align-content: start; max-height: calc(100vh - 180px); overflow-y: auto; padding: .6rem; border-radius: var(--raio-lg); position: sticky; top: 100px; scrollbar-width: thin; }
+.m-item { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: .7rem; align-items: center; width: 100%; padding: .5rem; border-radius: 14px; text-align: left; border: 1px solid transparent; transition: background .2s, border-color .2s, transform .2s; }
+.m-item:hover { background: rgb(var(--tinta-rgb) / .05); transform: translateX(2px); }
+.m-item.ativo { background: rgba(61, 255, 168, .1); border-color: var(--borda-forte); box-shadow: inset 3px 0 0 var(--neon); }
+.m-thumb { position: relative; display: grid; place-items: center; width: 64px; height: 48px; border-radius: 10px; overflow: hidden; background: rgb(var(--tinta-rgb) / .06); border: 1px solid var(--borda); }
+.m-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+.m-thumb svg { width: 20px; height: 20px; color: var(--texto-fraco); }
+.m-item-txt { display: grid; gap: .15rem; min-width: 0; }
+.m-item-txt b { font-size: .9rem; color: var(--texto-forte); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-item-txt small { display: flex; flex-wrap: wrap; gap: .25rem; font-size: .7rem; color: var(--texto-suave); }
+.m-item-txt em { font-style: normal; font-weight: 800; padding: 0 .35rem; border-radius: 6px; background: rgba(61, 255, 168, .1); color: var(--neon); border: 1px solid rgba(61, 255, 168, .25); }
+.m-item-txt em.m-sem { color: var(--texto-fraco); background: none; border-color: var(--borda); font-weight: 600; }
+.m-vazio { padding: 1.5rem; text-align: center; color: var(--texto-suave); }
+
+.m-visor { min-height: 70vh; padding: 1rem; border-radius: var(--raio-lg); display: flex; flex-direction: column; gap: .7rem; }
+.m-visor-vazio { flex: 1; display: grid; place-items: center; align-content: center; gap: .4rem; text-align: center; color: var(--texto-suave); }
+.m-visor-vazio svg { width: 44px; height: 44px; color: var(--neon); opacity: .7; }
+.m-visor-vazio strong { color: var(--texto-forte); font-size: 1.1rem; }
+.m-visor-topo { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .6rem 1rem; }
+.m-visor-topo h3 { margin: .2rem 0 .15rem; font-size: clamp(1.3rem, 2.4vw, 1.7rem); }
+.m-visor-topo p { margin: 0; font-size: .82rem; color: var(--texto-suave); }
+.m-visor-acoes { display: flex; flex-wrap: wrap; gap: .4rem; }
+.m-visor-acoes a { text-decoration: none; }
+.m-versoes { display: flex; flex-wrap: wrap; gap: .3rem; }
+.m-versoes button { min-height: 34px; padding: 0 .75rem; border-radius: 999px; border: 1px solid var(--borda); font-size: .78rem; font-weight: 700; color: var(--texto-suave); }
+.m-versoes button[aria-selected="true"] { background: rgba(61, 255, 168, .12); border-color: var(--borda-forte); color: var(--neon); }
+.m-quadro { position: relative; flex: 1; min-height: 68vh; border-radius: 16px; overflow: hidden; border: 1px solid var(--borda); background: #e9eeec; }
+.m-quadro iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; z-index: 1; }
+.m-carregando { position: absolute; inset: 0; display: grid; place-items: center; color: #4c645f; font-weight: 700; font-size: .9rem; }
+.m-quadro:fullscreen { border-radius: 0; }
+.m-arquivo { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: .74rem; color: var(--texto-fraco); word-break: break-all; }
+.m-arquivo svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+@media (max-width: 980px) {
+  .m-area { grid-template-columns: minmax(0, 1fr); }
+  .m-lista { position: static; max-height: 46vh; }
+  .m-visor { min-height: 0; }
+  .m-quadro { min-height: 70vh; }
+}
+@media (max-width: 640px) {
+  .p-abas button span { font-size: .62rem; }
+  .m-visor-acoes { width: 100%; }
+  .m-visor-acoes .fat-btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; padding-inline: .7rem; }
 }

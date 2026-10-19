@@ -228,5 +228,8 @@ const CLIMA = {
   plantio: { chuva7dMm: 20 },  // acumulado em 7 dias ≥ isto = "umidade favorável ao plantio"; senão "prever irrigação"
   chuvaHojeMm: 1             // "chuva prevista hoje" a partir deste total no dia
 };
-window.SMA_DADOS = { SETORES, CICLO, ESTRUTURA, ORGANOGRAMA, PASTA_EQUIPE, PASTA_ESTRUTURA, FATURAMENTO, QUALIDADE, PRODUCAO, RH, SEGURANCA, CLIMA };
+// Mapas micro das fazendas (Produção → aba Mapas): pasta pública do Google Drive com os PDFs
+const MAPAS = { pasta: '1SPU9-qjt1zEQywDvUnzB7yXCgpCr3lvK', cacheMin: 30 };
+
+window.SMA_DADOS = { SETORES, CICLO, ESTRUTURA, ORGANOGRAMA, PASTA_EQUIPE, PASTA_ESTRUTURA, FATURAMENTO, QUALIDADE, PRODUCAO, RH, SEGURANCA, CLIMA, MAPAS };
 })();

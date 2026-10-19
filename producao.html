@@ -26,6 +26,8 @@
   <script src="js/producao-realizada.js" defer></script>
   <script src="js/producao-rf.js" defer></script>
   <script src="js/producao-plantio.js" defer></script>
+  <script src="js/mapas-nomes.js" defer></script>
+  <script src="js/producao-mapas.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
 </head>
@@ -44,7 +46,7 @@
           <span class="pill reveal"><span class="tag">Painel</span><span>Produção · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
           <h1 class="fat-titulo reveal" id="p-titulo" style="--d:.08s">Painel de <span class="serif">Produção</span></h1>
           <p class="fat-sub reveal" style="--d:.16s">Programe a execução das atividades por fazenda e UP: o sistema distribui as áreas pelas equipes e monta o calendário.</p>
-          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="p-status">Carregando dados…</span><span id="r-status" hidden>Carregando apontamentos…</span><span id="f-status" hidden>Carregando base do RF…</span><span id="pl-status" hidden>Carregando plantio…</span></p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="p-status">Carregando dados…</span><span id="r-status" hidden>Carregando apontamentos…</span><span id="f-status" hidden>Carregando base do RF…</span><span id="pl-status" hidden>Carregando plantio…</span><span id="m-status" hidden>Carregando mapas…</span></p>
         </div>
         <div class="fat-destaque reveal" id="p-destaque" style="--d:.2s">
           <div class="fat-destaque-foto"><img data-foto-sup alt="" id="p-destaque-foto"></div>
@@ -66,6 +68,7 @@
         <button type="button" role="tab" id="tab-rf" aria-selected="false" aria-controls="aba-rf" data-aba="rf"><i data-lucide="git-compare-arrows"></i><span>Produção por RF</span></button>
         <button type="button" role="tab" id="tab-plantio" aria-selected="false" aria-controls="aba-plantio" data-aba="plantio"><i data-lucide="trees"></i><span>Plantio</span></button>
         <button type="button" role="tab" id="tab-prog" aria-selected="false" aria-controls="aba-prog" data-aba="prog"><i data-lucide="calendar-days"></i><span>Programação de Atividades</span></button>
+        <button type="button" role="tab" id="tab-mapas" aria-selected="false" aria-controls="aba-mapas" data-aba="mapas"><i data-lucide="map"></i><span>Mapas micro</span></button>
       </div>
     </div>
 
@@ -327,6 +330,29 @@
           <div class="fat-analise" id="f-analise" hidden></div>
         </section>
       </div>
+    </div>
+
+    <!-- ===================== MAPAS MICRO ===================== -->
+    <div id="aba-mapas" role="tabpanel" aria-labelledby="tab-mapas" hidden>
+      <div class="fat-barra-wrap">
+        <div class="container">
+          <div class="fat-barra glass m-barra" role="toolbar" aria-label="Busca dos mapas micro">
+            <label class="p-busca m-busca"><i data-lucide="search"></i><input type="search" id="m-busca" placeholder="Buscar fazenda, código (S-G12B) ou talhão (S2AR)" aria-label="Buscar mapa"></label>
+            <div class="m-tipos" id="m-tipos" role="group" aria-label="Tipo de mapa"></div>
+            <div class="fat-barra-dir">
+              <span class="m-total" id="m-total"></span>
+              <button type="button" class="fat-btn fat-atualizar" id="m-atualizar" title="Ler a pasta do Drive de novo"><i data-lucide="refresh-cw"></i><span>Atualizar</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="container"><div class="fat-erros" id="m-erros" role="alert" hidden></div></div>
+      <section class="container fat-secao m-area" aria-label="Mapas micro das fazendas">
+        <div class="m-lista glass" id="m-lista" role="list" aria-label="Fazendas com mapa"></div>
+        <div class="m-visor glass" id="m-visor" aria-live="polite">
+          <div class="m-visor-vazio"><i data-lucide="map"></i><strong>Escolha uma fazenda</strong><span>O mapa micro abre aqui, direto do Google Drive.</span></div>
+        </div>
+      </section>
     </div>
 
     <!-- ===================== PLANTIO ===================== -->

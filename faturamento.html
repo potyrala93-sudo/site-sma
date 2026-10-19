@@ -18,6 +18,7 @@
   <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
   <script src="js/main.js" defer></script>
+  <script src="js/pdf.js" defer></script>
   <script src="js/faturamento.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
@@ -194,7 +195,10 @@
                 <h3 class="fd-titulo"><i data-lucide="table-2"></i> Por equipe <span id="fd-quando"></span></h3>
                 <p class="fd-sub" id="fd-sub"></p>
               </div>
-              <label class="fd-dia"><i data-lucide="calendar-days"></i><span>Dia</span><select id="fd-dia" aria-label="Dia da tabela"></select></label>
+              <div class="fd-acoes">
+                <label class="fd-dia"><i data-lucide="calendar-days"></i><span>Dia</span><select id="fd-dia" aria-label="Dia da tabela"></select></label>
+                <button type="button" class="fat-btn" id="fd-imagem" title="Gera uma imagem da tabela inteira para compartilhar"><i data-lucide="image-down"></i><span>Imagem para compartilhar</span></button>
+              </div>
             </div>
             <div class="fd-placar" id="fd-placar"></div>
             <div class="fd-tabela-wrap" id="fd-tabela"></div>

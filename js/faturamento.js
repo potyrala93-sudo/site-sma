@@ -742,7 +742,7 @@
         <td data-rotulo="Negociações">${e.neg ? brl(e.neg) : '<span class="fd-mudo">—</span>'}</td>
         <td data-rotulo="Total"><b>${brl(e.total)}</b></td>
         <td data-rotulo="Meta">${e.meta ? brl(e.meta) : '<span class="fd-mudo">sem meta</span>'}</td>
-        <td data-rotulo="Delta" class="fd-delta-cel"><span class="fd-delta fd-${status}">${status === 'pos' ? '▲' : status === 'neg' ? '▼' : '•'} ${e.meta ? `${e.delta >= 0 ? '+' : ''}${brl(e.delta)}` : '—'}</span>${e.ating != null ? `<span class="fd-barra" title="${pct(e.ating)} da meta"><i style="width:${largura}%;background:${corAderencia(e.ating)}"></i><span class="fd-barra-meta"></span></span><small>${pct(e.ating)} da meta</small>` : ''}</td>
+        <td data-rotulo="Delta" class="fd-delta-cel"><span class="fd-delta fd-${status}"><span class="fd-seta">${status === 'pos' ? '▲' : status === 'neg' ? '▼' : '•'}</span> ${e.meta ? `${e.delta >= 0 ? '+' : ''}${brl(e.delta)}` : '—'}</span>${e.ating != null ? `<span class="fd-barra" title="${pct(e.ating)} da meta"><i style="width:${largura}%;background:${corAderencia(e.ating)}"></i><span class="fd-barra-meta"></span></span><small>${pct(e.ating)} da meta</small>` : ''}</td>
         <td data-rotulo="Observações" class="fd-obs">${obs ? `<ul>${obs}</ul>${e.obs.length > 3 ? `<small>+${e.obs.length - 3} observações</small>` : ''}` : '<span class="fd-mudo">—</span>'}</td>
       </tr>`;
     };
@@ -750,7 +750,7 @@
       <thead><tr>${th('equipe', 'Equipe')}${th('prod', 'Produção')}${th('neg', 'Negociações')}${th('total', 'Total')}${th('meta', 'Meta')}${th('delta', 'Delta')}<th><button type="button" disabled>Observações</button></th></tr></thead>
       <tbody>${lista.map(linhaHTML).join('')}</tbody>
       <tfoot><tr class="${naMeta(tot.delta) ? 'fd-pos' : 'fd-neg'}"><th scope="row">Total</th><td>${brl(tot.prod)}</td><td>${brl(tot.neg)}</td><td><b>${brl(tot.total)}</b></td><td>${brl(tot.meta)}</td>
-        <td><span class="fd-delta ${naMeta(tot.delta) ? 'fd-pos' : 'fd-neg'}">${tot.delta >= 0 ? '▲ +' : '▼ '}${brl(tot.delta)}</span>${tot.meta ? `<small>${pct(tot.total / tot.meta)} da meta</small>` : ''}</td><td></td></tr></tfoot>
+        <td><span class="fd-delta ${naMeta(tot.delta) ? 'fd-pos' : 'fd-neg'}"><span class="fd-seta">${naMeta(tot.delta) ? '▲' : '▼'}</span> ${tot.delta >= 0 ? '+' : ''}${brl(tot.delta)}</span>${tot.meta ? `<small>${pct(tot.total / tot.meta)} da meta</small>` : ''}</td><td></td></tr></tfoot>
     </table>` : '<p class="fd-mudo fd-vazio">Nenhum lançamento por equipe neste dia.</p>';
     aplicarFotos(false);
     window.lucide?.createIcons();
@@ -762,6 +762,41 @@
     fd.ordem = { k, dir: fd.ordem.k === k ? -fd.ordem.dir : (k === 'equipe' ? 1 : -1) };
     renderizar(['diario']);
   });
+
+  // Imagem da tabela inteira para compartilhar (largura fixa de print, sem animações nem controles)
+  $('#fd-imagem').addEventListener('click', async () => {
+    const botao = $('#fd-imagem');
+    if (!window.SMA_PDF) { alertaBreve('O gerador de imagem ainda está carregando. Tente de novo em instantes.'); return; }
+    botao.disabled = true; botao.classList.add('girando');
+    const palco = document.createElement('div');
+    palco.className = 'fd-palco-print';
+    const copia = $('#fd-painel').cloneNode(true);
+    copia.removeAttribute('id'); copia.hidden = false;
+    copia.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+    copia.querySelector('.fd-acoes')?.remove();
+    const sub = copia.querySelector('.fd-sub');
+    if (sub) sub.textContent = `SMA Silvicultura · Unidade São Miguel · ${responsavelAtual()} · gerado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`;
+    palco.appendChild(copia);
+    document.body.appendChild(palco);
+    try {
+      await Promise.all([...palco.querySelectorAll('img')].map(i => (i.complete ? null : new Promise(r => { i.onload = i.onerror = r; }))));
+      const canvas = await window.SMA_PDF.capturar(copia, { fundo: '#ffffff' });
+      const blob = await canvasParaBlob(canvas);
+      const quando = fd.dia === 'todos' ? `RF${String(estado.rf).padStart(2, '0')}_${estado.ano}` : new Date(fd.dia).toLocaleDateString('pt-BR').replace(/\//g, '-');
+      mostrarPrevia(blob, `Faturamento_por_equipe_${quando}.png`, '');
+      $('#fat-previa-titulo').innerHTML = '<i data-lucide="image"></i> Tabela pronta para compartilhar'; icones();
+    } catch (erro) {
+      console.error('Faturamento: imagem da tabela', erro);
+      alertaBreve(`Não consegui gerar a imagem: ${erro.message}`);
+    } finally {
+      palco.remove();
+      botao.disabled = false; botao.classList.remove('girando');
+    }
+  });
+  function responsavelAtual() {
+    const p = typeof pessoaAtual === 'function' ? pessoaAtual() : null;
+    return p ? `Visão de ${p.nome}` : 'Todas as equipes';
+  }
 
   const CORES_FROTA = ['#3dffa8', '#c8f560', '#38bdf8', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c', '#2dd4bf', '#f87171', '#94a3b8', '#4ade80', '#e879f9'];
   const obsValida = o => o && !/^(-|#n\/a|n\/a|#ref!)$/i.test(o.trim());
