@@ -186,6 +186,19 @@
             <p class="fat-vazio-graf" id="fat-diario-vazio" hidden><i data-lucide="calendar-x"></i> Nenhum faturamento lançado neste período.</p>
           </div>
           <div class="fat-analise" id="fat-analise-diario" hidden></div>
+
+          <!-- Tabela por equipe: faturamento, meta, total, delta e observações -->
+          <div class="glass fat-painel fd-painel" id="fd-painel" hidden>
+            <div class="fd-topo">
+              <div>
+                <h3 class="fd-titulo"><i data-lucide="table-2"></i> Por equipe <span id="fd-quando"></span></h3>
+                <p class="fd-sub" id="fd-sub"></p>
+              </div>
+              <label class="fd-dia"><i data-lucide="calendar-days"></i><span>Dia</span><select id="fd-dia" aria-label="Dia da tabela"></select></label>
+            </div>
+            <div class="fd-placar" id="fd-placar"></div>
+            <div class="fd-tabela-wrap" id="fd-tabela"></div>
+          </div>
         </section>
 
         <!-- ===== Produção por frota ===== -->

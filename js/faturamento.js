@@ -659,6 +659,8 @@
       }
     });
 
+    renderDiaEquipes(linhas, dias);
+
     // Análise: tendência recente, dias abaixo da meta e o que mais travou
     if (!dias.length) return analise('#fat-analise-diario', []);
     const metaMedia = dias.reduce((s, x) => s + x.meta, 0) / dias.length;
@@ -677,6 +679,89 @@
       motivos.length ? `Motivos mais registrados nas observações: ${motivos.slice(0, 3).map(([m, n]) => `${b(escapar(m))} (${n}x)`).join(', ')}. ${b('Atacar o principal motivo')} é o caminho mais rápido para recuperar produção.` : null
     ]);
   }
+
+  /* ---------- Dia a dia: tabela por equipe (faturamento, meta, total, delta e observações) ---------- */
+  const fd = { dia: null, ordem: { k: 'delta', dir: -1 }, assinatura: '' };
+  function renderDiaEquipes(linhas, dias) {
+    const painel = $('#fd-painel');
+    painel.hidden = !dias.length;
+    if (!dias.length) return;
+    // dias disponíveis (os mesmos do gráfico); abre no último dia lançado
+    const chaves = dias.map(x => +x.d);
+    const assinatura = `${estado.ano}|${estado.rf}|${chaves.join(',')}`;
+    if (assinatura !== fd.assinatura) { fd.assinatura = assinatura; fd.dia = chaves.at(-1); }
+    if (fd.dia !== 'todos' && !chaves.includes(fd.dia)) fd.dia = chaves.at(-1);
+    const rfTxt = `RF${String(estado.rf).padStart(2, '0')}`;
+    $('#fd-dia').innerHTML = `<option value="todos"${fd.dia === 'todos' ? ' selected' : ''}>Período todo (${rfTxt})</option>` +
+      [...dias].reverse().map(x => `<option value="${+x.d}"${+x.d === fd.dia ? ' selected' : ''}>${x.d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}</option>`).join('');
+
+    // agrega por equipe
+    const doDia = l => { const d = dataBR(l.DIA); return d && (fd.dia === 'todos' || +d === fd.dia); };
+    const porEquipe = new Map();
+    linhas.filter(doDia).forEach(l => {
+      const e = porEquipe.get(l.EQUIPE) || { equipe: l.EQUIPE, supervisor: supervisorDe(l.EQUIPE, l), prod: 0, neg: 0, total: 0, meta: 0, obs: [] };
+      e.prod += num(l.PRODUCAO); e.neg += num(l.NEGOCIACOES); e.total += num(l.TOTAL);
+      e.meta += num(estado.comOR ? l['META DIARIA OUTRAS RECEITAS'] : l['META DIARIA']);
+      if (obsValida(l.OBS)) e.obs.push({ d: dataBR(l.DIA), texto: l.OBS.trim() });
+      porEquipe.set(l.EQUIPE, e);
+    });
+    // diferenças de centavos (arredondamento das negociações) contam como na meta
+    const naMeta = d => d > -1;
+    const lista = [...porEquipe.values()].filter(e => e.total || e.meta || e.obs.length)
+      .map(e => ({ ...e, delta: Math.abs(e.total - e.meta) < 1 ? 0 : e.total - e.meta, ating: e.meta ? e.total / e.meta : null }));
+    const { k, dir } = fd.ordem;
+    const val = e => (k === 'equipe' ? e.equipe : e[k] ?? -Infinity);
+    lista.sort((a, c) => (typeof val(a) === 'string' ? val(a).localeCompare(val(c), 'pt-BR') : val(a) - val(c)) * dir || a.equipe.localeCompare(c.equipe, 'pt-BR'));
+
+    const comMeta = lista.filter(e => e.meta);
+    const melhor = comMeta.length ? comMeta.reduce((a, c) => (c.delta > a.delta ? c : a)) : null;
+    const pior = comMeta.length ? comMeta.reduce((a, c) => (c.delta < a.delta ? c : a)) : null;
+    const tot = lista.reduce((t, e) => ({ prod: t.prod + e.prod, neg: t.neg + e.neg, total: t.total + e.total, meta: t.meta + e.meta }), { prod: 0, neg: 0, total: 0, meta: 0 });
+    tot.delta = tot.total - tot.meta;
+    const positivas = comMeta.filter(e => naMeta(e.delta)).length;
+
+    $('#fd-quando').textContent = fd.dia === 'todos' ? `no ${rfTxt}/${estado.ano}` : `em ${new Date(fd.dia).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}`;
+    $('#fd-sub').textContent = `Total = produção + negociações. Delta = total − meta diária${estado.comOR ? ' (com Outras Receitas)' : ''}${fd.dia === 'todos' ? ', somados no período' : ''}. Clique nos títulos para ordenar.`;
+    $('#fd-placar').innerHTML = `
+      <span class="fd-pl pos"><i data-lucide="trending-up"></i><b>${positivas}</b> ${positivas === 1 ? 'equipe' : 'equipes'} na meta ou acima</span>
+      <span class="fd-pl neg"><i data-lucide="trending-down"></i><b>${comMeta.length - positivas}</b> abaixo da meta</span>
+      <span class="fd-pl ${tot.delta >= 0 ? 'pos' : 'neg'}"><i data-lucide="${tot.delta >= 0 ? 'circle-check' : 'circle-alert'}"></i>Saldo do grupo: <b>${tot.delta >= 0 ? '+' : ''}${brl(tot.delta)}</b></span>`;
+
+    const seta = c => (fd.ordem.k === c ? (fd.ordem.dir > 0 ? '▲' : '▼') : '');
+    const th = (c, t) => `<th><button type="button" data-ord="${c}" class="${fd.ordem.k === c ? 'ativo' : ''}">${t} <em>${seta(c)}</em></button></th>`;
+    const linhaHTML = (e, i) => {
+      const status = !e.meta ? 'neutro' : naMeta(e.delta) ? 'pos' : 'neg';
+      const eMelhor = e === melhor && e.delta > 0, ePior = e === pior && e.delta < 0;
+      const marca = eMelhor ? '<span class="fd-marca topo" title="Maior saldo positivo">🏆</span>' : ePior ? '<span class="fd-marca alerta" title="Maior saldo negativo">⚠️</span>' : '';
+      const p = pessoaDoSup(e.supervisor);
+      const obs = e.obs.slice(-3).reverse().map(o => `<li title="${escapar(o.texto)}">${fd.dia === 'todos' && o.d ? `<em>${dia(o.d)}</em> ` : ''}${escapar(o.texto)}</li>`).join('');
+      const largura = e.ating == null ? 0 : Math.min(e.ating, 1.5) / 1.5 * 100;
+      return `<tr class="fd-linha fd-${status}${eMelhor ? ' melhor' : ''}${ePior ? ' pior' : ''}" style="--i:${i};--sc:${corSup(e.supervisor)}">
+        <th scope="row" class="col-equipe" data-rotulo="Equipe"><span class="equipe-chip">${escapar(e.equipe)}</span>${marca}${e.supervisor ? `<span class="equipe-sup">${p ? `<img data-foto-pessoa="${p.id}" alt="">` : ''}${escapar(e.supervisor)}</span>` : ''}</th>
+        <td data-rotulo="Produção">${brl(e.prod)}</td>
+        <td data-rotulo="Negociações">${e.neg ? brl(e.neg) : '<span class="fd-mudo">—</span>'}</td>
+        <td data-rotulo="Total"><b>${brl(e.total)}</b></td>
+        <td data-rotulo="Meta">${e.meta ? brl(e.meta) : '<span class="fd-mudo">sem meta</span>'}</td>
+        <td data-rotulo="Delta" class="fd-delta-cel"><span class="fd-delta fd-${status}">${status === 'pos' ? '▲' : status === 'neg' ? '▼' : '•'} ${e.meta ? `${e.delta >= 0 ? '+' : ''}${brl(e.delta)}` : '—'}</span>${e.ating != null ? `<span class="fd-barra" title="${pct(e.ating)} da meta"><i style="width:${largura}%;background:${corAderencia(e.ating)}"></i><span class="fd-barra-meta"></span></span><small>${pct(e.ating)} da meta</small>` : ''}</td>
+        <td data-rotulo="Observações" class="fd-obs">${obs ? `<ul>${obs}</ul>${e.obs.length > 3 ? `<small>+${e.obs.length - 3} observações</small>` : ''}` : '<span class="fd-mudo">—</span>'}</td>
+      </tr>`;
+    };
+    $('#fd-tabela').innerHTML = lista.length ? `<table class="tabela fd-tabela">
+      <thead><tr>${th('equipe', 'Equipe')}${th('prod', 'Produção')}${th('neg', 'Negociações')}${th('total', 'Total')}${th('meta', 'Meta')}${th('delta', 'Delta')}<th><button type="button" disabled>Observações</button></th></tr></thead>
+      <tbody>${lista.map(linhaHTML).join('')}</tbody>
+      <tfoot><tr class="${naMeta(tot.delta) ? 'fd-pos' : 'fd-neg'}"><th scope="row">Total</th><td>${brl(tot.prod)}</td><td>${brl(tot.neg)}</td><td><b>${brl(tot.total)}</b></td><td>${brl(tot.meta)}</td>
+        <td><span class="fd-delta ${naMeta(tot.delta) ? 'fd-pos' : 'fd-neg'}">${tot.delta >= 0 ? '▲ +' : '▼ '}${brl(tot.delta)}</span>${tot.meta ? `<small>${pct(tot.total / tot.meta)} da meta</small>` : ''}</td><td></td></tr></tfoot>
+    </table>` : '<p class="fd-mudo fd-vazio">Nenhum lançamento por equipe neste dia.</p>';
+    aplicarFotos(false);
+    window.lucide?.createIcons();
+  }
+  $('#fd-dia').addEventListener('change', e => { fd.dia = e.target.value === 'todos' ? 'todos' : +e.target.value; renderizar(['diario']); });
+  $('#fd-tabela').addEventListener('click', e => {
+    const b = e.target.closest('[data-ord]'); if (!b) return;
+    const k = b.dataset.ord;
+    fd.ordem = { k, dir: fd.ordem.k === k ? -fd.ordem.dir : (k === 'equipe' ? 1 : -1) };
+    renderizar(['diario']);
+  });
 
   const CORES_FROTA = ['#3dffa8', '#c8f560', '#38bdf8', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c', '#2dd4bf', '#f87171', '#94a3b8', '#4ade80', '#e879f9'];
   const obsValida = o => o && !/^(-|#n\/a|n\/a|#ref!)$/i.test(o.trim());
