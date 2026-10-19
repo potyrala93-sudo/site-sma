@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/clima.css">
   <link rel="stylesheet" href="css/folhito.css">
   <link rel="preload" as="image" href="assets/img/hero/hero-01-hd.jpg" media="(min-width: 701px)">
   <link rel="preload" as="image" href="assets/img/hero/hero-01.jpg" media="(max-width: 700px)">
@@ -17,6 +18,7 @@
   <script src="js/planilhas.js" defer></script>
   <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
   <script src="js/main.js" defer></script>
+  <script src="js/clima.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
 </head>
@@ -223,6 +225,40 @@
           <ul class="org-tree" id="org-tree"></ul>
         </div>
         <div class="org-legenda" id="org-legenda"></div>
+      </div>
+    </section>
+
+    <!-- ===== Clima nas Fazendas ===== -->
+    <section class="section section-grid clima-secao" id="clima" aria-labelledby="clima-titulo">
+      <div class="glow-orb" style="right:-200px;top:10%" aria-hidden="true"></div>
+      <div class="container">
+        <div class="section-head center reveal">
+          <span class="eyebrow">Tempo</span>
+          <h2 class="section-title" id="clima-titulo">Clima nas <span class="serif">Fazendas</span></h2>
+          <p class="section-sub">Previsão de cada fazenda e a janela de aplicação hora a hora: verde é hora boa para pulverizar, amarelo pede atenção e vermelho é para não aplicar.</p>
+        </div>
+
+        <div class="clima-card glass reveal" id="clima-card">
+          <div class="clima-mapa-wrap">
+            <div class="clima-mapa" id="clima-mapa" role="region" aria-label="Mapa do clima nas fazendas"></div>
+            <div class="clima-estado" id="clima-estado"><span class="clima-spinner" aria-hidden="true"></span><span>Carregando a previsão das fazendas…</span></div>
+            <div class="clima-legenda" id="clima-legenda"></div>
+          </div>
+          <aside class="clima-lado" aria-label="Resumo do clima">
+            <div class="clima-kpis" id="clima-kpis"></div>
+            <div class="clima-lista-topo"><span>Fazendas</span><small>vermelho primeiro</small></div>
+            <div class="clima-lista" id="clima-lista" role="list"></div>
+          </aside>
+        </div>
+
+        <div class="clima-rodape">
+          <span><i data-lucide="cloud-sun"></i> Previsão: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · <span id="clima-hora">—</span></span>
+          <span class="clima-aviso" id="clima-aviso" hidden></span>
+          <span class="clima-acoes">
+            <button type="button" class="btn btn-ghost clima-btn" id="clima-atualizar"><i data-lucide="refresh-cw"></i> Atualizar previsão</button>
+            <button type="button" class="btn btn-primary clima-btn" id="clima-abrir"><i data-lucide="maximize-2"></i> Abrir em tela cheia</button>
+          </span>
+        </div>
       </div>
     </section>
 

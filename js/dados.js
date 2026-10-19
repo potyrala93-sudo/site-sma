@@ -209,5 +209,24 @@ const SEGURANCA = {
   }
 };
 
-window.SMA_DADOS = { SETORES, CICLO, ESTRUTURA, ORGANOGRAMA, PASTA_EQUIPE, PASTA_ESTRUTURA, FATURAMENTO, QUALIDADE, PRODUCAO, RH, SEGURANCA };
+// Clima nas Fazendas (Home): coordenadas por fazenda + previsão Open-Meteo. Todos os limites ficam aqui.
+const CLIMA = {
+  planilha: '1ue2hVLybVraqHHoZMrAhh9vFmaikp5PYUfIMEmsg6R4',
+  aba: 0,
+  faixas: { lat: [-35, -5], lon: [-75, -30] },   // coordenadas fora disso são descartadas
+  gradeGraus: 0.1,      // fazendas a menos de ~11 km usam o mesmo ponto de previsão (limite gratuito do Open-Meteo)
+  cacheMin: 30,
+  // Janela de aplicação (pulverização), hora a hora
+  janela: {
+    ideal: { ventoMin: 3, ventoMax: 10, rajadaMax: 15, probChuvaMax: 30, tempMax: 30, umidadeMin: 55, deltaTMin: 2, deltaTMax: 8 },
+    naoAplicar: { ventoMax: 15, ventoMin: 3, tempMax: 32, umidadeMin: 45, deltaTMax: 10 },
+    horasChuva: 4,          // chuva prevista nesta quantidade de horas à frente = não aplicar
+    chuvaMinMm: 0.1,        // a partir de quanto conta como chuva
+    janelaMinHoras: 2       // "próxima janela boa": pelo menos esta quantidade de horas verdes seguidas
+  },
+  alertas: { chuvaDiaMm: 30, rajadaKmh: 40, tempMax: 35, geadaMin: 3 },
+  plantio: { chuva7dMm: 20 },  // acumulado em 7 dias ≥ isto = "umidade favorável ao plantio"; senão "prever irrigação"
+  chuvaHojeMm: 1             // "chuva prevista hoje" a partir deste total no dia
+};
+window.SMA_DADOS = { SETORES, CICLO, ESTRUTURA, ORGANOGRAMA, PASTA_EQUIPE, PASTA_ESTRUTURA, FATURAMENTO, QUALIDADE, PRODUCAO, RH, SEGURANCA, CLIMA };
 })();

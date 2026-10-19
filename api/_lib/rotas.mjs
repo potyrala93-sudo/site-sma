@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { colecao, fotosNoBanco, TEM_BANCO, ONDE_SALVA } from './armazenamento.mjs';
 import { consultar, valoresDoCampo, descricaoBases, preaquecer } from './motor-dados.mjs';
+import { resumoClima, detalheClima } from './clima.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const NA_VERCEL = Boolean(process.env.VERCEL);
@@ -496,7 +497,25 @@ async function rotaExperimentoIA(req, res, acao) {
   }
 }
 
-/* ---------- Roteador: devolve true se a requisição era da API ---------- */
+/* ---------- Clima nas Fazendas: resumo de todas as fazendas e detalhe de um ponto ---------- */
+async function rotaClima(req, res, ponto) {
+  const CFG = DADOS.CLIMA;
+  if (!CFG) return json(res, 503, { erro: 'Clima não configurado.' });
+  const url = new URL(req.url, 'http://x');
+  try {
+    const dados = ponto ? await detalheClima(CFG, decodeURIComponent(ponto)) : await resumoClima(CFG, url.searchParams.get('fresco') === '1');
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+      // na Vercel, a mesma resposta serve todo mundo por 30 min (protege o limite gratuito do Open-Meteo)
+      ...(NA_VERCEL && url.searchParams.get('fresco') !== '1' ? { 'Vercel-CDN-Cache-Control': `public, s-maxage=${CFG.cacheMin * 60}, stale-while-revalidate=600` } : {})
+    });
+    res.end(JSON.stringify(dados));
+  } catch (erro) {
+    console.error('Clima:', erro.message);
+    json(res, erro.status || 502, { erro: `Não foi possível carregar o clima: ${erro.message}` });
+  }
+}
+/* ---------- Roteador: devolve false se não era da API; senão, uma Promise que termina com a resposta ---------- */
 export function tratarApi(req, res) {
   const rota = req.url.split('?')[0];
   if (!rota.startsWith('/api/')) return false;
@@ -513,6 +532,9 @@ export function tratarApi(req, res) {
   if (expIA && req.method === 'POST') return Promise.resolve(rotaExperimentoIA(req, res, expIA[1]));
   const fotos = rota.match(/^\/api\/fotos\/([a-z]+)$/);
   if (fotos && req.method === 'GET') return Promise.resolve(listarFotos(res, fotos[1]));
+  if (rota === '/api/clima' && req.method === 'GET') return Promise.resolve(rotaClima(req, res));
+  const climaPonto = rota.match(/^\/api\/clima\/ponto\/([^/]+)$/);
+  if (climaPonto && req.method === 'GET') return Promise.resolve(rotaClima(req, res, climaPonto[1]));
   if (rota === '/api/status' && req.method === 'GET') return Promise.resolve(json(res, 200, { ia: Boolean(cliente && iaDisponivel), modelo: MODELO, salvamento: ONDE_SALVA, vercel: NA_VERCEL }));
   if (rota === '/api/folhito/status' && req.method === 'GET') return Promise.resolve(json(res, 200, { ia: Boolean(cliente && iaDisponivel), modelo: MODELO }));
   if (rota === '/api/folhito' && req.method === 'POST') return Promise.resolve(conversar(req, res));
