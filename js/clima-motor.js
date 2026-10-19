@@ -4,9 +4,11 @@
    2) Por fazenda: ponto central (média), município mais frequente e contorno (envoltória convexa).
    3) Fazendas próximas (mesma célula da grade) dividem um ponto de previsão (limite gratuito do Open-Meteo).
    4) Previsão hora a hora (7 dias para trás e 7 para frente) → dias, chuva, alertas e janela de aplicação.
-   Limites em js/dados.js → CLIMA. Sem dependências: roda no Node e no navegador (módulo ES).
+   Limites em js/dados.js → CLIMA. Sem dependências: script comum (funciona até com a página aberta direto do arquivo);
+   expõe globalThis.SMA_CLIMA_MOTOR — no Node, basta importar o arquivo.
    ========================================================================== */
 
+(() => {
 const API = 'https://api.open-meteo.com/v1/forecast';
 const HORARIAS = ['temperature_2m', 'relative_humidity_2m', 'precipitation', 'precipitation_probability', 'wind_speed_10m', 'wind_gusts_10m', 'wind_direction_10m', 'weather_code'];
 const TZ = 'America/Sao_Paulo';
@@ -48,7 +50,7 @@ function envoltoria(pontos) {
   return [...baixo.slice(0, -1), ...cima.slice(0, -1)].map(([lo, la]) => [+la.toFixed(5), +lo.toFixed(5)]);
 }
 
-export function fazendasDoTexto(texto, CFG) {
+function fazendasDoTexto(texto, CFG) {
   if (/^\s*</.test(texto)) throw new Error('a planilha não está pública');
   const linhas = lerCSV(texto);
   const iCab = linhas.findIndex(l => l.some(c => chave(c) === 'LATITUDE'));
@@ -116,7 +118,7 @@ function janelas(h, J) {
 }
 
 /* ---------- Resumo de um ponto de previsão ---------- */
-export function resumir(h, CFG) {
+function resumir(h, CFG) {
   const { dia: hoje, hora } = agoraSP();
   const J = CFG.janela, A = CFG.alertas;
   const { status, deltaT, motivo } = janelas(h, J);
@@ -164,7 +166,7 @@ export function resumir(h, CFG) {
 }
 
 // As próximas 72 h (para o gráfico do detalhe)
-export function proximas72(h, CFG) {
+function proximas72(h, CFG) {
   const { hora } = agoraSP();
   const { status, deltaT, motivo } = janelas(h, CFG.janela);
   let i0 = h.time.indexOf(hora); if (i0 < 0) i0 = Math.max(0, h.time.findIndex(t => t > hora) - 1);
@@ -176,7 +178,7 @@ export function proximas72(h, CFG) {
 /* ---------- Open-Meteo ---------- */
 // Lotes de até 25 pontos baixados ao mesmo tempo (no servidor da Vercel, um lote grande por vez passava do tempo).
 // Um lote que falhar é tentado de novo; se falhar outra vez, só os pontos dele ficam sem previsão.
-export async function previsao(pontos, { tamanho = 25, prazo = 25_000 } = {}) {
+async function previsao(pontos, { tamanho = 25, prazo = 25_000 } = {}) {
   const baixar = async lote => {
     const url = `${API}?latitude=${lote.map(p => p.lat.toFixed(4)).join(',')}&longitude=${lote.map(p => p.lon.toFixed(4)).join(',')}&hourly=${HORARIAS.join(',')}&timezone=${encodeURIComponent(TZ)}&forecast_days=7&past_days=7&wind_speed_unit=kmh`;
     for (let tentativa = 1; ; tentativa++) {
@@ -201,7 +203,7 @@ export async function previsao(pontos, { tamanho = 25, prazo = 25_000 } = {}) {
 
 
 /* ---------- Montagem do resumo de todas as fazendas ---------- */
-export async function montarResumo(texto, CFG, guardarHoraria = () => {}) {
+async function montarResumo(texto, CFG, guardarHoraria = () => {}) {
   const { fazendas, invalidos } = fazendasDoTexto(texto, CFG);
   const g = CFG.gradeGraus, celulas = new Map();
   fazendas.forEach(f => {
@@ -226,13 +228,16 @@ export async function montarResumo(texto, CFG, guardarHoraria = () => {}) {
 }
 
 /* ---------- Detalhe de um ponto (72 h) ---------- */
-export function pontoValido(id, CFG) {
+function pontoValido(id, CFG) {
   const m = /^(-?\d{1,2}\.\d{1,4}),(-?\d{1,3}\.\d{1,4})$/.exec(id || '');
   if (!m) return null;
   const lat = +m[1], lon = +m[2];
   if (lat < CFG.faixas.lat[0] || lat > CFG.faixas.lat[1] || lon < CFG.faixas.lon[0] || lon > CFG.faixas.lon[1]) return null;
   return { lat, lon };
 }
-export function montarDetalhe(id, hourly, CFG, quando = Date.now()) {
+function montarDetalhe(id, hourly, CFG, quando = Date.now()) {
   return { id, atualizado: new Date(quando).toISOString(), ...resumir(hourly, CFG), horas72: proximas72(hourly, CFG) };
 }
+
+  globalThis.SMA_CLIMA_MOTOR = { fazendasDoTexto, resumir, proximas72, previsao, montarResumo, pontoValido, montarDetalhe };
+})();

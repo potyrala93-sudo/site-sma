@@ -5,7 +5,8 @@
    o site inteiro faz no máximo uma consulta ao Open-Meteo por ponto a cada meia hora (limite gratuito).
    ========================================================================== */
 
-import { montarResumo, previsao, pontoValido, montarDetalhe } from '../../js/clima-motor.js';
+import '../../js/clima-motor.js';   // script comum: registra globalThis.SMA_CLIMA_MOTOR
+const { montarResumo, previsao, pontoValido, montarDetalhe } = globalThis.SMA_CLIMA_MOTOR;
 
 let cache = null;   // { quando, promessa }
 const horarias = new Map();   // id do ponto → { quando, hourly }

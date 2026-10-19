@@ -62,7 +62,11 @@
   // calcula com o mesmo motor (js/clima-motor.js), consultando o Open-Meteo direto.
   let motorLocal = null;
   const horariasLocais = new Map();
-  const motor = async () => (motorLocal ||= await import(new URL('js/clima-motor.js', location.href).href));
+  // script comum (não módulo): funciona também com a página aberta direto do arquivo
+  const motor = async () => {
+    if (!window.SMA_CLIMA_MOTOR) await carregar('script', { src: 'js/clima-motor.js' });
+    return (motorLocal = window.SMA_CLIMA_MOTOR);
+  };
   async function buscar(fresco = false) {
     if (comServidor) {
       try {
