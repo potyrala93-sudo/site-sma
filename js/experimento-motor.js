@@ -444,7 +444,11 @@
     [/\bpor\s+avaliador(es)?\b|\bavaliador(es)?\b/, 'AVALIADOR'],
     [/\bpor\s+monitoramentos?\b|\bmonitoramentos?\b/, 'MONITORAMENTO'],
     [/\bpor\s+material\b|\bmaterial genetico\b/, 'MATERIAL'],
-    [/\bpor\s+estrutura\b|\brecursos?\b/, 'ESTRUTURA']
+    [/\bpor\s+estrutura\b|\brecursos?\b/, 'ESTRUTURA'],
+    [/\b(por|cada)\s+(a\s+)?func(ao|oes)\b|\bfuncoes\b|\bcargos\b/, 'FUNCAO'],
+    [/\b(por|cada)\s+(a\s+)?modalidades?\b|\bmodalidades\b/, 'MODALIDADE'],
+    [/\bpor\s+(a\s+)?situac(ao|oes)\b/, 'SITUACAO'],
+    [/\bquais (sao )?os colaboradores|\bquem (sao|e|trabalha)|\blist(a|e|ar) (os |de )?(colaboradores|nomes|pessoas)|\bnomes? d/, 'COLABORADOR']
   ];
   const TIPO_PALAVRAS = [
     [/\brosca|donut/, 'rosca'], [/\bpizza|torta\b/, 'pizza'], [/\bmapa de calor|heatmap|calor\b/, 'mapa_calor'], [/\btreemap|mapa de arvore/, 'treemap'],
@@ -459,6 +463,15 @@
     const ms = [], calc = [];
     const add = (fonte, campo, agregacao, rotulo, formato) => { const id = `m${ms.length + 1}`; ms.push({ id, fonte, campo, agregacao, rotulo, ...(formato ? { formato } : {}) }); return id; };
     const filtrosExtra = [];
+    // RH: pessoas, funções, modalidades, tempo de casa (lista de colaboradores do mês mais recente)
+    const rh = /colaborador|funcionari|pessoas|empregad|trabalhador|\bfunc(ao|oes)\b|cargo|modalidade|tempo (medio )?de casa|admiti|admissao|\bativos?\b|afastad|desligad|servente|tratorista|motorista|encarregad|operador|\brh\b/.test(t)
+      && !/faturamento|faturou|area|hectare|produc|rendimento|nota|qualidade|trator(es)? da|caminh/.test(t);
+    if (rh || dims.some(d => ['FUNCAO', 'MODALIDADE', 'SITUACAO', 'COLABORADOR'].includes(d))) {
+      if (/tempo (medio )?de casa|antig|veteran|anos de casa/.test(t)) add('rh', 'ANOS_DE_CASA', 'media', 'Tempo médio de casa (anos)', 'nota');
+      else add('rh', 'CHAPA', 'contagem_distinta', 'Colaboradores', 'int');
+      if (!/afastad|desligad|demitid|inativ|todas as situac|por situac/.test(t)) filtrosExtra.push({ campo: 'SITUACAO', operador: '=', valor: 'ATIVO' });
+      return { ms, calc, filtrosExtra };
+    }
     if (/rendimento|ha\/dia|produtividade|por dia trabalhado/.test(t)) {
       const a = add('pgo', 'AREA', 'soma', 'Área realizada'), d = add('pgo', 'DATA', 'dias_distintos', 'Dias trabalhados');
       calc.push({ id: 'rend', rotulo: 'Rendimento (ha/dia)', formula: `${a} / ${d}`, formato: 'ha_dia' });
@@ -491,7 +504,7 @@
     const valores = campo => [...new Set(cat.flatMap(b => b.campos.filter(c => c.nome === campo).flatMap(c => c.valores || [])))];
     const equipes = [...new Set((original.toUpperCase().match(/\bB[A-Z]\b/g) || []))].filter(e => valores('EQUIPE').includes(e));
     if (equipes.length) filtros.push({ campo: 'EQUIPE', operador: 'em', valor: equipes });
-    ['FAZENDA', 'SUPERVISOR', 'GRUPO_ATIVIDADE', 'MONITORAMENTO', 'AVALIADOR'].forEach(campo => {
+    ['FAZENDA', 'SUPERVISOR', 'GRUPO_ATIVIDADE', 'MONITORAMENTO', 'AVALIADOR', 'FUNCAO', 'MODALIDADE', 'NOME_EQUIPE'].forEach(campo => {
       const achados = valores(campo).filter(v => { const n = norm(v).replace(/\(.*\)/, '').trim(); return n.length > 2 && new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(t); });
       if (achados.length) filtros.push({ campo, operador: 'em', valor: achados });
     });

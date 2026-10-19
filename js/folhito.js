@@ -9,6 +9,8 @@
   if (!D) return;
 
   const API = window.FOLHITO_API || 'api/folhito';
+  // Respostas com as bases dos painéis sem IA (produção, qualidade, RH…): carregado junto com o Folhito
+  if (!window.FOLHITO_BASES) { const s = document.createElement('script'); s.src = 'js/folhito-bases.js'; s.defer = true; document.head.appendChild(s); }
   const IMG = 'assets/img/folhito/';
   const CHAVE_CONVERSA = 'folhito:conversa';
   const CHAVE_SILENCIO = 'folhito:silencio';
@@ -462,7 +464,7 @@
       if (!/HTTP 429/.test(erro.message)) definirModo(false);
     }
     // 2º: sem a IA do servidor, perguntas de faturamento/frota/estrutura → resposta exata da planilha, calculada aqui
-    if (!resposta && window.FOLHITO_CONSULTAS?.pareceDados(texto)) {
+    if (!resposta && window.FOLHITO_CONSULTAS?.pareceDados(texto) && !(window.FOLHITO_BASES?.pareceDados(texto) && window.FOLHITO_BASES.prefere(texto))) {
       try {
         const r = await window.FOLHITO_CONSULTAS.responder(texto);
         if (r) {
@@ -471,6 +473,19 @@
           adicionarMensagem('assistant', resposta);
         }
       } catch (erro) { console.warn('Folhito: falha ao consultar os dados.', erro); }
+    }
+    // 3º: sem IA, demais perguntas de dados (produção, qualidade, RH, frota…) → bases dos painéis, calculadas aqui
+    if (!resposta && window.FOLHITO_BASES?.pareceDados(texto)) {
+      try {
+        const bolha = indicador.querySelector('.folhito-bolha');
+        if (bolha) { bolha.classList.add('com-status'); bolha.innerHTML = '<i></i><i></i><i></i><span>Consultando as planilhas…</span>'; }
+        const r = await window.FOLHITO_BASES.responder(texto);
+        if (r) {
+          resposta = r.texto + (r.links || []).map(l => ` [[${DESTINOS[l.destino]?.rotulo || 'Abrir'}|${l.destino}]]`).join('');
+          indicador.remove();
+          adicionarMensagem('assistant', resposta);
+        }
+      } catch (erro) { console.warn('Folhito: falha ao consultar as bases.', erro); }
     }
     if (!resposta && iaLocal.estado === 'pronta') {
       try { resposta = await perguntarIALocal(indicador, texto); }
