@@ -29,7 +29,7 @@
 .folhito-online {
   position: absolute; right: 2px; bottom: 4px;
   width: 15px; height: 15px; border-radius: 50%;
-  background: var(--neon); border: 3px solid var(--bg);
+  background: var(--neon-fundo, var(--neon)); border: 3px solid var(--bg);
   box-shadow: 0 0 8px var(--neon);
 }
 .folhito.aberto .folhito-lancador { animation: none; transform: scale(.9); }
@@ -140,7 +140,7 @@
   overflow-wrap: anywhere;
 }
 .bot .folhito-bolha { background: rgb(var(--tinta-rgb) / .06); border: 1px solid var(--borda); border-bottom-left-radius: 4px; color: var(--texto); }
-.usuario .folhito-bolha { background: var(--lima); color: #0b1d07; font-weight: 600; border-bottom-right-radius: 4px; }
+.usuario .folhito-bolha { background: var(--lima-fundo, var(--lima)); color: #0b1d07; font-weight: 600; border-bottom-right-radius: 4px; }
 .folhito-bolha p + p, .folhito-bolha ul, .folhito-bolha ol { margin-top: .5rem; }
 .folhito-bolha ul, .folhito-bolha ol { padding-left: 1.2rem; margin-bottom: 0; }
 .folhito-bolha li + li { margin-top: .2rem; }
@@ -164,7 +164,7 @@
 
 /* Digitando… */
 .folhito-digitando .folhito-bolha { display: flex; gap: 5px; align-items: center; padding: .85rem 1rem; }
-.folhito-digitando i { width: 7px; height: 7px; border-radius: 50%; background: var(--neon); opacity: .4; animation: folhito-ponto 1.2s infinite; }
+.folhito-digitando i { width: 7px; height: 7px; border-radius: 50%; background: var(--neon-fundo, var(--neon)); opacity: .4; animation: folhito-ponto 1.2s infinite; }
 .folhito-digitando i:nth-child(2) { animation-delay: .15s; }
 .folhito-digitando i:nth-child(3) { animation-delay: .3s; }
 @keyframes folhito-ponto { 30% { opacity: 1; transform: translateY(-3px); } }
@@ -188,7 +188,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
   width: 100%; margin-top: .8rem; padding: .7rem 1rem;
   border-radius: 999px; font-weight: 800; font-size: .9rem;
-  background: var(--lima); color: #0b1d07;
+  background: var(--lima-fundo, var(--lima)); color: #0b1d07;
   box-shadow: 0 0 22px -6px rgba(200, 245, 96, .8);
   transition: transform .2s;
 }
@@ -227,7 +227,7 @@
 .folhito-enviar {
   display: grid; place-items: center; flex-shrink: 0;
   width: 46px; height: 46px; border-radius: 14px;
-  background: var(--lima); color: #0b1d07;
+  background: var(--lima-fundo, var(--lima)); color: #0b1d07;
   box-shadow: 0 0 18px -4px rgba(200, 245, 96, .7);
   transition: transform .2s, opacity .2s;
 }

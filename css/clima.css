@@ -22,7 +22,7 @@
 .clima-lado { display: flex; flex-direction: column; min-height: 0; padding: .9rem; gap: .7rem; background: rgb(var(--fundo-rgb) / .6); border-left: 1px solid var(--borda); }
 .clima-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
 .clima-kpi { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: .45rem; padding: .55rem .65rem; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); background: color-mix(in srgb, var(--c) 7%, rgb(var(--tinta-rgb) / .02)); min-width: 0; }
-.clima-kpi svg { width: 16px; height: 16px; color: var(--c); grid-row: span 2; }
+.clima-kpi svg { width: 16px; height: 16px; color: var(--c-txt, var(--c)); grid-row: span 2; }
 .clima-kpi span { font-size: .64rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--texto-suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .clima-kpi b { font-size: 1.15rem; color: var(--texto-forte); line-height: 1.1; }
 .clima-kpi b small { font-size: .7rem; color: var(--texto-suave); font-weight: 700; }
@@ -60,7 +60,7 @@
 .clima-dica { display: grid; gap: .15rem; font-size: .76rem; min-width: 200px; }
 .clima-dica > b { font-size: .86rem; color: var(--texto-forte); }
 .clima-dica small { color: var(--texto-suave); margin-bottom: .2rem; }
-.clima-dica-st { color: var(--c); font-weight: 800; white-space: normal; max-width: 260px; }
+.clima-dica-st { color: var(--c-txt, var(--c)); font-weight: 800; white-space: normal; max-width: 260px; }
 .clima-mapa .leaflet-control-attribution, .clima-tela-mapa .leaflet-control-attribution { background: rgb(var(--fundo-rgb) / .7); color: var(--texto-suave); }
 .clima-mapa .leaflet-control-attribution a, .clima-tela-mapa .leaflet-control-attribution a { color: var(--texto-suave); }
 
@@ -75,7 +75,7 @@ body.clima-sem-rolagem { overflow: hidden; }
 .clima-seg { display: inline-flex; padding: .2rem; border-radius: 999px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .03); }
 .clima-seg button { min-height: 36px; padding: 0 .8rem; border-radius: 999px; font-size: .8rem; font-weight: 800; color: var(--texto-suave); }
 .clima-seg button:hover { color: var(--texto-forte); }
-.clima-seg button.ativo { background: var(--neon); color: #04201a; box-shadow: 0 0 14px rgba(61,255,168,.4); }
+.clima-seg button.ativo { background: var(--neon-fundo, var(--neon)); color: #04201a; box-shadow: 0 0 14px rgba(61,255,168,.4); }
 .clima-campo { display: inline-flex; align-items: center; gap: .35rem; min-height: 40px; padding: 0 .3rem 0 .7rem; border-radius: 999px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .04); }
 .clima-campo svg { width: 15px; height: 15px; color: var(--neon); }
 .clima-campo select, .clima-campo input { max-width: 190px; min-height: 32px; padding: 0 .5rem; border: 0; border-radius: 999px; background: rgb(var(--fundo-rgb) / .9); color: var(--texto-forte); font: inherit; font-size: .82rem; }
@@ -85,7 +85,7 @@ body.clima-sem-rolagem { overflow: hidden; }
 .clima-tela-mapa { position: absolute; inset: 0; }
 .clima-radar { position: absolute; top: .7rem; left: 50%; transform: translateX(-50%); z-index: 460; display: inline-flex; align-items: center; gap: .5rem; padding: .3rem .8rem .3rem .3rem; border-radius: 999px; background: rgb(var(--fundo-rgb) / .88); border: 1px solid var(--borda); font-weight: 800; font-size: .8rem; color: var(--texto-forte); }
 .clima-radar[hidden] { display: none; }
-.clima-radar button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--neon); color: #04201a; }
+.clima-radar button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--neon-fundo, var(--neon)); color: #04201a; }
 .clima-radar svg { width: 15px; height: 15px; }
 .clima-tela-tabela { min-height: 0; overflow: auto; padding: .8rem 1.1rem; border-top: 1px solid var(--borda); }
 .clima-alertas { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .7rem; }
@@ -101,7 +101,7 @@ body.clima-sem-rolagem { overflow: hidden; }
 .clima-tab tbody tr { cursor: pointer; }
 .clima-detalhe-btn { font-weight: 800; color: var(--texto-forte); text-decoration: underline dotted rgba(61,255,168,.6); text-underline-offset: 3px; }
 .clima-detalhe-btn:hover { color: var(--neon); }
-.clima-pill { display: inline-flex; align-items: center; padding: .2rem .6rem; border-radius: 999px; font-size: .72rem; font-weight: 800; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); }
+.clima-pill { display: inline-flex; align-items: center; padding: .2rem .6rem; border-radius: 999px; font-size: .72rem; font-weight: 800; color: var(--c-txt, var(--c)); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); }
 .clima-alerta-mini { color: var(--tom-aviso, #ffd98a); font-size: .74rem; }
 .clima-tela-rodape { padding: .45rem 1.1rem; font-size: .72rem; color: var(--texto-suave); border-top: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .95); }
 

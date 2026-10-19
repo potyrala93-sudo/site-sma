@@ -146,7 +146,7 @@
 .x-kpi { position: relative; padding: 1.4rem; border-radius: 20px; text-align: center; background: radial-gradient(circle at 50% 0%, rgba(61,255,168,.14), transparent 70%), rgb(var(--tinta-rgb) / .03); border: 1px solid rgba(61,255,168,.3); overflow: hidden; }
 .x-kpi::before { content: ""; position: absolute; left: 10%; right: 10%; top: 0; height: 2px; background: var(--c); box-shadow: 0 0 18px 2px var(--c); }
 .x-kpi span { display: block; font-size: .74rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--texto-suave); }
-.x-kpi strong { display: block; margin: .4rem 0; font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.8rem, 4vw, 2.8rem); color: var(--c); text-shadow: 0 0 24px var(--c); }
+.x-kpi strong { display: block; margin: .4rem 0; font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.8rem, 4vw, 2.8rem); color: var(--c-txt, var(--c)); text-shadow: 0 0 24px var(--c); }
 .x-kpi small { color: var(--texto-fraco); }
 .x-tab-wrap { overflow-x: auto; }
 .x-tab { font-size: .84rem; }
@@ -178,7 +178,7 @@
 .x-g-fundo, .x-g-valor { fill: none; stroke-width: 16; stroke-linecap: round; }
 .x-g-fundo { stroke: rgb(var(--tinta-rgb) / .08); }
 .x-g-valor { stroke: var(--c); stroke-dasharray: 100; filter: drop-shadow(0 0 10px var(--c)); transition: stroke-dashoffset 1.2s var(--ease); }
-.x-gauge strong { margin-top: -3.2rem; font-family: 'Space Grotesk', sans-serif; font-size: clamp(2rem, 5vw, 3rem); color: var(--c); text-shadow: 0 0 24px var(--c); }
+.x-gauge strong { margin-top: -3.2rem; font-family: 'Space Grotesk', sans-serif; font-size: clamp(2rem, 5vw, 3rem); color: var(--c-txt, var(--c)); text-shadow: 0 0 24px var(--c); }
 .x-gauge span { color: var(--texto-suave); }
 .x-gauge small { color: var(--texto-fraco); }
 .x-problema { display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; min-height: 280px; }
