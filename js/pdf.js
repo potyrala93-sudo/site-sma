@@ -34,7 +34,24 @@
         const v = cs[p]; if (v && MODERNA.test(v)) el.style.setProperty(p.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), paraRgba(v), 'important');
       });
       if (MODERNA.test(cs.backgroundImage)) el.style.setProperty('background-image', 'none', 'important');
+      // sombras com cores modernas também quebram o html2canvas: troca a cor de cada sombra por rgba
+      ['boxShadow', 'textShadow'].forEach(p => {
+        const v = cs[p]; if (!v || !MODERNA.test(v)) return;
+        const convertida = v.replace(/(color-mix|color|oklab|oklch|lab|lch)\((?:[^()]|\([^()]*\))*\)/g, m => paraRgba(m));
+        el.style.setProperty(p.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), MODERNA.test(convertida) ? 'none' : convertida, 'important');
+      });
+      // pseudo-elementos (::before/::after) não aceitam estilo direto: some com o que tiver cor moderna
+      ['::before', '::after'].forEach(pseudo => {
+        const ps = getComputedStyle(el, pseudo);
+        if (ps.content && ps.content !== 'none' && [ps.color, ps.backgroundColor, ps.backgroundImage, ps.boxShadow, ps.borderTopColor].some(v => MODERNA.test(v || ''))) el.classList.add('sma-pdf-sem-pseudo');
+      });
     });
+    const doc = raiz.ownerDocument || document;
+    if (!doc.getElementById('sma-pdf-estilo')) {
+      const s = doc.createElement('style'); s.id = 'sma-pdf-estilo';
+      s.textContent = '.sma-pdf-sem-pseudo::before, .sma-pdf-sem-pseudo::after { display: none !important; }';
+      doc.head.appendChild(s);
+    }
   }
 
   async function gerar(paginas, nomeArquivo, { preparar, progresso, retrato = false } = {}) {

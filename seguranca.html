@@ -4,42 +4,110 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Segurança · SMA Silvicultura · Unidade São Miguel</title>
-  <meta name="description" content="Segurança da operação de silvicultura da Unidade São Miguel.">
+  <meta name="description" content="Segurança da Unidade São Miguel: notas mensais SSQV, meta, evolução e comparação entre anos.">
   <meta name="theme-color" content="#040d0c">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/faturamento.css">
+  <link rel="stylesheet" href="css/qualidade.css">
+  <link rel="stylesheet" href="css/producao.css">
+  <link rel="stylesheet" href="css/seguranca.css">
   <link rel="stylesheet" href="css/folhito.css">
   <script src="js/dados.js" defer></script>
   <script src="js/planilhas.js" defer></script>
   <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
   <script src="js/main.js" defer></script>
+  <script src="js/pdf.js" defer></script>
+  <script src="js/seguranca.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
 </head>
-<body data-page="seguranca">
+<body data-page="seguranca" class="pagina-fat pagina-seg">
   <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
   <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="fat-fundo" aria-hidden="true"><div class="fat-grade"></div><div class="particles" id="particles"></div></div>
   <header class="site-header" id="site-header"></header>
 
   <main id="conteudo">
-    <section class="construcao section-grid" aria-labelledby="titulo">
-      <div class="glow-orb" aria-hidden="true"></div>
-      <div class="container">
-        <div class="construcao-card glass reveal">
-          <div class="construcao-icon" aria-hidden="true"><i data-lucide="shield-check"></i></div>
-          <span class="pill"><span class="dot" aria-hidden="true"></span> Em construção</span>
-          <h1 id="titulo"><span class="serif">Segurança</span></h1>
-          <p>Esta página está em construção. Em breve, os indicadores de segurança da Unidade São Miguel estarão disponíveis aqui.</p>
-          <div class="progresso" aria-hidden="true"><span></span></div>
-          <a class="btn btn-primary" href="index.html">
-            Voltar para a Home
-            <span class="btn-arrow"><i data-lucide="arrow-right"></i></span>
-          </a>
+    <!-- ===== Cabeçalho ===== -->
+    <section class="fat-hero" aria-labelledby="s-titulo">
+      <div class="container fat-hero-inner">
+        <div>
+          <span class="pill reveal"><span class="tag">Painel</span><span>Segurança · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
+          <h1 class="fat-titulo reveal" id="s-titulo" style="--d:.08s">Segurança · <span class="serif">Notas SSQV</span></h1>
+          <p class="fat-sub reveal" style="--d:.16s">Nota mensal de Segurança, Saúde e Qualidade de Vida em relação à meta, mês a mês, direto da planilha. Quanto maior, melhor.</p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="s-status">Carregando notas…</span></p>
+        </div>
+        <div class="q-hero-legenda glass reveal" style="--d:.2s" aria-label="Status do mês">
+          <span class="eyebrow">Status do mês · meta <b id="s-meta-rot">—</b></span>
+          <div class="q-faixas">
+            <span style="--c:#22e07a"><b>na meta ou acima</b>Acima da meta</span>
+            <span style="--c:#ffc83d"><b>até 5% abaixo</b>Atenção</span>
+            <span style="--c:#ff3b4e"><b>mais de 5% abaixo</b>Abaixo</span>
+          </div>
         </div>
       </div>
     </section>
+
+    <!-- ===== Filtros ===== -->
+    <div class="fat-barra-wrap">
+      <div class="container">
+        <div class="fat-barra glass" role="toolbar" aria-label="Filtros das notas SSQV">
+          <div class="s-filtros">
+            <div class="s-anos" id="s-anos" role="group" aria-label="Ano"></div>
+            <button type="button" class="fat-btn s-comparar" id="s-comparar" aria-pressed="false" hidden><i data-lucide="git-compare-arrows"></i><span>Comparar anos</span></button>
+          </div>
+          <div class="fat-barra-dir">
+            <button type="button" class="fat-btn" id="s-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+            <button type="button" class="fat-btn" id="s-xls"><i data-lucide="sheet"></i><span>Excel</span></button>
+            <button type="button" class="fat-btn" id="s-pdf"><i data-lucide="printer"></i><span>Imprimir / PDF</span></button>
+            <button type="button" class="fat-btn fat-atualizar" id="s-atualizar" title="Recarregar a planilha"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container"><div class="fat-erros" id="s-erros" role="alert" hidden></div></div>
+
+    <div class="fat-conteudo carregando" id="seg">
+      <!-- KPIs -->
+      <section class="container fat-secao" aria-label="Indicadores SSQV">
+        <div class="s-kpis">
+          <article class="kpi glass s-kpi-ultimo" id="s-k-ultimo">
+            <span class="icon-box"><i data-lucide="shield-check"></i></span>
+            <span class="kpi-rot">Última nota · <span data-s="ultimo-mes">—</span></span>
+            <strong class="kpi-val grande" data-s="ultimo">—</strong>
+            <span class="s-var" data-s="variacao"></span>
+          </article>
+          <article class="kpi glass"><span class="icon-box"><i data-lucide="sigma"></i></span><span class="kpi-rot">Média do ano</span><strong class="kpi-val" data-s="media">—</strong><small class="kpi-ajuda" data-s="media-ajuda"></small></article>
+          <article class="kpi glass"><span class="icon-box"><i data-lucide="trophy"></i></span><span class="kpi-rot">Melhor mês</span><strong class="kpi-val" data-s="melhor">—</strong><small class="kpi-ajuda" data-s="melhor-mes"></small></article>
+          <article class="kpi glass"><span class="icon-box"><i data-lucide="trending-down"></i></span><span class="kpi-rot">Pior mês</span><strong class="kpi-val" data-s="pior">—</strong><small class="kpi-ajuda" data-s="pior-mes"></small></article>
+          <article class="kpi glass"><span class="icon-box"><i data-lucide="target"></i></span><span class="kpi-rot">Meses na meta</span><strong class="kpi-val" data-s="na-meta">—</strong><span class="kpi-barra s-barra-meta"><i data-s="na-meta-barra"></i></span></article>
+        </div>
+      </section>
+
+      <!-- Gráfico -->
+      <section class="container fat-secao" aria-labelledby="s-graf-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow" id="s-graf-eyebrow">Mês a mês</span><h2 class="fat-sec-titulo" id="s-graf-tit">Nota <span class="serif">SSQV</span></h2></div>
+          <div class="s-legenda" id="s-legenda"></div>
+        </div>
+        <div class="fat-painel glass"><div class="fat-grafico alto"><canvas id="s-grafico" role="img" aria-label="Nota SSQV por mês"></canvas></div></div>
+      </section>
+
+      <!-- Tabela -->
+      <section class="container fat-secao" aria-labelledby="s-tab-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Detalhe</span><h2 class="fat-sec-titulo" id="s-tab-tit">Notas <span class="serif">por mês</span></h2></div>
+          <p class="fat-sec-sub" id="s-tab-sub"></p>
+        </div>
+        <div class="fat-painel glass tabela-wrap" id="s-tabela"><div class="esqueleto tabela-esq"></div></div>
+        <p class="s-rodape" id="s-rodape"></p>
+      </section>
+    </div>
   </main>
 
   <footer class="site-footer" id="site-footer"></footer>

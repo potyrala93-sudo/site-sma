@@ -1,0 +1,65 @@
+/* ==========================================================================
+   SMA · Silvicultura — Segurança · Notas SSQV
+   (usa os componentes de faturamento.css: hero, barra, kpi, painéis, tabela)
+   ========================================================================== */
+
+/* Filtros */
+.s-filtros { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.s-anos { display: inline-flex; align-items: center; gap: .35rem; flex-wrap: wrap; padding: .25rem; border-radius: 999px; border: 1px solid var(--borda); background: rgba(255,255,255,.03); }
+.s-rot { display: inline-flex; align-items: center; gap: .35rem; padding: 0 .55rem 0 .6rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-suave); }
+.s-rot svg { width: 15px; height: 15px; color: var(--neon); }
+.s-anos button { min-height: 38px; min-width: 64px; padding: 0 .9rem; border-radius: 999px; border: 1px solid transparent; font-weight: 800; color: var(--texto-suave); transition: background .25s, color .25s, box-shadow .25s; }
+.s-anos button:hover { color: #fff; border-color: rgba(61,255,168,.45); }
+.s-anos button.ativo { background: var(--neon); color: #04201a; box-shadow: 0 0 16px rgba(61,255,168,.45); }
+.s-comparar.ativo { border-color: var(--neon); background: rgba(61,255,168,.12); color: var(--neon); }
+
+/* KPIs */
+.s-kpis { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.s-kpi-ultimo { border-color: color-mix(in srgb, var(--c, #3dffa8) 45%, transparent); box-shadow: var(--sombra), inset 0 0 0 1px color-mix(in srgb, var(--c, #3dffa8) 18%, transparent); }
+.s-kpi-ultimo .kpi-val { color: var(--c, #fff); text-shadow: 0 0 22px color-mix(in srgb, var(--c, #3dffa8) 45%, transparent); }
+.s-var { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; font-weight: 800; color: var(--texto-suave); }
+.s-var svg { width: 17px; height: 17px; }
+.s-var.sobe { color: var(--neon); }
+.s-var.desce { color: #ff6b7a; }
+.s-barra-meta { margin-top: .35rem; }
+.s-barra-meta i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22e07a, #c8f560); }
+
+/* Legenda do gráfico */
+.s-legenda { display: flex; flex-wrap: wrap; gap: .4rem 1rem; font-size: .78rem; font-weight: 700; color: var(--texto-suave); }
+.s-legenda span { display: inline-flex; align-items: center; gap: .4rem; }
+.s-legenda i { width: 12px; height: 12px; border-radius: 4px; background: var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 60%, transparent); }
+.s-legenda i.tracejado { width: 18px; height: 0; border-radius: 0; border-top: 2px dashed #c8f560; background: none; box-shadow: none; }
+
+/* Tabela */
+.s-tab col.c-mes { width: 18%; }
+.s-tab col.c-status { width: 22%; }
+.s-tab td.num, .s-tab th.num { font-variant-numeric: tabular-nums; }
+.s-tab td small { color: var(--texto-suave); font-weight: 600; }
+.s-tab tbody tr.s-sem th, .s-tab tbody tr.s-sem td { color: var(--texto-fraco, #6f8a84); }
+.s-tab tfoot td { white-space: normal; }
+.s-status { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .6rem; border-radius: 999px; font-size: .74rem; font-weight: 800; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); }
+.s-status svg { width: 14px; height: 14px; }
+.s-pont { display: inline-block; width: 9px; height: 9px; margin-right: .45rem; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.s-semtxt { color: var(--texto-fraco, #6f8a84); font-weight: 600; }
+.s-rodape { display: flex; align-items: center; gap: .45rem; margin-top: .9rem; font-size: .85rem; color: var(--texto-suave); }
+.s-rodape svg { width: 16px; height: 16px; color: var(--neon); }
+
+/* PDF */
+.p-pdf .s-pdf-img { display: block; width: 100%; margin: 0 0 10px; border-radius: 10px; }
+.p-pdf .s-pdf-rod { margin: 4px 0 0; font-size: 12px; color: #334; }
+
+/* Responsivo */
+@media (max-width: 1100px) {
+  .s-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .s-kpi-ultimo { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .s-filtros, .s-anos { width: 100%; }
+  .s-comparar { width: 100%; justify-content: center; }
+  .s-tab { font-size: .7rem; }
+  .s-tab col.c-mes { width: 22%; }
+  .s-tab col.c-status { width: 26%; }
+  .s-status { padding: .2rem .4rem; font-size: .62rem; }
+  .s-status svg { display: none; }
+}
+.s-comparar[hidden] { display: none; }

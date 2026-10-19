@@ -199,5 +199,15 @@ const RH = {
   escalaAnos: 15   // barra de tempo de casa vai até 15 anos
 };
 
-window.SMA_DADOS = { SETORES, CICLO, ESTRUTURA, ORGANOGRAMA, PASTA_EQUIPE, PASTA_ESTRUTURA, FATURAMENTO, QUALIDADE, PRODUCAO, RH };
+// Segurança · Notas SSQV (planilha com Ano | Mês | Nota; maior é melhor)
+const SEGURANCA = {
+  ssqv: {
+    planilha: '1OBxsF_fmTIX04ck6V5ORlnlGiiiyB-q_jMPTXVsLzzM',
+    aba: 0,
+    META_NOTA: 100,            // meta mensal da nota SSQV (único lugar para mudar)
+    toleranciaAmarelo: 0.05    // até 5% abaixo da meta = amarelo; mais que isso = vermelho
+  }
+};
+
+window.SMA_DADOS = { SETORES, CICLO, ESTRUTURA, ORGANOGRAMA, PASTA_EQUIPE, PASTA_ESTRUTURA, FATURAMENTO, QUALIDADE, PRODUCAO, RH, SEGURANCA };
 })();

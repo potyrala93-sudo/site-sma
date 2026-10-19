@@ -73,6 +73,10 @@
         NOME_EQUIPE: ['texto', '', 'nome do líder/equipe'], MODALIDADE: ['texto', '', 'MANUAL, SEMI-MECANIZADA, MECANIZADO, APOIO'], SUBCONTRATO: ['texto'],
         ADMISSAO: ['data'], ANOS_DE_CASA: ['numero', 'anos', 'tempo de casa em anos']
       }
+    },
+    ssqv: {
+      nome: 'Segurança · notas SSQV', descricao: 'Nota mensal de Segurança, Saúde e Qualidade de Vida (maior é melhor; meta em SEGURANCA.ssqv.META_NOTA). RF = número do mês.',
+      campos: { ANO: ['numero'], RF: ['numero', '', 'número do mês (1 a 12)'], PERIODO: ['texto'], MES_NOME: ['texto', '', 'nome do mês'], NOTA: ['numero', 'nota', 'nota SSQV do mês'], META: ['numero', 'nota', 'meta mensal'], DIFERENCA_META: ['numero', 'nota', 'nota − meta'] }
     }
   };
   const CHAVES = ['FAZENDA', 'UP', 'EQUIPE', 'SUPERVISOR', 'ATIVIDADE', 'GRUPO_ATIVIDADE', 'DATA', 'MES', 'ANO', 'RF', 'PERIODO'];
@@ -85,28 +89,29 @@
   let carregadoEm = null;
 
   // Planilha de onde vem cada base (a de apontamentos PGO é grande: só é baixada quando precisa)
-  const GRUPO_DA_BASE = { faturamento: 'fat', faturamento_diario: 'fat', frota: 'fat', estrutura: 'fat', pgo: 'pgo', qualidade: 'qual', base_ups: 'ups', programacao: 'prog', rh: 'rh' };
+  const GRUPO_DA_BASE = { faturamento: 'fat', faturamento_diario: 'fat', frota: 'fat', estrutura: 'fat', pgo: 'pgo', qualidade: 'qual', base_ups: 'ups', programacao: 'prog', rh: 'rh', ssqv: 'ssqv' };
   const PULAR = Symbol('pular');
   // apenas: lista de ids de base (sem ela, carrega todas). As demais bases ficam como estavam.
   async function carregarBases(fresco = false, apenas = null) {
-    const R = D.PRODUCAO.realizada, Q = D.QUALIDADE, PR = D.PRODUCAO, RH = D.RH;
+    const R = D.PRODUCAO.realizada, Q = D.QUALIDADE, PR = D.PRODUCAO, RH = D.RH, SS = D.SEGURANCA?.ssqv;
     const alvo = apenas ? Object.keys(BASES).filter(k => apenas.includes(k)) : Object.keys(BASES);
     const grupos = new Set(alvo.map(k => GRUPO_DA_BASE[k]));
     if (grupos.has('pgo')) grupos.add('fat');   // o supervisor das equipes vem da estrutura
     const se = (g, f) => (grupos.has(g) ? f() : Promise.resolve(PULAR));
-    const [fat, pgo, qual, ups, prog, rh] = await Promise.allSettled([
+    const [fat, pgo, qual, ups, prog, rh, ssqv] = await Promise.allSettled([
       se('fat', () => P.obterDados({ fresco })),
       se('pgo', () => P.lerPlanilha(R.planilha, R.aba, { fresco, coluna: 'AREA APONTADA' })),
       se('qual', () => P.lerPlanilha(Q.planilha, Q.abas.avaliacoes, { fresco, coluna: 'UP', cabecalho: true })),
       se('ups', () => P.lerPlanilha(Q.planilha, Q.abas.ups, { fresco, coluna: 'UP', cabecalho: true })),
       se('prog', () => P.lerPlanilha(PR.planilha, PR.aba, { fresco, coluna: 'FAZENDA', cabecalho: true })),
-      se('rh', () => (RH ? P.lerPlanilha(RH.planilha, RH.aba, { fresco, coluna: 'CHAPA', cabecalho: true }) : Promise.reject(new Error('sem RH'))))
+      se('rh', () => (RH ? P.lerPlanilha(RH.planilha, RH.aba, { fresco, coluna: 'CHAPA', cabecalho: true }) : Promise.reject(new Error('sem RH')))),
+      se('ssqv', () => (SS ? P.lerPlanilha(SS.planilha, SS.aba, { fresco, coluna: 'NOTA', cabecalho: true }) : Promise.reject(new Error('sem SSQV'))))
     ]);
     const pulou = r => r.status === 'fulfilled' && r.value === PULAR;
     const recarregadas = Object.keys(BASES).filter(k => grupos.has(GRUPO_DA_BASE[k]));
     recarregadas.forEach(k => { dados[k] = []; delete erros[k]; });
     // bases fora do pedido: mantém o que já havia
-    [[fat, ['faturamento', 'faturamento_diario', 'frota', 'estrutura']], [pgo, ['pgo']], [qual, ['qualidade']], [ups, ['base_ups']], [prog, ['programacao']], [rh, ['rh']]]
+    [[fat, ['faturamento', 'faturamento_diario', 'frota', 'estrutura']], [pgo, ['pgo']], [qual, ['qualidade']], [ups, ['base_ups']], [prog, ['programacao']], [rh, ['rh']], [ssqv, ['ssqv']]]
       .forEach(([r, ks]) => { if (pulou(r)) ks.forEach(k => { dados[k] ||= []; }); });
 
     // Supervisor de cada equipe por RF (estrutura); sem o RF, o mais recente
@@ -176,6 +181,13 @@
         };
       });
     } else erros.rh = rh.reason;
+
+    if (pulou(ssqv)) { /* fora do pedido */ } else if (ssqv.status === 'fulfilled') {
+      const NOMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      const mesNum = v => { const x = norm(v); if (/^\d{1,2}$/.test(x)) return +x; const i = NOMES.findIndex(n => x.length >= 3 && norm(n).startsWith(x.slice(0, 3))); return i >= 0 ? i + 1 : null; };
+      dados.ssqv = ssqv.value.map(l => ({ ANO: P.num(l.ANO), RF: mesNum(l.MES), txt: String(l.NOTA ?? '').trim() })).filter(l => l.ANO && l.RF && l.txt && l.txt !== '-')
+        .map(l => { const nota = P.num(l.txt), meta = SS.META_NOTA; return comPeriodo({ ANO: l.ANO, RF: l.RF, MES_NOME: NOMES[l.RF - 1], NOTA: nota, META: meta, DIFERENCA_META: nota - meta }); });
+    } else erros.ssqv = ssqv.reason;
 
     // Nomes de fazenda iguais com/sem acento viram uma grafia só (a acentuada)
     const grafias = new Map();
@@ -438,7 +450,7 @@
     [/\b(por|cada)\s+(as\s+)?ups?\b|\b(as|das)\s+ups\b/, 'UP'],
     [/\bpor\s+grupos?\b|\bgrupos?\s+de\s+atividade/, 'GRUPO_ATIVIDADE'],
     [/\b(por|cada)\s+(as\s+)?atividades?\b|\batividades\b/, 'ATIVIDADE'],
-    [/\bpor\s+(o\s+|os\s+)?(rf|rfs|periodos?)\b|\b(rfs|ao longo|evolucao|tendencia|mensal)\b/, 'PERIODO'],
+    [/\b(melhor|pior|maior|menor) mes\b|\bqual (foi )?o mes\b|\bpor\s+(o\s+|os\s+)?(rf|rfs|periodos?|mes|meses)\b|\b(rfs|ao longo|evolucao|tendencia|mensal|mes a mes|cada mes)\b/, 'PERIODO'],
     [/\bpor\s+dia\b|\bdiari[oa]\b|\bdia a dia\b/, 'DATA'],
     [/\bpor\s+(a\s+)?frotas?\b|\bmaquinas?\b|\bfrotas?\b/, 'FROTA'],
     [/\bpor\s+avaliador(es)?\b|\bavaliador(es)?\b/, 'AVALIADOR'],
@@ -463,6 +475,12 @@
     const ms = [], calc = [];
     const add = (fonte, campo, agregacao, rotulo, formato) => { const id = `m${ms.length + 1}`; ms.push({ id, fonte, campo, agregacao, rotulo, ...(formato ? { formato } : {}) }); return id; };
     const filtrosExtra = [];
+    // Segurança: notas SSQV
+    if (/ssqv|seguranca|nota de seguranca/.test(t) && !/acidente|incidente|\bepi\b/.test(t)) {
+      if (/meta|diferenca/.test(t) && !/media|nota/.test(t)) add('ssqv', 'DIFERENCA_META', 'media', 'Diferença para a meta', 'nota');
+      else add('ssqv', 'NOTA', 'media', 'Nota SSQV', 'nota');
+      return { ms, calc, filtrosExtra };
+    }
     // RH: pessoas, funções, modalidades, tempo de casa (lista de colaboradores do mês mais recente)
     const rh = /colaborador|funcionari|pessoas|empregad|trabalhador|\bfunc(ao|oes)\b|cargo|modalidade|tempo (medio )?de casa|admiti|admissao|\bativos?\b|afastad|desligad|servente|tratorista|motorista|encarregad|operador|\brh\b/.test(t)
       && !/faturamento|faturou|area|hectare|produc|rendimento|nota|qualidade|trator(es)? da|caminh/.test(t);
