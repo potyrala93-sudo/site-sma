@@ -124,6 +124,21 @@ A coluna **STATUS** é encontrada pelo cabeçalho "STATUS"; se não existir, é 
 
 ## 6. Como rodar
 
+### Pela tela (recomendado): Apontador Florestal
+
+Duplo clique no atalho **Apontador Florestal** da Área de Trabalho (ou
+`.venv\Scripts\pythonw.exe apontador.pyw`). A tela pede:
+
+- **Data planejada** de / até (DD/MM/AAAA) — botões *Mês atual* e *Mês anterior*;
+- **Modo**: Simulação (não grava) ou Real (grava no SAP, pede confirmação);
+- opcional: **Linhas da planilha** (ex.: `2-10`) e **Refazer O.S. estornadas**
+  (ex.: `2095998, 2096005`).
+
+Ao clicar em **Iniciar apontamentos** a janela some (o robô usa a tela) e volta no fim
+com o resultado de cada O.S. e botões para o relatório, os prints e o log.
+
+### Pela linha de comando
+
 1. Abra o SAP e **faça login** (o robô nunca guarda nem digita senha).
 2. **Teste das imagens** (deixe o SAP na tela de seleção da ZFLPP005):
 

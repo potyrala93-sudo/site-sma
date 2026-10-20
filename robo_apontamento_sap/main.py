@@ -34,7 +34,7 @@ BASE = Path(__file__).resolve().parent
 log = logging.getLogger("robo")
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Robô de apontamento ZFLPP005")
     p.add_argument("--config", default=str(BASE / "config.yaml"))
     p.add_argument("--ids", default=str(BASE / "sap_ids.yaml"))
@@ -42,6 +42,8 @@ def parse_args() -> argparse.Namespace:
     modo.add_argument("--simular", action="store_true", help="força modo simulação (dry-run)")
     modo.add_argument("--real", action="store_true", help="força modo real (grava no SAP)")
     p.add_argument("--linhas", help="intervalo de linhas da planilha, ex.: 2-10 ou 5")
+    p.add_argument("--data-inicial", help="Data planejada DE (DD/MM/AAAA); usa junto com --data-final")
+    p.add_argument("--data-final", help="Data planejada ATÉ (DD/MM/AAAA)")
     p.add_argument("--modo", choices=["scripting", "imagem", "auto"], help="sobrepõe o modo do config")
     p.add_argument("--listar-ids", action="store_true", help="grava os IDs da tela atual do SAP e sai")
     p.add_argument("--refazer", metavar="OS1,OS2",
@@ -51,7 +53,7 @@ def parse_args() -> argparse.Namespace:
                    help="aponta mesmo O.S. que já constam em apontados.json (cuidado: duplica)")
     p.add_argument("--testar-imagens", action="store_true",
                    help="modo imagem: mostra quais imagens estão visíveis na tela agora e sai")
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
 def criar_robo(cfg: dict, ids: dict, parada: ParadaEmergencia):
@@ -206,9 +208,18 @@ def filtrar_intervalo(linhas: list[LinhaPlanilha], texto: str | None, cfg: dict)
     return [l for l in linhas if (ini is None or l.numero >= int(ini)) and (fim is None or l.numero <= int(fim))]
 
 
-def main() -> int:
-    args = parse_args()
+# Resultado da última execução (lido pela tela do apontador.pyw)
+ULTIMO: dict = {}
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     cfg = carregar_yaml(args.config)
+    if args.data_inicial or args.data_final:
+        if not (args.data_inicial and args.data_final):
+            raise SystemExit("informe --data-inicial e --data-final juntas")
+        cfg["selecao"]["periodo"] = {"modo": "fixo", "data_inicial": args.data_inicial,
+                                     "data_final": args.data_final}
     ids = carregar_yaml(args.ids)
     if args.modo:
         cfg["modo"] = args.modo
@@ -224,6 +235,8 @@ def main() -> int:
     log.info("Robô ZFLPP005 — modo %s — %s", cfg.get("modo", "scripting"),
              "SIMULAÇÃO (nada será gravado no SAP)" if simulacao else "REAL (vai gravar no SAP!)")
     log.info("Log: %s", arq_log)
+    if str(cfg["selecao"].get("periodo", {}).get("modo")) == "fixo":
+        log.info("Data planejada: %s até %s", *periodo(cfg, date.today()))
 
     parada = ParadaEmergencia()
     parada.iniciar()
@@ -366,6 +379,8 @@ def main() -> int:
         log.info("=" * 70)
         log.info("Resumo: %s", relatorio.resumo() or "nenhuma linha processada")
         log.info("Relatório: %s", xlsx or relatorio.csv)
+        ULTIMO.update(resumo=relatorio.resumo(), relatorio=str(xlsx or relatorio.csv), log=str(arq_log),
+                      registros=list(relatorio.registros), codigo=codigo)
         log.info("Fim: %s", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
     return codigo
 
