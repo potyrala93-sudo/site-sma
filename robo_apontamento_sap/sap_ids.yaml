@@ -1,0 +1,58 @@
+# ===========================================================================
+# IDs dos elementos da ZFLPP005 (SAP GUI Scripting).
+#
+#   PADRÃO SAP  = ID padrão do SAP GUI, normalmente igual em qualquer sistema.
+#   CONFIRMAR   = EXEMPLO! Transação Z: obtenha o ID real com o Gravador de Scripts
+#                 (Alt+F12 → "Gravação e reprodução de script") ou com
+#                 "python main.py --listar-ids" estando na tela desejada.
+#                 Veja o README, seção "Mapear os IDs".
+# ===========================================================================
+
+geral:
+  campo_comando: "wnd[0]/tbar[0]/okcd"                                             # PADRÃO SAP
+  barra_status: "wnd[0]/sbar"                                                      # PADRÃO SAP
+  arvore_easy_access: "wnd[0]/usr/cntlIMAGE_CONTAINER/shellcont/shell/shellcont[0]/shell"  # PADRÃO SAP
+
+# Tela "Entrada de apontamento - ordem de serviço"
+# ctxt = campo com ajuda de pesquisa (F4), txt = campo simples; -LOW = "de", -HIGH = "até"
+selecao:
+  ordem_servico: "wnd[0]/usr/ctxtS_AUFNR-LOW"      # CONFIRMAR
+  nucleo:        "wnd[0]/usr/ctxtS_NUCLEO-LOW"     # CONFIRMAR (apague a linha se o campo não existir)
+  centro:        "wnd[0]/usr/ctxtS_WERKS-LOW"      # CONFIRMAR
+  fornecedor:    "wnd[0]/usr/ctxtS_LIFNR-LOW"      # CONFIRMAR
+  lote_de:       "wnd[0]/usr/txtS_LOTE-LOW"        # CONFIRMAR
+  lote_ate:      "wnd[0]/usr/txtS_LOTE-HIGH"       # CONFIRMAR
+  data_de:       "wnd[0]/usr/ctxtS_DTPLAN-LOW"     # CONFIRMAR
+  data_ate:      "wnd[0]/usr/ctxtS_DTPLAN-HIGH"    # CONFIRMAR
+  max_registros: "wnd[0]/usr/txtP_MAXREG"          # CONFIRMAR
+  limpar: []        # IDs de outros campos da tela que devem ficar em branco (CONFIRMAR)
+
+# Grade de resultados (aba "Operação/Material")
+grade:
+  aba_operacao_material: null   # ex.: "wnd[0]/usr/tabsTAB_9000/tabpTAB_OPER"  CONFIRMAR (null = sem abas)
+  id: null                      # ex.: "wnd[0]/usr/cntlCC_OPER/shellcont/shell" CONFIRMAR
+                                # null = procura automaticamente o 1º ALV (GridView) da tela
+  acao_maq_evento: duplo_clique # duplo_clique | clique (se a célula for hotspot/link)
+  colunas:      # nome TÉCNICO (preferível, ex.: "SRVPOS") ou título visível na tela
+    servico:      "Serviço"     # CONFIRMAR nome técnico
+    maq_evento:   "Maq Evento"  # CONFIRMAR
+    perc_exec:    "% Exec."     # CONFIRMAR
+    qt_executada: "Qt Executa"  # CONFIRMAR
+    status_reg:   "Status Reg"  # CONFIRMAR
+
+# Popup "Equipes e Eventos"
+popup:
+  titulo: "Equipes e Eventos"
+  data_execucao:        "wnd[1]/usr/ctxtGS_EVENTO-DT_EXEC"   # CONFIRMAR
+  quantidade_executada: "wnd[1]/usr/txtGS_EVENTO-QTD_EXEC"   # CONFIRMAR
+  confirmacao_final:    "wnd[1]/usr/chkGS_EVENTO-CONF_FINAL" # CONFIRMAR
+  botao_confirmar:      "wnd[1]/tbar[0]/btn[0]"   # check verde inferior esquerdo — padrão de popups, CONFIRMAR
+  botao_cancelar:       "wnd[1]/tbar[0]/btn[12]"  # X vermelho — CONFIRMAR (usado na simulação)
+  botao_sim_pos_confirmacao: null                 # se aparecer um "Confirma?" após o check, ex.: "wnd[2]/usr/btnSPOP-OPTION1"
+
+# Botão "Salvar Guia"
+salvar_guia:
+  tipo: botao                   # botao (findById.press) | grid_toolbar (botão da barra do ALV) | tecla (sendVKey)
+  id: "wnd[0]/tbar[1]/btn[8]"   # CONFIRMAR. grid_toolbar: código da função (ex.: "ZSALVAR"); tecla: nº (11 = Ctrl+S)
+  selecionar_linha: false       # true se o Salvar Guia exigir a linha selecionada
+  popup_confirmar_botao: null   # ex.: "wnd[1]/usr/btnSPOP-OPTION1" se perguntar "Deseja salvar?"

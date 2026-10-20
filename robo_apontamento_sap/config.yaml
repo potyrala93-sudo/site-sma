@@ -1,0 +1,119 @@
+# ===========================================================================
+# Configuração do robô de apontamento ZFLPP005
+# Itens marcados com  # CONFIRMAR  precisam ser ajustados antes do uso real.
+# ===========================================================================
+
+modo: scripting      # scripting (GUI Scripting) | imagem (plano B) | auto (scripting, senão imagem)
+simulacao: true      # true = dry-run: faz tudo MENOS o check verde e o Salvar Guia.
+                     # Para gravar de verdade: simulacao: false  ou  python main.py --real
+
+execucao:
+  linha_inicial: null          # ex.: 2  (ou use --linhas 2-10)
+  linha_final: null            # ex.: 10
+  tentativas: 2                # retentativas só para falhas transitórias (timeout, COM)
+  pausa_entre_tentativas: 3    # segundos
+  ignorar_status: ["OK", "VERIFICAR"]   # STATUS que começam com isso não são reprocessados
+  pular_se_ja_criado: true     # se a linha do SAP já estiver "Criado", não aponta de novo
+  atualizar_planilha_em_simulacao: false
+
+planilha:
+  modo: api                    # api (conta de serviço, lê e grava STATUS) | csv (pública, só leitura)
+  id: "1LfeQc6hKUXOGqR2sJfqmNilrvNghozRVFiL_i9jA68c"
+  gid: 0
+  credenciais: credentials.json
+  linha_cabecalho: 1
+  renderizacao: FORMATTED_VALUE   # FORMATTED_VALUE (como aparece) | UNFORMATTED_VALUE (números/seriais)
+  colunas:                     # letras das colunas
+    os: "A"                    # [COLUNA_OS] — CONFIRMAR
+    servico: "E"
+    quantidade: "F"
+    data: "G"
+    insumo: "H"                # [COLUNA_INSUMO] — CONFIRMAR (null se não existir)
+    status: auto               # auto = procura cabeçalho "STATUS" ou cria após a última coluna
+  valores_com_insumo: ["SIM", "S", "X", "TRUE", "VERDADEIRO", "1", "COM INSUMO"]
+
+sap:
+  saplogon_exe: "C:/Program Files (x86)/SAP/FrontEnd/SAPgui/saplogon.exe"   # CONFIRMAR caminho
+  conexao_descricao: null      # nome da entrada no SAP Logon; só usado se não houver conexão aberta
+  indice_conexao: 0
+  indice_sessao: 0
+  transacao: ZFLPP005
+  timeout_padrao: 60           # espera máxima de session.Busy (s)
+  timeout_abrir_saplogon: 90
+  timeout_login: 300           # tempo para você fazer login manualmente
+  timeout_popup: 15
+  timeout_status_criado: 30
+  status_criado: "Criado"
+
+selecao:
+  nucleo: "*"
+  centro: "*"
+  fornecedor: "10003396"
+  lote_de: "0"
+  lote_ate: "0"
+  max_registros: "1000"
+  formato_data: "%d.%m.%Y"     # formato de data do seu usuário SAP (DD.MM.AAAA)
+  periodo:                     # Data planejada de/até
+    modo: mes_atual            # mes_atual | mes_da_execucao (mês da coluna G) | fixo
+    data_inicial: "01/10/2026" # [DATA_INICIAL] — só no modo fixo
+    data_final: "31/10/2026"   # [DATA_FINAL]   — só no modo fixo
+
+apontamento:
+  formato_data_execucao: "%d%m%Y"   # 01/10/2026 -> 01102026
+  casas_decimais: 3                 # 45.62 -> 45,620
+
+relatorio:
+  pasta: relatorios
+
+logs:
+  pasta: logs
+  nivel: INFO                  # no arquivo de log sempre vai DEBUG
+
+# ---------------------------------------------------------------------------
+# PLANO B (modo: imagem). Prints recortados da sua tela, em /imagens.
+# dx/dy = deslocamento em pixels do centro do RÓTULO até a caixa de texto. CALIBRAR.
+# ---------------------------------------------------------------------------
+plano_b:
+  pasta_imagens: imagens
+  confidence: 0.85
+  timeout_imagem: 10
+  pausa_entre_acoes: 0.3
+  pausa_pos_roundtrip: 0.8
+  titulo_janela_sap: ".*SAP.*"
+  maximizar: true
+  imagens:
+    icone_sap: icone_sap.png
+    campo_comando: campo_comando.png
+    favorito_zflpp005: favorito_zflpp005.png
+    aba_operacao_material: aba_operacao_material.png
+    botao_salvar_guia: botao_salvar_guia.png
+    botao_sim_salvar: botao_sim_salvar.png       # opcional
+    erro_barra_status: erro_barra_status.png     # ícone vermelho da barra de status
+    cursor_ocupado: cursor_ocupado.png           # opcional
+  campos_selecao:
+    ordem_servico: {imagem: rotulo_ordem_servico.png, dx: 260, dy: 0}
+    nucleo:        {imagem: rotulo_nucleo.png,        dx: 260, dy: 0}
+    centro:        {imagem: rotulo_centro.png,        dx: 260, dy: 0}
+    fornecedor:    {imagem: rotulo_fornecedor.png,    dx: 260, dy: 0}
+    lote_de:       {imagem: rotulo_lote_controle.png, dx: 260, dy: 0}
+    lote_ate:      {imagem: rotulo_lote_controle.png, dx: 470, dy: 0}
+    data_de:       {imagem: rotulo_data_planejada.png, dx: 260, dy: 0}
+    data_ate:      {imagem: rotulo_data_planejada.png, dx: 470, dy: 0}
+    max_registros: {imagem: rotulo_max_registros.png, dx: 260, dy: 0}
+  grade:
+    cabecalhos:
+      servico: col_servico.png
+      maq_evento: col_maq_evento.png
+      perc_exec: col_perc_exec.png
+      qt_executada: col_qt_executa.png
+      status_reg: col_status_reg.png
+    dy_primeira_linha: 18
+    altura_linha: 18
+    max_linhas: 15
+  popup:
+    titulo: popup_equipes_eventos.png
+    data_execucao:        {imagem: rotulo_data_execucao.png, dx: 200, dy: 0}
+    quantidade_executada: {imagem: rotulo_qtd_executada.png, dx: 200, dy: 0}
+    checkbox_desmarcado: chk_confirmacao_final_off.png
+    checkbox_marcado: chk_confirmacao_final_on.png
+    botao_confirmar: botao_check_verde.png

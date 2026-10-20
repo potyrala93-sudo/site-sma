@@ -1,0 +1,278 @@
+"""
+main.py — Robô de apontamento de Ordens de Serviço na ZFLPP005 (SAP Suzano).
+
+Exemplos:
+    python main.py                          # usa config.yaml (simulacao: true por padrão)
+    python main.py --linhas 2-10            # só as linhas 2 a 10 da planilha
+    python main.py --real                   # grava de verdade no SAP
+    python main.py --listar-ids             # grava os IDs da tela SAP atual em ids_tela.txt
+
+Status gravados na planilha/relatório:
+    OK                  apontado e Status Reg = Criado
+    ERRO: <motivo>      não gravou nada no SAP; pode ser reprocessado
+    VERIFICAR: <motivo> falhou DEPOIS do check verde → conferir manualmente no SAP
+    PULADO: <motivo>    não processado (insumo, já criado...)
+    SIMULACAO: ...      modo dry-run (não vai para a planilha, por padrão)
+"""
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+import time
+from datetime import date, datetime
+from pathlib import Path
+
+from planilha import LinhaPlanilha, Planilha
+from utils import (ErroConfiguracao, ErroNegocio, ParadaEmergencia, ParadaSolicitada, Relatorio,
+                   carregar_yaml, configurar_logging, converter_data, formatar_quantidade,
+                   parse_numero, primeiro_ultimo_dia, texto_inteiro, vazio)
+
+BASE = Path(__file__).resolve().parent
+log = logging.getLogger("robo")
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Robô de apontamento ZFLPP005")
+    p.add_argument("--config", default=str(BASE / "config.yaml"))
+    p.add_argument("--ids", default=str(BASE / "sap_ids.yaml"))
+    modo = p.add_mutually_exclusive_group()
+    modo.add_argument("--simular", action="store_true", help="força modo simulação (dry-run)")
+    modo.add_argument("--real", action="store_true", help="força modo real (grava no SAP)")
+    p.add_argument("--linhas", help="intervalo de linhas da planilha, ex.: 2-10 ou 5")
+    p.add_argument("--modo", choices=["scripting", "imagem", "auto"], help="sobrepõe o modo do config")
+    p.add_argument("--listar-ids", action="store_true", help="grava os IDs da tela atual do SAP e sai")
+    return p.parse_args()
+
+
+def criar_robo(cfg: dict, ids: dict, parada: ParadaEmergencia):
+    modo = str(cfg.get("modo", "scripting")).lower()
+    if modo in ("scripting", "auto"):
+        from sap_client import SapClient, ScriptingDesabilitado
+        robo = SapClient(cfg, ids, parada)
+        try:
+            robo.conectar()
+            return robo
+        except ScriptingDesabilitado:
+            if modo != "auto":
+                raise
+            log.warning("GUI Scripting indisponível → usando o plano B (imagem).")
+    from sap_imagem import SapImagem
+    robo = SapImagem(cfg, ids, parada)
+    robo.conectar()
+    return robo
+
+
+def periodo(cfg: dict, data_exec: date) -> tuple[str, str]:
+    """Data planejada (de/até) da tela de seleção."""
+    s = cfg["selecao"]
+    p = s.get("periodo", {})
+    fmt = s.get("formato_data", "%d.%m.%Y")
+    modo = str(p.get("modo", "mes_atual"))
+    if modo == "fixo":
+        return (converter_data(p["data_inicial"]).strftime(fmt),
+                converter_data(p["data_final"]).strftime(fmt))
+    ref = data_exec if modo == "mes_da_execucao" else date.today()
+    ini, fim = primeiro_ultimo_dia(ref)
+    return ini.strftime(fmt), fim.strftime(fmt)
+
+
+def preparar_dados(linha: LinhaPlanilha, cfg: dict) -> dict:
+    """Valida e converte os dados da linha ANTES de tocar no SAP."""
+    ap = cfg.get("apontamento", {})
+    problemas = []
+    os_ = texto_inteiro(linha.os)
+    if not os_:
+        problemas.append("O.S. vazia")
+    if vazio(linha.servico):
+        problemas.append("serviço vazio")
+    try:
+        qtd = parse_numero(linha.quantidade)
+        if qtd <= 0:
+            problemas.append(f"quantidade <= 0 ({linha.quantidade})")
+    except ValueError:
+        qtd = 0.0
+        problemas.append(f"quantidade inválida ({linha.quantidade!r})")
+    try:
+        data_exec = converter_data(linha.data)
+        if data_exec > date.today():
+            problemas.append(f"data de execução no futuro ({data_exec:%d/%m/%Y})")
+    except ValueError:
+        data_exec = None
+        problemas.append(f"data inválida ({linha.data!r})")
+    if problemas:
+        raise ErroNegocio("dado inválido na planilha: " + "; ".join(problemas))
+    return {
+        "os": os_,
+        "servico": linha.servico,
+        "quantidade": qtd,
+        "quantidade_sap": formatar_quantidade(qtd, int(ap.get("casas_decimais", 3))),
+        "data": data_exec,
+        "data_sap": data_exec.strftime(ap.get("formato_data_execucao", "%d%m%Y")),
+    }
+
+
+def processar_linha(robo, linha: LinhaPlanilha, d: dict, cfg: dict, simulacao: bool) -> tuple[str, str]:
+    """Fluxo 3.3 → 3.6 para uma linha. Retorna (status, mensagem)."""
+    ex = cfg.get("execucao", {})
+
+    # REGRA_INSUMO — por enquanto só pula. Checado antes de tocar no SAP para não
+    # deixar um apontamento confirmado sem "Salvar Guia".
+    if linha.possui_insumo:
+        return "PULADO", "possui insumo (regra a definir)"
+
+    robo.ponto_sem_retorno = False
+    data_ini, data_fim = periodo(cfg, d["data"])
+    robo.pesquisar_os(d["os"], data_ini, data_fim)                       # 3.3
+    idx = robo.localizar_servico(d["servico"])                            # 3.4
+    if ex.get("pular_se_ja_criado", True) and robo.ja_criado(idx):
+        return "PULADO", "já consta 'Criado' no SAP"
+    robo.apontar(idx, d["data_sap"], d["quantidade_sap"], simulacao)      # 3.5
+    if simulacao:
+        return "SIMULACAO", f"popup preenchido (data {d['data_sap']}, qtd {d['quantidade_sap']}) e cancelado"
+    idx = robo.conferir_apontamento(idx, d["servico"], d["quantidade"])   # 3.6
+    msg = robo.salvar(idx, d["servico"])
+    return "OK", msg or "Status Reg = Criado"
+
+
+def filtrar_intervalo(linhas: list[LinhaPlanilha], texto: str | None, cfg: dict) -> list[LinhaPlanilha]:
+    ex = cfg.get("execucao", {})
+    ini, fim = ex.get("linha_inicial"), ex.get("linha_final")
+    if texto:
+        partes = texto.split("-")
+        ini = int(partes[0])
+        fim = int(partes[1]) if len(partes) > 1 and partes[1] else (ini if len(partes) == 1 else None)
+    return [l for l in linhas if (ini is None or l.numero >= int(ini)) and (fim is None or l.numero <= int(fim))]
+
+
+def main() -> int:
+    args = parse_args()
+    cfg = carregar_yaml(args.config)
+    ids = carregar_yaml(args.ids)
+    if args.modo:
+        cfg["modo"] = args.modo
+    simulacao = bool(cfg.get("simulacao", True))
+    if args.simular:
+        simulacao = True
+    if args.real:
+        simulacao = False
+
+    arq_log = configurar_logging(BASE / cfg.get("logs", {}).get("pasta", "logs"),
+                                 cfg.get("logs", {}).get("nivel", "INFO"))
+    log.info("=" * 70)
+    log.info("Robô ZFLPP005 — modo %s — %s", cfg.get("modo", "scripting"),
+             "SIMULAÇÃO (nada será gravado no SAP)" if simulacao else "REAL (vai gravar no SAP!)")
+    log.info("Log: %s", arq_log)
+
+    parada = ParadaEmergencia()
+    parada.iniciar()
+
+    try:
+        robo = criar_robo(cfg, ids, parada)
+    except Exception as e:  # noqa: BLE001
+        log.error("Não foi possível conectar ao SAP: %s", e)
+        return 1
+
+    if args.listar_ids:
+        arq = robo.listar_ids(BASE / "ids_tela.txt")
+        log.info("IDs da tela atual gravados em %s", arq)
+        return 0
+
+    ex = cfg.get("execucao", {})
+    escrever = (not simulacao) or bool(ex.get("atualizar_planilha_em_simulacao", False))
+    planilha = Planilha(cfg, escrever=escrever)
+    try:
+        linhas = filtrar_intervalo(planilha.carregar(), args.linhas, cfg)
+    except Exception as e:  # noqa: BLE001
+        log.error("Falha ao ler a planilha: %s", e)
+        return 1
+
+    ignorar = [str(s).upper() for s in ex.get("ignorar_status", ["OK", "VERIFICAR"])]
+    tentativas_max = max(1, int(ex.get("tentativas", 2)))
+    pausa = float(ex.get("pausa_entre_tentativas", 3))
+    relatorio = Relatorio(BASE / cfg.get("relatorio", {}).get("pasta", "relatorios"), simulacao)
+    codigo = 0
+
+    try:
+        robo.abrir_transacao()                                         # 3.2
+        for linha in linhas:
+            if linha.vazia():
+                continue
+            if any(linha.status.upper().startswith(s) for s in ignorar):
+                log.info("Linha %d já processada (%s) — ignorando.", linha.numero, linha.status)
+                continue
+            parada.verificar()
+            log.info("-" * 70)
+            log.info("Linha %d: OS=%s serviço=%s qtd=%s data=%s insumo=%s", linha.numero, linha.os,
+                     linha.servico, linha.quantidade, linha.data, "sim" if linha.possui_insumo else "não")
+
+            status, msg, tentativa, dados = "ERRO", "", 0, {}
+            try:
+                dados = preparar_dados(linha, cfg)
+            except ErroNegocio as e:
+                msg = str(e)
+            else:
+                for tentativa in range(1, tentativas_max + 1):     # retentativa só p/ falha transitória
+                    try:
+                        status, msg = processar_linha(robo, linha, dados, cfg, simulacao)
+                        break
+                    except ParadaSolicitada:
+                        raise
+                    except ErroConfiguracao:
+                        raise
+                    except ErroNegocio as e:
+                        status, msg = "ERRO", str(e)
+                        break
+                    except Exception as e:  # noqa: BLE001 — COM, timeout, elemento ausente...
+                        status, msg = "ERRO", f"{type(e).__name__}: {e}"
+                        log.exception("Falha na linha %d (tentativa %d/%d)", linha.numero, tentativa, tentativas_max)
+                        if robo.ponto_sem_retorno or tentativa == tentativas_max:
+                            break
+                        time.sleep(pausa)
+                        try:
+                            robo.recuperar()
+                        except Exception as e2:  # noqa: BLE001
+                            log.error("Recuperação falhou: %s", e2)
+                # Falhou depois do check verde: o SAP pode ter gravado → conferência manual
+                if status == "ERRO" and robo.ponto_sem_retorno:
+                    status = "VERIFICAR"
+
+            texto_status = "OK" if status == "OK" else f"{status}: {msg}"
+            (log.info if status in ("OK", "SIMULACAO", "PULADO") else log.error)(
+                "Linha %d → %s", linha.numero, texto_status)
+            relatorio.registrar(linha=linha.numero, os=texto_inteiro(linha.os), servico=texto_inteiro(linha.servico),
+                                quantidade=dados.get("quantidade_sap", linha.quantidade),
+                                data_execucao=dados["data"].strftime("%d/%m/%Y") if dados.get("data") else linha.data,
+                                status=status, mensagem=msg, tentativas=tentativa)
+            if status != "SIMULACAO" or escrever:
+                planilha.atualizar_status(linha.numero, texto_status)
+
+            try:                                                          # 3.7
+                robo.ponto_sem_retorno = False
+                robo.voltar_selecao()
+            except ParadaSolicitada:
+                raise
+            except Exception as e:  # noqa: BLE001
+                log.error("Não consegui voltar à tela de seleção: %s — tentando reabrir.", e)
+                robo.recuperar()
+
+    except ParadaSolicitada as e:
+        log.warning("%s. Encerrando com segurança.", e)
+        codigo = 2
+    except ErroConfiguracao as e:
+        log.error("Erro de configuração — robô interrompido: %s", e)
+        codigo = 1
+    except Exception:  # noqa: BLE001
+        log.exception("Erro inesperado — robô interrompido.")
+        codigo = 1
+    finally:
+        xlsx = relatorio.salvar_excel()
+        log.info("=" * 70)
+        log.info("Resumo: %s", relatorio.resumo() or "nenhuma linha processada")
+        log.info("Relatório: %s", xlsx or relatorio.csv)
+        log.info("Fim: %s", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+    return codigo
+
+
+if __name__ == "__main__":
+    sys.exit(main())

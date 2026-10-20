@@ -1,0 +1,10 @@
+pywin32>=306
+PyYAML>=6.0
+gspread>=6.0
+google-auth>=2.20
+openpyxl>=3.1
+# Plano B (modo: imagem)
+pyautogui>=0.9.54
+opencv-python>=4.8
+pywinauto>=0.6.8
+Pillow>=10.0

@@ -1,0 +1,7 @@
+credentials.json
+*.json
+logs/
+relatorios/
+ids_tela.txt
+__pycache__/
+.venv/
