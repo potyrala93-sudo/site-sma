@@ -684,12 +684,30 @@ img[data-foto-sup] { transition: opacity .35s; }
 }
 
 /* ---------- Programação: insumos (só no PDF) e clima no calendário ---------- */
-.p-so-print { display: none; }
-.p-pdf-pag .p-so-print { display: table-cell !important; }
-.p-pdf-pag .p-tab-prog th.p-so-print { width: 15%; }
-.p-insumo { display: block; font-size: 10px; line-height: 1.3; }
-.p-insumo b { font-weight: 800; }
-.p-insumo-sem { color: #94a3b8 !important; }
+/* Tabelas do PDF: texto simples, sem pílulas (o html2canvas desloca o texto delas) */
+.p-pdf-tab { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12.5px; line-height: 1.35; }
+.p-pdf-tab th, .p-pdf-tab td { padding: 6px 8px; text-align: left; vertical-align: middle; border-bottom: 1px solid #e2ece8; overflow-wrap: break-word; }
+.p-pdf-tab td.c-num, .p-pdf-tab td.c-data { white-space: nowrap; }
+.p-pdf-tab thead th { background: #1f6f54; color: #fff !important; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: normal; }
+.p-pdf-tab tbody tr td:first-child { border-left: 5px solid var(--c, #cbd5e1); }
+.p-pdf-tab tbody tr:nth-child(even) td { background: #f8fbfa; }
+.p-pdf-tab .c-num { text-align: right; }
+.p-pdf-tab .c-ativ, .p-pdf-tab .c-quebra { white-space: normal; overflow: visible; }
+.p-pdf-tab .c-ord { width: 5%; } .p-pdf-tab .c-rf { width: 4%; } .p-pdf-tab .c-faz { width: 16%; } .p-pdf-tab .c-up { width: 7.5%; }
+.p-pdf-tab th.c-ativ { width: 27%; } .p-pdf-tab .c-data { width: 8%; } .p-pdf-tab th.c-dias { width: 4.5%; }
+.p-pdf-tab thead th.c-area { width: 7%; } .p-pdf-tab thead th.c-tar { width: 8.5%; } .p-pdf-tab thead th.c-fat { width: 9.5%; } .p-pdf-tab thead th.c-dias { width: 4.5%; }
+.p-pdf-tab thead th { overflow-wrap: normal; word-break: keep-all; hyphens: none; }
+.p-pdf-tab th.c-num { width: 10%; }
+.p-pdf-tab .t-desloc td { background: #fffbeb !important; font-weight: 700; }
+.p-pdf-tab .t-sub td { background: color-mix(in srgb, var(--c) 18%, #fff) !important; font-weight: 800; border-bottom: 1px solid color-mix(in srgb, var(--c) 60%, #fff); }
+.p-pdf-tab .t-total td { background: #dcfce7 !important; font-weight: 800; border-top: 2px solid #1f6f54; font-size: 13px; }
+.p-pdf-ins th:first-child { width: 34%; } .p-pdf-ins th:nth-child(2) { width: 12%; } .p-pdf-ins th:nth-child(3) { width: 11%; }
+.p-pdf-ins th:nth-child(4) { width: 15%; } .p-pdf-ins th:nth-child(5) { width: 8%; }
+.p-pdf-ins tbody td { font-size: 13.5px; padding: 8px; }
+.p-pdf-ins-up th.c-ins { width: 30%; } .p-pdf-ins-up th.c-faz { width: 16%; } .p-pdf-ins-up th.c-num { width: 10%; }
+.p-pdf-ins-up td[rowspan] { background: #fff !important; }
+.p-pdf-tab .c-qtd { font-weight: 800; color: #1f6f54 !important; font-size: 13.5px; }
+.p-pdf-nota { margin: 6px 0 0; font-size: 11px; color: #4b6b62 !important; }
 
 .p-dia-n:has(.p-dia-clima) { flex-wrap: wrap; row-gap: 2px; }
 .p-dia-clima { margin-left: auto; display: inline-flex; align-items: center; gap: .2rem; padding: .05rem .3rem; border-radius: 8px; font-size: .62rem; line-height: 1.3; color: var(--texto-forte); background: rgb(var(--fundo-rgb) / .75); border: 1px solid rgb(var(--tinta-rgb) / .12); cursor: help; }

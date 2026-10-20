@@ -39,7 +39,7 @@
         return { id: `${rf}|${fazenda}|${up}|${ativ}|${i}`, rf, fazenda, up, atividade: ativ, area: valor(l.AREA), tarifa: valor(l.TARIFA), insumos: insumosDa(l) };
       });
   }
-  // "Insumo 1" + "Dose 1", "Insumo 2" + "Dose 2"… (aparecem só no PDF)
+  // "Insumo 1" + "Dose 1", "Insumo 2" + "Dose 2"… (aparecem só no PDF, em páginas próprias)
   function insumosDa(l) {
     const lista = [];
     for (let n = 1; n <= 12; n++) {
@@ -48,7 +48,6 @@
     }
     return lista;
   }
-  const textoInsumos = l => (l?.length ? l.map(x => `<span class="p-insumo"><b>${escapar(x.nome)}</b>${x.dose ? ` ${escapar(x.dose)}` : ''}</span>`).join('') : '<span class="p-insumo-sem">—</span>');
   // Exemplo para conhecer a tela enquanto a planilha está vazia (sempre sinalizado na tela)
   function dadosExemplo() {
     const base = [
@@ -456,20 +455,20 @@
     r.faz.forEach((f, fi) => {
       const desl = r.linhas.find(l => l.tipo === 'desloc' && l.para === f.nome);
       if (desl) html += `<tr class="p-desloc" style="--c:${f.cor}"><td colspan="5" data-rotulo="Deslocamento"><span class="p-desloc-txt"><i data-lucide="truck"></i>Deslocamento: ${escapar(desl.de)} → ${escapar(desl.para)}</span></td><td></td><td></td><td></td>
-        <td data-rotulo="Início">${br(desl.inicio)}</td><td data-rotulo="Término">${br(desl.fim)}</td><td data-rotulo="Dias">${fmt1(desl.dias)}</td><td class="p-so-print"></td></tr>`;
+        <td data-rotulo="Início">${br(desl.inicio)}</td><td data-rotulo="Término">${br(desl.fim)}</td><td data-rotulo="Dias">${fmt1(desl.dias)}</td></tr>`;
       const its = r.itens.filter(i => i.fazenda === f.nome);
       html += its.map(i => `<tr style="--c:${i.cor}">
         <td data-rotulo="Ordem"><span class="p-ordem">${ord(i.ordem)}</span></td><td data-rotulo="RF">${escapar(i.rf)}</td>
         <td data-rotulo="Fazenda"><span class="p-faz"><i class="p-bolinha"></i>${escapar(i.fazenda)}</span></td>
         <td data-rotulo="UP"><span class="q-up">${escapar(i.up)}</span></td><td data-rotulo="Atividade"><span class="p-ativ">${escapar(i.atividade)}</span></td>
         <td data-rotulo="Área (ha)">${fmtHa(i.area)}</td><td data-rotulo="Tarifa (R$/ha)">${brl(i.tarifa)}</td><td data-rotulo="Faturamento"><b>${brl(i.fat)}</b></td>
-        <td data-rotulo="Início">${br(i.inicio)}</td><td data-rotulo="Término">${br(i.fim)}</td><td data-rotulo="Dias">${fmt1(i.dias)}</td><td class="p-so-print">${textoInsumos(i.insumos)}</td></tr>`).join('');
+        <td data-rotulo="Início">${br(i.inicio)}</td><td data-rotulo="Término">${br(i.fim)}</td><td data-rotulo="Dias">${fmt1(i.dias)}</td></tr>`).join('');
       html += `<tr class="p-subtotal" style="--c:${f.cor}"><td colspan="5" data-rotulo="Subtotal">Subtotal · ${escapar(f.nome)}</td><td data-rotulo="Área">${fmtHa(its.reduce((s, i) => s + i.area, 0))}</td><td></td>
-        <td data-rotulo="Faturamento">${brl(its.reduce((s, i) => s + i.fat, 0))}</td><td data-rotulo="Início">${br(its[0].inicio)}</td><td data-rotulo="Término">${br(its[its.length - 1].fim)}</td><td data-rotulo="Dias">${fmt1(its.reduce((s, i) => s + i.dias, 0))}</td><td class="p-so-print"></td></tr>`;
+        <td data-rotulo="Faturamento">${brl(its.reduce((s, i) => s + i.fat, 0))}</td><td data-rotulo="Início">${br(its[0].inicio)}</td><td data-rotulo="Término">${br(its[its.length - 1].fim)}</td><td data-rotulo="Dias">${fmt1(its.reduce((s, i) => s + i.dias, 0))}</td></tr>`;
     });
     html += `<tr class="p-total"><td colspan="5" data-rotulo="Total geral">Total geral${r.diasDesloc ? ` <small>(inclui ${r.diasDesloc} dia(s) de deslocamento)</small>` : ''}</td><td data-rotulo="Área">${fmtHa(r.area)}</td><td></td><td data-rotulo="Faturamento">${brl(r.faturamento)}</td>
-      <td data-rotulo="Início">${br(r.inicioReal)}</td><td data-rotulo="Término">${br(r.termino)}</td><td data-rotulo="Dias">${fmt1(totalDias)}</td><td class="p-so-print"></td></tr>`;
-    $('#p-tab-prog').innerHTML = `<table class="q-tab p-tab-prog"><thead><tr><th>Ordem</th><th>RF</th><th>Fazenda</th><th>UP</th><th>Atividade</th><th>Área (ha)</th><th>Tarifa (R$/ha)</th><th>Faturamento (R$)</th><th>Início</th><th>Término</th><th>Dias</th><th class="p-so-print">Insumos e doses</th></tr></thead><tbody>${html}</tbody></table>`;
+      <td data-rotulo="Início">${br(r.inicioReal)}</td><td data-rotulo="Término">${br(r.termino)}</td><td data-rotulo="Dias">${fmt1(totalDias)}</td></tr>`;
+    $('#p-tab-prog').innerHTML = `<table class="q-tab p-tab-prog"><thead><tr><th>Ordem</th><th>RF</th><th>Fazenda</th><th>UP</th><th>Atividade</th><th>Área (ha)</th><th>Tarifa (R$/ha)</th><th>Faturamento (R$)</th><th>Início</th><th>Término</th><th>Dias</th></tr></thead><tbody>${html}</tbody></table>`;
 
     $('#p-legenda').innerHTML = r.faz.map(f => `<span><i style="--c:${f.cor}"></i>${escapar(f.nome)}</span>`).join('') + '<span><i class="cinza"></i>Sem trabalho</span>';
     renderCalendario(r);
@@ -731,6 +730,56 @@
 
   /* ---------- PDF: gerado direto no navegador (A4 paisagem), módulo compartilhado js/pdf.js ---------- */
   // Páginas: 1) cabeçalho + cards + equipes · 2..) tabela em partes · depois 1 mês por página
+  /* ---------- Tabelas próprias do PDF: texto simples (sem "pílulas"), colunas largas, uma linha por UP ---------- */
+  const unidadeDose = d => (String(d || '').match(/[a-zA-Zµ][\w/.\s]*$/) || [''])[0].trim();   // "3,0 L/ha" → "L/ha"
+  const fmt2 = v => (v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function quantidade(dose, area) {
+    const n = P.num(dose);
+    if (!(n > 0)) return { texto: '—', valor: 0, un: '' };
+    const un = unidadeDose(dose).replace(/\s*\/\s*ha$/i, '');
+    return { texto: `${fmt2(n * area)}${un ? ` ${un}` : ''}`, valor: n * area, un };
+  }
+  function linhasTabelaPDF(r) {
+    const variosRF = new Set(r.itens.map(i => i.rf)).size > 1;
+    const cab = `<thead><tr><th class="c-ord">Ordem</th>${variosRF ? '<th class="c-rf">RF</th>' : ''}<th class="c-faz">Fazenda</th><th class="c-up">UP</th><th class="c-ativ">Atividade</th><th class="c-num c-area">Área (ha)</th><th class="c-num c-tar">Tarifa (R$/ha)</th><th class="c-num c-fat">Faturamento</th><th class="c-data">Início</th><th class="c-data">Término</th><th class="c-num c-dias">Dias</th></tr></thead>`;
+    const vazio = variosRF ? '<td></td>' : '';
+    const linhas = [];
+    r.faz.forEach(f => {
+      const desl = r.linhas.find(l => l.tipo === 'desloc' && l.para === f.nome);
+      if (desl) linhas.push(`<tr class="t-desloc" style="--c:${f.cor}"><td colspan="${variosRF ? 7 : 6}">🚚 Deslocamento: ${escapar(desl.de)} → ${escapar(desl.para)}</td><td class="c-data">${br(desl.inicio)}</td><td class="c-data">${br(desl.fim)}</td><td class="c-num">${fmt1(desl.dias)}</td></tr>`);
+      const its = r.itens.filter(i => i.fazenda === f.nome);
+      its.forEach(i => linhas.push(`<tr style="--c:${i.cor}"><td class="c-ord"><b>${ord(i.ordem)}</b></td>${variosRF ? `<td>${escapar(i.rf)}</td>` : ''}<td>${escapar(i.fazenda)}</td><td><b>${escapar(i.up)}</b></td><td class="c-ativ">${escapar(i.atividade)}</td>
+        <td class="c-num">${fmtHa(i.area)}</td><td class="c-num">${brl(i.tarifa)}</td><td class="c-num"><b>${brl(i.fat)}</b></td><td class="c-data">${br(i.inicio)}</td><td class="c-data">${br(i.fim)}</td><td class="c-num">${fmt1(i.dias)}</td></tr>`));
+      linhas.push(`<tr class="t-sub" style="--c:${f.cor}"><td colspan="${variosRF ? 5 : 4}">Subtotal · ${escapar(f.nome)}</td><td class="c-num">${fmtHa(its.reduce((s, i) => s + i.area, 0))}</td><td></td><td class="c-num">${brl(its.reduce((s, i) => s + i.fat, 0))}</td><td class="c-data">${br(its[0].inicio)}</td><td class="c-data">${br(its.at(-1).fim)}</td><td class="c-num">${fmt1(its.reduce((s, i) => s + i.dias, 0))}</td></tr>`);
+    });
+    linhas.push(`<tr class="t-total"><td colspan="${variosRF ? 5 : 4}">Total geral${r.diasDesloc ? ` (inclui ${r.diasDesloc} dia(s) de deslocamento)` : ''}</td><td class="c-num">${fmtHa(r.area)}</td><td></td><td class="c-num">${brl(r.faturamento)}</td><td class="c-data">${br(r.inicioReal)}</td><td class="c-data">${br(r.termino)}</td><td class="c-num">${fmt1(r.diasProducao + r.diasDesloc)}</td></tr>`);
+    return { cab, linhas, vazio };
+  }
+  // Insumos: resumo por produto (quantidade total) e detalhe por UP (dose × área)
+  function paginasInsumosPDF(r, cabCurto) {
+    const comInsumo = r.itens.filter(i => i.insumos?.length);
+    if (!comInsumo.length) return [];
+    const porProduto = new Map();
+    comInsumo.forEach(i => i.insumos.forEach(x => {
+      const k = `${x.nome}|${x.dose}`;
+      const g = porProduto.get(k) || porProduto.set(k, { nome: x.nome, dose: x.dose, area: 0, ups: [], ini: i.inicio, fim: i.fim }).get(k);
+      g.area += i.area; g.ups.push(i.up); if (i.inicio < g.ini) g.ini = i.inicio; if (i.fim > g.fim) g.fim = i.fim;
+    }));
+    const resumo = `<table class="p-pdf-tab p-pdf-ins"><thead><tr><th>Insumo</th><th class="c-num">Dose (por ha)</th><th class="c-num">Área (ha)</th><th class="c-num">Quantidade total</th><th class="c-num">UPs</th><th>Período</th></tr></thead><tbody>${[...porProduto.values()].map(g => `
+      <tr><td class="c-quebra"><b>${escapar(g.nome)}</b></td><td class="c-num">${escapar(g.dose || '—')}</td><td class="c-num">${fmtHa(g.area)}</td><td class="c-num c-qtd">${quantidade(g.dose, g.area).texto}</td><td class="c-num">${g.ups.length}</td><td>${br(g.ini)} a ${br(g.fim)}</td></tr>`).join('')}</tbody></table>
+      <p class="p-pdf-nota">Quantidade total = dose por hectare × área das UPs. Unidade da dose como está na planilha.</p>`;
+    const linhas = comInsumo.map(i => i.insumos.map((x, k) => `<tr style="--c:${i.cor}">${k ? '' : `<td rowspan="${i.insumos.length}" class="c-ord"><b>${ord(i.ordem)}</b></td><td rowspan="${i.insumos.length}">${escapar(i.fazenda)}</td><td rowspan="${i.insumos.length}"><b>${escapar(i.up)}</b></td><td rowspan="${i.insumos.length}" class="c-num">${fmtHa(i.area)}</td>`}
+      <td class="c-quebra">${escapar(x.nome)}</td><td class="c-num">${escapar(x.dose || '—')}</td><td class="c-num c-qtd">${quantidade(x.dose, i.area).texto}</td>${k ? '' : `<td rowspan="${i.insumos.length}" class="c-data">${br(i.inicio)}</td>`}</tr>`).join(''));
+    const cab = '<thead><tr><th class="c-ord">Ordem</th><th class="c-faz">Fazenda</th><th class="c-up">UP</th><th class="c-num">Área (ha)</th><th class="c-ins">Insumo</th><th class="c-num">Dose (por ha)</th><th class="c-num">Quantidade</th><th class="c-data">Início</th></tr></thead>';
+    const pags = [], POR = 16, partes = Math.ceil(linhas.length / POR);
+    for (let p = 0; p < partes; p++) {
+      pags.push(`${cabCurto}${p ? '' : `<h2 class="p-pdf-tit">Insumos e doses · resumo por produto</h2>${resumo}`}
+        <h2 class="p-pdf-tit">Insumos e doses por UP${partes > 1 ? ` <small>(${p + 1}/${partes})</small>` : ''}</h2>
+        <table class="p-pdf-tab p-pdf-ins-up">${cab}<tbody>${linhas.slice(p * POR, (p + 1) * POR).join('')}</tbody></table>`);
+    }
+    return pags;
+  }
+
   function paginasPDF() {
     const r = estado.resultado, sup = pessoa(cfg.supervisor);
     const cabCompleto = $('#p-print-cab').innerHTML;
@@ -738,12 +787,13 @@
     const pags = [`<header class="p-print-cab">${cabCompleto}</header>
       <div class="p-cards">${$('#p-cards').innerHTML}</div>
       <h2 class="p-pdf-tit">Equipes programadas</h2>${$('#p-tab-equipes').innerHTML}`];
-    const cab = $('#p-tab-prog thead').outerHTML, linhas = $$('#p-tab-prog tbody tr').map(tr => tr.outerHTML);
-    const POR_PAGINA = 15;
+    const { cab, linhas } = linhasTabelaPDF(r);
+    const POR_PAGINA = 18;
     for (let i = 0; i < linhas.length; i += POR_PAGINA) {
       pags.push(`${cabCurto}<h2 class="p-pdf-tit">Tabela da programação${linhas.length > POR_PAGINA ? ` <small>(${Math.floor(i / POR_PAGINA) + 1}/${Math.ceil(linhas.length / POR_PAGINA)})</small>` : ''}</h2>
-        <table class="q-tab p-tab-prog">${cab}<tbody>${linhas.slice(i, i + POR_PAGINA).join('')}</tbody></table>`);
+        <table class="p-pdf-tab">${cab}<tbody>${linhas.slice(i, i + POR_PAGINA).join('')}</tbody></table>`);
     }
+    pags.push(...paginasInsumosPDF(r, cabCurto));
     if ($('#p-clima .p-cl-faz')) pags.push(`${cabCurto}<div class="p-clima">${$('#p-clima').innerHTML}</div>`);
     $$('#p-meses .p-mes').forEach(m => pags.push(`${cabCurto}<div class="p-legenda">${$('#p-legenda').innerHTML}</div><article class="p-mes">${m.innerHTML}</article>`));
     return pags;
