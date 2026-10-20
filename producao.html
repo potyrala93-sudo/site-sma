@@ -369,18 +369,14 @@
         <div class="fat-sec-head"><div><span class="eyebrow">Prioridade</span><h2 class="fat-sec-titulo" id="rm-prog-tit">Programar <span class="serif">agora</span></h2></div></div>
         <div class="rm-programar" id="rm-programar"></div>
       </section>
-      <section class="container fat-secao" aria-labelledby="rm-graf-tit">
-        <div class="fat-sec-head"><div><span class="eyebrow">Carga de trabalho</span><h2 class="fat-sec-titulo" id="rm-graf-tit">Hectares a aplicar <span class="serif">por semana</span></h2></div><p class="fat-sec-sub" id="rm-graf-sub"></p></div>
-        <div class="fat-painel glass"><div class="fat-grafico"><canvas id="rm-graf" role="img" aria-label="Hectares a aplicar por semana nas próximas 6 semanas, por remonta"></canvas></div></div>
-      </section>
       <section class="container fat-secao" aria-labelledby="rm-lista-tit">
         <div class="fat-sec-head">
-          <div><span class="eyebrow">UPs</span><h2 class="fat-sec-titulo" id="rm-lista-tit">Remontas <span class="serif">por UP</span></h2></div>
+          <div><span class="eyebrow">UPs</span><h2 class="fat-sec-titulo" id="rm-lista-tit">Remontas <span class="serif">por vencimento</span></h2></div>
           <div class="rm-ferramentas">
             <label class="p-busca rm-busca"><i data-lucide="search"></i><input type="search" id="rm-busca" placeholder="Buscar fazenda ou UP" aria-label="Buscar fazenda ou UP"></label>
             <div class="rm-visao" role="group" aria-label="Visão">
-              <button type="button" data-visao="fazenda" aria-pressed="true"><i data-lucide="tractor"></i>Por fazenda</button>
-              <button type="button" data-visao="lista" aria-pressed="false"><i data-lucide="list"></i>Lista por UP</button>
+              <button type="button" data-visao="lista" aria-pressed="true"><i data-lucide="calendar-arrow-up"></i>Ordem de vencimento</button>
+              <button type="button" data-visao="fazenda" aria-pressed="false"><i data-lucide="tractor"></i>Agrupar por fazenda</button>
             </div>
           </div>
         </div>

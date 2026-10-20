@@ -69,7 +69,10 @@
 /* ---------- Blocos por fazenda e tabela ---------- */
 #rm-lista { display: grid; gap: 1rem; }
 .rm-fazenda { padding: 1rem; border-top: 3px solid var(--c); scroll-margin-top: 90px; }
+.rm-faz-topo { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .4rem 1rem; }
 .rm-faz-topo h3 { margin: 0; font-size: 1.1rem; }
+.rm-faz-prox { font-size: .8rem; color: var(--texto-suave); }
+.rm-faz-prox .rm-mono { color: var(--texto-forte); font-weight: 800; }
 .rm-faz-topo small { color: var(--texto-suave); font-size: .78rem; }
 .rm-faz-prog { margin: .7rem 0; padding: .6rem .8rem; border-radius: 12px; background: color-mix(in srgb, var(--eucalipto) 12%, transparent); border: 1px solid color-mix(in srgb, var(--eucalipto) 40%, transparent); }
 .rm-faz-prog p { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .35rem; margin: 0; font-size: .86rem; }
@@ -79,13 +82,14 @@
 
 /* a tabela rola na horizontal dentro do próprio bloco (também no celular) */
 .rm-rolagem { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: .4rem; }
-.rm-tab { min-width: 920px; font-size: .84rem; }
+.rm-tab { min-width: 1010px; font-size: .84rem; }
 .rm-tab th.num, .rm-tab td.num { text-align: right; }
 .rm-tab tbody tr { box-shadow: inset 3px 0 0 var(--c); }
 .rm-tab td { vertical-align: middle; }
 .rm-faz-cel { font-weight: 700; max-width: 220px; }
 .rm-feita { color: var(--eucalipto-claro); font-weight: 700; white-space: nowrap; }
 .rm-proxima { display: inline-block; padding: .15rem .45rem; border-radius: 8px; font-weight: 800; color: var(--texto-forte); background: color-mix(in srgb, var(--c) 22%, transparent); border: 1px solid var(--c); white-space: nowrap; }
+.rm-venc { display: inline-block; padding: .15rem .45rem; border-radius: 8px; font-weight: 800; white-space: nowrap; color: var(--texto-forte); background: color-mix(in srgb, var(--c) 22%, transparent); border: 1px solid var(--c); }
 .rm-prev { color: var(--texto-suave); font-size: .78rem; white-space: nowrap; }
 .rm-nada { color: var(--texto-suave); opacity: .6; }
 .rm-selo { display: inline-flex; align-items: center; padding: .15rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; color: var(--texto-forte); background: color-mix(in srgb, var(--c) 22%, transparent); border: 1px solid color-mix(in srgb, var(--c) 70%, transparent); }

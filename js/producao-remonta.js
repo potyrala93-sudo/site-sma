@@ -50,7 +50,7 @@
   const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(par)); } catch { /* opcional */ } };
   const refData = () => deISO(par.ref) || dia0(new Date());
 
-  const estado = { linhas: [], calc: [], fazendas: [], visao: 'fazenda', busca: '', ativos: new Set(['vencida', 'hoje', 'atencao', 'prazo', 'semBase']), lido: null, grafico: null, carregando: false, iniciado: false };
+  const estado = { linhas: [], calc: [], fazendas: [], visao: 'lista', busca: '', ativos: new Set(['vencida', 'hoje', 'atencao', 'prazo', 'semBase']), lido: null, carregando: false, iniciado: false };
 
   /* ---------- Leitura ---------- */
   // dd/mm/aaaa → Date; "-", vazio, "#VALUE!" e datas antes de 2000 (29/01/1900) = vazio
@@ -138,7 +138,8 @@
   }
 
   /* ---------- Tela ---------- */
-  const ordenarUPs = (a, b) => SIT[a.sit].ordem - SIT[b.sit].ordem || (a.venc || Infinity) - (b.venc || Infinity) || a.up.localeCompare(b.up);
+  // Ordem cronológica: o vencimento mais próximo (ou mais atrasado) primeiro; sem vencimento vai para o fim
+  const ordenarUPs = (a, b) => (a.venc ? +a.venc : Infinity) - (b.venc ? +b.venc : Infinity) || SIT[a.sit].ordem - SIT[b.sit].ordem || a.fazenda.localeCompare(b.fazenda) || a.up.localeCompare(b.up);
   const passaBusca = u => { const t = semAcento(estado.busca).toUpperCase().trim(); return !t || semAcento(`${u.fazenda} ${u.up}`).toUpperCase().includes(t); };
   const visivel = u => estado.ativos.has(u.sit) && passaBusca(u);
 
@@ -146,7 +147,7 @@
     const ref = refData();
     $('#rm-ref-txt').textContent = dmy(ref) + (par.ref ? '' : ' (hoje)');
     $('#rm-lido').textContent = estado.lido ? estado.lido.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-    renderParam(); renderCards(); renderProgramar(); renderLista(); renderGrafico();
+    renderParam(); renderCards(); renderProgramar(); renderLista();
     icones();
   }
   function renderParam() {
@@ -194,6 +195,7 @@
     return `<tr class="rm-l-${u.sit}" style="--c:${s.cor}">
       ${comFazenda ? `<td data-rotulo="Fazenda" class="rm-faz-cel">${esc(u.fazenda)}</td>` : ''}
       <td data-rotulo="UP"><span class="q-up">${esc(u.up)}</span>${u.junto ? '<span class="rm-junto" title="Vence perto das UPs urgentes desta fazenda: aproveite a ida">Fazer junto</span>' : ''}</td>
+      <td data-rotulo="Vencimento">${u.venc ? `<span class="rm-venc" style="--c:${s.cor}">${mono(dmy(u.venc))}</span><small class="rm-sit-txt">R${u.prox + 1}</small>` : '<span class="rm-nada">—</span>'}</td>
       <td data-rotulo="Área (ha)" class="num">${mono(ha(u.area))}</td>
       <td data-rotulo="Dias de plantio" class="num">${u.diasPlantio != null ? mono(u.diasPlantio) : '—'}</td>
       <td data-rotulo="Pós + Pré">${u.pp ? mono(dma(u.pp)) : '<span class="rm-nada">—</span>'}</td>
@@ -202,7 +204,7 @@
         ${u.avisos.map(a => `<small class="rm-aviso">⚠ ${esc(a)}</small>`).join('')}</td>
     </tr>`;
   }
-  const cabecalho = comFazenda => `<thead><tr>${comFazenda ? '<th>Fazenda</th>' : ''}<th>UP</th><th class="num">Área (ha)</th><th class="num">Dias de plantio</th><th>Pós + Pré</th><th>Remonta 1</th><th>Remonta 2</th><th>Remonta 3</th><th>Situação</th></tr></thead>`;
+  const cabecalho = comFazenda => `<thead><tr>${comFazenda ? '<th>Fazenda</th>' : ''}<th>UP</th><th>Vencimento</th><th class="num">Área (ha)</th><th class="num">Dias de plantio</th><th>Pós + Pré</th><th>Remonta 1</th><th>Remonta 2</th><th>Remonta 3</th><th>Situação</th></tr></thead>`;
   const tabela = (ups, comFazenda) => `<div class="rm-rolagem"><table class="q-tab rm-tab">${cabecalho(comFazenda)}<tbody>${ups.map(u => linhaUP(u, comFazenda)).join('')}</tbody></table></div>`;
 
   function renderLista() {
@@ -213,44 +215,17 @@
       el.innerHTML = ups.length ? `<div class="fat-painel glass">${tabela(ups, true)}</div>` : '<div class="fat-painel glass"><p class="rm-vazio">Nenhuma UP com esses filtros.</p></div>';
       return;
     }
+    const primeiro = f => (f.vis[0]?.venc ? +f.vis[0].venc : Infinity);
     const fazendas = estado.fazendas.map(f => ({ ...f, vis: f.ups.filter(visivel).sort(ordenarUPs) })).filter(f => f.vis.length)
-      .sort((a, b) => a.pior - b.pior || (a.prox || Infinity) - (b.prox || Infinity) || a.nome.localeCompare(b.nome));
+      .sort((a, b) => primeiro(a) - primeiro(b) || a.pior - b.pior || a.nome.localeCompare(b.nome));
     el.innerHTML = fazendas.length ? fazendas.map(f => {
       const cor = SIT[ORDEM_CARDS.find(k => SIT[k].ordem === f.pior)].cor;
       return `<article class="rm-fazenda fat-painel glass" id="rm-faz-${encodeURIComponent(f.nome)}" style="--c:${cor}">
-        <header class="rm-faz-topo"><div><h3>${esc(f.nome)}</h3><small>${f.ups.length} UP${f.ups.length > 1 ? 's' : ''} · ${mono(ha(f.ups.reduce((s, u) => s + u.area, 0)))} ha${f.vis.length < f.ups.length ? ` · ${f.vis.length} na lista` : ''}</small></div></header>
+        <header class="rm-faz-topo"><div><h3>${esc(f.nome)}</h3><small>${f.ups.length} UP${f.ups.length > 1 ? 's' : ''} · ${mono(ha(f.ups.reduce((s, u) => s + u.area, 0)))} ha${f.vis.length < f.ups.length ? ` · ${f.vis.length} na lista` : ''}</small></div>${f.vis[0]?.venc ? `<span class="rm-faz-prox">Primeiro vencimento: ${mono(dmy(f.vis[0].venc))}</span>` : ''}</header>
         ${f.urg.length ? `<div class="rm-faz-prog"><p><i data-lucide="calendar-check"></i>${resumoFazenda(f)}</p>${f.junto.length ? `<p class="rm-junto-txt"><i data-lucide="link-2"></i>Fazer junto: ${f.junto.map(u => `<b>${esc(u.up)}</b> ${mono(`(${dm(u.venc)})`)}`).join(', ')}</p>` : ''}</div>` : ''}
         ${tabela(f.vis, false)}
       </article>`;
     }).join('') : '<div class="fat-painel glass"><p class="rm-vazio">Nenhuma UP com esses filtros.</p></div>';
-  }
-
-  // Hectares a aplicar por semana (semanas de segunda a domingo, a partir da semana da data de referência).
-  // Vencidas (não as pendências antigas) entram na semana atual.
-  function renderGrafico() {
-    const C = window.Chart, cv = $('#rm-graf'); if (!C || !cv) return;
-    const ref = refData(), seg = somar(ref, -((ref.getDay() + 6) % 7));
-    const semanas = Array.from({ length: 6 }, (_, i) => ({ ini: somar(seg, i * 7), fim: somar(seg, i * 7 + 6), r: [0, 0, 0] }));
-    const fimJanela = semanas[5].fim;
-    estado.calc.filter(u => u.venc && u.sit !== 'antiga' && u.sit !== 'concluida').forEach(u => {
-      const marcar = (d, i) => { const k = d < seg ? 0 : Math.floor(entre(seg, d) / 7); if (d <= fimJanela && semanas[k]) semanas[k].r[i] += u.area; };
-      marcar(u.venc, u.prox);
-      for (let j = u.prox + 1; j < 3; j++) if (u.prev[j]) marcar(u.prev[j], j);
-    });
-    $('#rm-graf-sub').textContent = `Semanas de segunda a domingo a partir de ${dm(seg)}. Inclui a próxima remonta de cada UP e as previstas; as vencidas entram na semana atual.`;
-    const dados = {
-      labels: semanas.map((s, i) => `${i === 0 ? 'Esta semana' : `Sem. ${i + 1}`} · ${dm(s.ini)}–${dm(s.fim)}`),
-      datasets: ['R1', 'R2', 'R3'].map((n, i) => ({ label: n, data: semanas.map(s => +s.r[i].toFixed(2)), backgroundColor: ['#2f9e6b', '#6fcf97', '#b7e4c7'][i], borderRadius: 4, stack: 'r' }))
-    };
-    if (estado.grafico) { estado.grafico.data = dados; estado.grafico.update(); return; }
-    estado.grafico = new C(cv, {
-      type: 'bar', data: dados,
-      options: { responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Manrope', weight: 700 } } },
-          tooltip: { callbacks: { label: it => `${it.dataset.label}: ${ha(it.raw)} ha`, footer: it => `Total: ${ha(it.reduce((s, x) => s + x.raw, 0))} ha` } } },
-        scales: { x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0, autoSkip: false, font: { family: 'Manrope' }, callback(v) { return this.getLabelForValue(v).split(' · '); } } },
-          y: { stacked: true, beginAtZero: true, title: { display: true, text: 'ha' }, ticks: { callback: v => ha(v).replace(',00', '') } } } }
-    });
   }
 
   /* ---------- Eventos ---------- */
