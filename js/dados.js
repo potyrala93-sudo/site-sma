@@ -230,8 +230,32 @@ const CLIMA = {
   // Programação de Atividades: aviso de atenção no dia programado (além dos alertas acima)
   programacao: { chuvaMm: 5, probChuva: 60, rajadaKmh: 30 }
 };
+// Qualidade → Prontuário da UP: ficha de cada UP juntando PGO, plantio, coordenadas (clima) e RH.
+// As planilhas são as mesmas dos outros painéis (mesma leitura e mesmo cache).
+const PRONTUARIO = {
+  pgo: { planilha: PRODUCAO.realizada.planilha, aba: PRODUCAO.realizada.aba },   // apontamentos (cabeçalho na linha 8, achado pelo nome)
+  plantio: PRODUCAO.plantio.ups,         // acompanhamento de plantio (TALHÃO = UP)
+  detalhe: PRODUCAO.plantio.detalhe,     // detalhe do plantio (FAZENDA | UP | AREA PLANTADA | TIPO)
+  rh: { planilha: RH.planilha, aba: RH.aba },
+  // Nome da fazenda na PGO/plantio → código ou nome da fazenda na base de coordenadas, quando não baterem sozinhos
+  // ex.: 'SANTA MARIA II - VC': 'F-F449'
+  fazendasManuais: {},
+  semApontamentoDias: 15,     // UP em andamento sem apontamento há mais que isso = alerta
+  avisar120Dias: 15,          // destaque quando faltar isso ou menos para a DATA 120 DIAS
+  recentes: 5,                // quantas UPs ficam na lista "UPs recentes"
+  climaRecenteDias: 92,       // até aqui o histórico vem da API de previsão (past_days); antes, da API de histórico
+  // Eventos sensíveis de clima (marcados na linha do tempo e no texto analítico)
+  sensiveis: {
+    herbicidaChuvaMm: 5,      // herbicida/capina com chuva acima disso no dia ou no dia seguinte (lavagem)
+    herbicidaRajadaKmh: 15,   // herbicida/capina com rajada acima disso no dia (deriva)
+    adubacaoChuvaMm: 30,      // adubação seguida de chuva acima disso em até 2 dias (perda)
+    adubacaoDias: 2,
+    plantioChuva7dMm: 10,     // plantio/replantio com menos chuva que isso nos 7 dias seguintes e sem irrigação (estresse hídrico)
+    plantioTempMax: 34        // plantio/replantio com máxima acima disso nos 3 dias seguintes
+  }
+};
 // Mapas micro das fazendas (Produção → aba Mapas): pasta pública do Google Drive com os PDFs
 const MAPAS = { pasta: '1SPU9-qjt1zEQywDvUnzB7yXCgpCr3lvK', cacheMin: 30 };
 
-window.SMA_DADOS = { SETORES, CICLO, ESTRUTURA, ORGANOGRAMA, PASTA_EQUIPE, PASTA_ESTRUTURA, FATURAMENTO, QUALIDADE, PRODUCAO, RH, SEGURANCA, CLIMA, MAPAS };
+window.SMA_DADOS = { SETORES, CICLO, ESTRUTURA, ORGANOGRAMA, PASTA_EQUIPE, PASTA_ESTRUTURA, FATURAMENTO, QUALIDADE, PRODUCAO, RH, SEGURANCA, CLIMA, MAPAS, PRONTUARIO };
 })();

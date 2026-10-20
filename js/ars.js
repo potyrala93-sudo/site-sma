@@ -245,25 +245,32 @@
   /* ---------- Abas da página de Qualidade ---------- */
   const SUB = {
     '120': 'Notas das avaliações de campo, uniformidade das mudas em cada parcela e a nota projetada do mês, direto da planilha.',
-    'ars': 'Informe a data de plantio e veja a data mínima e máxima de cada operação do ARS, com status e linha do tempo.'
+    'ars': 'Informe a data de plantio e veja a data mínima e máxima de cada operação do ARS, com status e linha do tempo.',
+    'prontuario': 'A ficha completa de cada UP: tudo o que foi apontado, o plantio, as equipes, o clima de cada atividade e uma análise.'
   };
+  const ABAS = ['120', 'ars', 'prontuario'];
   function pintarFundo(cor) { document.body.style.setProperty('--ader-cor', cor); document.body.style.setProperty('--ader-cor-suave', cor + '4d'); }
   function abrirAba(aba, trocarHash = true) {
+    if (!ABAS.includes(aba)) aba = '120';
     const ars = aba === 'ars';
-    $('#aba-120').hidden = ars; $('#aba-ars').hidden = !ars;
+    ABAS.forEach(a => { const el = $(`#aba-${a}`); if (el) el.hidden = a !== aba; });
     $$('.q-abas [data-aba]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.aba === aba)));
-    $('.q-abas').classList.toggle('sem', ars);
+    $('.q-abas').style.setProperty('--i', ABAS.indexOf(aba));
     $('#q-sub').textContent = SUB[aba];
     if (ars) { render(); pintarFundo(raiz.dataset.cor || '#22e07a'); }
     document.dispatchEvent(new CustomEvent('qual:aba', { detail: aba }));
-    if (trocarHash) history.replaceState(null, '', ars ? '#ars' : location.pathname + location.search);
+    // o prontuário guarda a UP aberta no endereço (?up=...) para compartilhar o link
+    if (trocarHash) history.replaceState(null, '', aba === '120' ? location.pathname : `${aba === 'prontuario' ? location.search : location.pathname}#${aba}`);
   }
+  window.SMA_QUALIDADE_ABA = abrirAba;
   $('.q-abas').addEventListener('click', ev => { const b = ev.target.closest('[data-aba]'); if (b) abrirAba(b.dataset.aba); });
   $('.q-abas').addEventListener('keydown', ev => {
     if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return;
-    const alvo = $$('.q-abas [data-aba]').find(b => b.getAttribute('aria-selected') !== 'true');
-    alvo.focus(); abrirAba(alvo.dataset.aba);
+    const i = ABAS.indexOf($$('.q-abas [data-aba]').find(b => b.getAttribute('aria-selected') === 'true')?.dataset.aba);
+    const alvo = ABAS[(i + (ev.key === 'ArrowRight' ? 1 : ABAS.length - 1)) % ABAS.length];
+    $(`.q-abas [data-aba="${alvo}"]`).focus(); abrirAba(alvo);
   });
   render();
   if (location.hash === '#ars') abrirAba('ars', false);
+  else if (location.hash === '#prontuario' || new URLSearchParams(location.search).has('up')) abrirAba('prontuario', false);
 })();

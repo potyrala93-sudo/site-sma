@@ -3,12 +3,11 @@
    ========================================================================== */
 
 /* ---------- Abas ---------- */
-.q-abas { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 5px; border-radius: 20px; background: rgb(var(--fundo-rgb) / .78); max-width: 640px; margin-bottom: .6rem; }
+.q-abas { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); padding: 5px; border-radius: 20px; background: rgb(var(--fundo-rgb) / .78); max-width: 640px; margin-bottom: .6rem; }
 .q-abas button { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .8rem 1rem; border-radius: 15px; font-weight: 800; font-size: .92rem; color: var(--texto-suave); transition: color .3s; }
 .q-abas button svg { width: 18px; height: 18px; }
 .q-abas button[aria-selected="true"] { color: #04201a; }
-.q-abas-ind { position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc(50% - 5px); border-radius: 15px; background: var(--grad-destaque); box-shadow: 0 0 22px rgba(61,255,168,.55); transition: transform .45s var(--ease); }
-.q-abas.sem .q-abas-ind { transform: translateX(100%); }
+.q-abas-ind { position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px) / 3); transform: translateX(calc(var(--i, 0) * 100%)); border-radius: 15px; background: var(--grad-destaque); box-shadow: 0 0 22px rgba(61,255,168,.55); transition: transform .45s var(--ease); }
 [role="tabpanel"][hidden] { display: none; }
 
 /* ---------- Entradas ---------- */

@@ -661,5 +661,21 @@ function iniciar() {
   document.fonts?.ready.then(desenharLinhasOrganograma);
 }
 
+/* ---------- Códigos de UP em qualquer painel abrem o Prontuário da UP (Qualidade) ---------- */
+function iniciarLinksUP() {
+  const upDe = el => String(el.textContent || '').toUpperCase().replace(/\s+/g, '');
+  document.addEventListener('click', e => {
+    const el = e.target.closest('.q-up');
+    if (!el || el.closest('.p-pdf, a, button') || !/^[A-Z0-9]{4,10}$/.test(upDe(el))) return;
+    const up = upDe(el), url = `qualidade.html?up=${encodeURIComponent(up)}#prontuario`;
+    e.stopPropagation();
+    if (e.ctrlKey || e.metaKey) window.open(url, '_blank', 'noopener');
+    else if (window.SMA_PRONTUARIO) window.SMA_PRONTUARIO.abrir(up);   // já na página da Qualidade
+    else location.href = url;
+  }, true);
+  document.addEventListener('mouseover', e => { const el = e.target.closest('.q-up'); if (el && !el.title) el.title = 'Abrir o prontuário desta UP'; });
+}
+
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
 else iniciar();
+iniciarLinksUP();

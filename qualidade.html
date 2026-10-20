@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="css/faturamento.css">
   <link rel="stylesheet" href="css/qualidade.css">
   <link rel="stylesheet" href="css/ars.css">
+  <link rel="stylesheet" href="css/prontuario.css">
   <link rel="stylesheet" href="css/folhito.css">
   <script src="js/dados.js" defer></script>
   <script src="js/planilhas.js" defer></script>
@@ -23,6 +24,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
   <script src="js/main.js" defer></script>
   <script src="js/qualidade.js" defer></script>
+  <script src="js/pdf.js" defer></script>
+  <script src="js/clima-motor.js" defer></script>
+  <script src="js/prontuario.js" defer></script>
   <script src="js/ars.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
@@ -61,6 +65,7 @@
         <span class="q-abas-ind" aria-hidden="true"></span>
         <button type="button" role="tab" id="tab-120" aria-controls="aba-120" aria-selected="true" data-aba="120"><i data-lucide="clipboard-check"></i><span>Avaliação de 120 dias</span></button>
         <button type="button" role="tab" id="tab-ars" aria-controls="aba-ars" aria-selected="false" data-aba="ars"><i data-lucide="calendar-range"></i><span>Simulador de Janelas ARS</span></button>
+        <button type="button" role="tab" id="tab-prontuario" aria-controls="aba-prontuario" aria-selected="false" data-aba="prontuario"><i data-lucide="folder-heart"></i><span>Prontuário da UP</span></button>
       </div>
     </div>
 
@@ -266,6 +271,30 @@
           <img src="assets/img/ars-metricas.png" alt="Métricas do ARS ampliadas">
         </div>
       </div>
+    </div>
+
+    <!-- ===== Prontuário da UP (js/prontuario.js) ===== -->
+    <div id="aba-prontuario" role="tabpanel" aria-labelledby="tab-prontuario" hidden>
+      <section class="container fat-secao pr-topo">
+        <div class="pr-busca glass">
+          <div class="pr-campo-wrap">
+            <label class="pr-campo"><i data-lucide="search"></i>
+              <input type="search" id="pr-busca" placeholder="Buscar UP ou fazenda (ex.: S7A417)" autocomplete="off" spellcheck="false"
+                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="pr-sugestoes" aria-label="Buscar UP ou fazenda"></label>
+            <ul class="pr-sugestoes glass" id="pr-sugestoes" role="listbox" hidden></ul>
+          </div>
+          <div class="pr-acoes">
+            <button type="button" class="fat-btn" id="pr-comparar" disabled><i data-lucide="columns-2"></i><span>Comparar UPs</span></button>
+            <button type="button" class="fat-btn" id="pr-pdf" disabled><i data-lucide="file-down"></i><span>Exportar PDF</span></button>
+            <button type="button" class="fat-btn fat-atualizar" id="pr-atualizar" title="Ler as planilhas de novo"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+          </div>
+        </div>
+        <div class="pr-recentes" id="pr-recentes" aria-label="UPs recentes"></div>
+        <p class="pr-status" id="pr-status" aria-live="polite">Carregando as bases (PGO, plantio, coordenadas e RH)…</p>
+      </section>
+      <div class="container"><div class="fat-erros" id="pr-avisos" role="status" hidden></div></div>
+      <div id="pr-ficha" class="pr-ficha"></div>
+      <div id="pr-comparacao" class="pr-comparacao" hidden></div>
     </div>
   </main>
 

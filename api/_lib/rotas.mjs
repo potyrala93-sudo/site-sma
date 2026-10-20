@@ -454,6 +454,14 @@ const SISTEMA_ANALISE = `Você é analista de operações de silvicultura da SMA
 Responda SOMENTE com JSON:
 { "resumo": "2 a 3 frases", "destaques": ["maiores/menores, variações, concentração"], "atencao": ["pontos de atenção baseados nos números"], "sugestao": "um próximo pedido de análise, escrito como o usuário digitaria" }`;
 
+const SISTEMA_PRONTUARIO = `Você é analista técnico de silvicultura da SMA. Recebe os DADOS JÁ CALCULADOS do prontuário de uma UP (talhão): identidade, indicadores, atividades por grupo, % da área coberta, eventos sensíveis de clima, chuva acumulada recente, previsão dos próximos dias e alertas.
+Escreva uma análise em português simples para o encarregado e o supervisor, usando SOMENTE os números e fatos recebidos (proibido inventar valores, datas, produtos, causas ou recomendações de dose). Números no padrão brasileiro (1.234,56; R$ 1.234,56; 12,3%; 45,20 ha; 12,5 mm). Seja direto, 1 a 3 frases por parte.
+Responda SOMENTE com JSON:
+{ "situacao": "fase atual da UP, avanço por grupo de atividade, ritmo e último apontamento",
+  "clima": "como o clima influenciou: eventos sensíveis encontrados e chuva acumulada desde o plantio",
+  "proximos": "o que a previsão indica para esta UP nos próximos dias (janela de aplicação, chuva, necessidade de avaliar irrigação)",
+  "atencao": ["pontos de atenção, um por item, a partir dos alertas recebidos"] }`;
+
 const extrairJSON = texto => {
   const ini = texto.indexOf('{'), fim = texto.lastIndexOf('}');
   if (ini < 0 || fim < ini) throw new Error('resposta sem JSON');
@@ -487,6 +495,7 @@ async function rotaExperimentoIA(req, res, acao) {
         (corpo.atual ? `\nESPECIFICAÇÃO ATUAL (ajuste-a conforme o novo pedido, mantendo o que não foi pedido para mudar):\n${JSON.stringify(corpo.atual)}\n\nAJUSTE PEDIDO: ${pedido}` : `\nPEDIDO: ${pedido}`);
       return json(res, 200, { especificacao: await perguntarJSON(SISTEMA_ESPEC, conteudo, 'medium') });
     }
+    if (acao === 'prontuario') return json(res, 200, { analise: await perguntarJSON(SISTEMA_PRONTUARIO, `PRONTUÁRIO DA UP (dados calculados):\n${JSON.stringify(corpo.dados).slice(0, 60_000)}`, 'low') });
     const conteudo = `PEDIDO: ${pedido}\n\nESPECIFICAÇÃO:\n${JSON.stringify(corpo.especificacao)}\n\nRESULTADO CALCULADO (${corpo.resultado?.linhas?.length || 0} linhas):\n${JSON.stringify(corpo.resultado).slice(0, 60_000)}`;
     return json(res, 200, { analise: await perguntarJSON(SISTEMA_ANALISE, conteudo, 'low') });
   } catch (erro) {
@@ -544,7 +553,7 @@ export function tratarApi(req, res) {
   const exp = rota.match(/^\/api\/experimentos(?:\/([^/]+))?$/);
   if (exp) return Promise.resolve(rotaExperimentos(req, res, exp[1]));
   if (rota === '/api/experimento/status' && req.method === 'GET') return Promise.resolve(json(res, 200, { ia: Boolean(cliente && iaDisponivel) }));
-  const expIA = rota.match(/^\/api\/experimento\/(especificar|analisar)$/);
+  const expIA = rota.match(/^\/api\/experimento\/(especificar|analisar|prontuario)$/);
   if (expIA && req.method === 'POST') return Promise.resolve(rotaExperimentoIA(req, res, expIA[1]));
   const fotos = rota.match(/^\/api\/fotos\/([a-z]+)$/);
   if (fotos && req.method === 'GET') return Promise.resolve(listarFotos(res, fotos[1]));
