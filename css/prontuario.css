@@ -105,6 +105,7 @@
 /* Mapa */
 .pr-mapa-wrap { padding: .5rem; }
 .pr-mapa { height: 300px; border-radius: 14px; overflow: hidden; background: rgb(var(--fundo-rgb) / .6); }
+.pr-mapa-largo .pr-mapa { height: clamp(380px, 52vh, 560px); }
 .pr-mapa-nota { display: flex; align-items: center; gap: .4rem; margin: .5rem .3rem .1rem; font-size: .76rem; color: var(--texto-suave); }
 .pr-mapa-nota svg { width: 14px; height: 14px; color: var(--neon); }
 

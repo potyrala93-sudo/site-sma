@@ -442,9 +442,9 @@
         <div class="pr-col-linha">${secao('pr-sec-linha', 'Histórico', 'Linha do', 'tempo', `<div class="pr-linha-filtros" id="pr-linha-filtros"></div><div class="fat-painel glass pr-linha" id="pr-linha"></div>`, `<button type="button" class="fat-btn" id="pr-inverter"><i data-lucide="arrow-down-up"></i><span>Mais antigos primeiro</span></button>`)}</div>
         <div class="pr-col-lado">
           ${secao('pr-sec-alertas', 'Alertas', 'Pontos de', 'atenção', '<div class="fat-painel glass" id="pr-alertas"></div>')}
-          ${secao('pr-sec-mapa', 'Localização', 'Mapa da', 'fazenda', '<div class="fat-painel glass pr-mapa-wrap"><div class="pr-mapa" id="pr-mapa" aria-label="Mapa da fazenda da UP"></div><p class="pr-mapa-nota"><i data-lucide="map-pin"></i>Localização da fazenda (a base não tem coordenada por UP).</p></div>')}
         </div>
       </div>
+      ${secao('pr-sec-mapa', 'Localização', 'Mapa da', 'fazenda', '<div class="fat-painel glass pr-mapa-wrap pr-mapa-largo"><div class="pr-mapa" id="pr-mapa" aria-label="Mapa da fazenda da UP"></div><p class="pr-mapa-nota"><i data-lucide="map-pin"></i>Localização da fazenda (a base não tem coordenada por UP).</p></div>')}
       ${secao('pr-sec-analise', 'Análise', 'Leitura', 'da UP', '<div class="fat-painel glass pr-analise" id="pr-analise"><p class="pr-carregando">Montando a análise depois que o clima chegar…</p></div>', '<button type="button" class="fat-btn" id="pr-regenerar" disabled><i data-lucide="sparkles"></i><span>Regenerar análise</span></button>')}
       ${secao('pr-sec-ativ', 'Operações', 'Atividades', 'da UP', `<div class="fat-painel glass q-tabela-wrap" id="pr-atividades">${tabelaAtividades(F)}</div>`)}
       ${secao('pr-sec-clima', 'Clima', 'Clima', 'e atividades', `<div class="fat-painel glass pr-clima-hist"><div class="fat-grafico alto"><canvas id="pr-graf" role="img" aria-label="Chuva diária e temperatura máxima no período da UP, com as atividades marcadas"></canvas><p class="pr-carregando" id="pr-graf-msg">Buscando o clima de cada dia na fazenda…</p></div></div>
@@ -533,7 +533,7 @@
     const L = window.L, m = L.map(el, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Imagens © Esri' }).addTo(m);
     const agora = base.clima?.pontos?.[f.ponto]?.agora, cor = st(agora?.status).cor;
-    if (f.contorno?.length >= 3) { const pol = L.polygon(f.contorno, { color: cor, weight: 2, fillOpacity: .12 }).addTo(m); m.fitBounds(pol.getBounds(), { padding: [20, 20], maxZoom: 15 }); } else m.setView([f.lat, f.lon], 13);
+    if (f.contorno?.length >= 3) { const pol = L.polygon(f.contorno, { color: cor, weight: 2, fillOpacity: .12 }).addTo(m); m.fitBounds(pol.getBounds(), { padding: [30, 30], maxZoom: 16 }); } else m.setView([f.lat, f.lon], 13);
     L.circleMarker([f.lat, f.lon], { radius: 9, color: '#fff', weight: 2, fillColor: cor, fillOpacity: 1 }).addTo(m)
       .bindTooltip(`${esc(f.nome)} · ${esc(f.municipio)}<br>Janela agora: <b>${st(agora?.status).nome}</b>`, { direction: 'top' });
     estado.mapa = m;
