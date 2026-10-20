@@ -137,6 +137,32 @@ body.clima-sem-rolagem { overflow: hidden; }
 .clima-d-dia .clima-d-ic { font-size: 1.5rem; }
 .clima-d-dia span b { color: var(--texto-forte); }
 .clima-d-dia small { color: var(--texto-suave); font-size: .7rem; }
+.clima-d-bloco h4 small { text-transform: none; letter-spacing: 0; font-weight: 600; }
+button.clima-d-dia { font: inherit; color: inherit; text-align: left; cursor: pointer; transition: border-color .2s, background .2s, transform .2s; }
+button.clima-d-dia:hover { border-color: rgba(61,255,168,.45); transform: translateY(-2px); }
+button.clima-d-dia:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+button.clima-d-dia.ativo { border-color: var(--neon); background: rgba(61,255,168,.1); box-shadow: 0 0 0 1px var(--neon) inset; }
+/* Hora a hora de um dia */
+.clima-d-horas { margin-top: .7rem; border-radius: 16px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .02); animation: clima-h-abrir .25s ease-out; }
+@keyframes clima-h-abrir { from { opacity: 0; transform: translateY(-6px); } }
+.clima-h-rolagem { max-height: 420px; overflow: auto; border-radius: 16px; }
+.clima-h-tab { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.clima-h-tab th { position: sticky; top: 0; z-index: 1; padding: .5rem .55rem; text-align: left; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-suave); background: var(--bg); border-bottom: 1px solid var(--borda); white-space: nowrap; }
+.clima-h-tab td { padding: .4rem .55rem; border-bottom: 1px solid rgb(var(--tinta-rgb) / .05); vertical-align: middle; white-space: nowrap; }
+.clima-h-tab td:first-child { border-left: 3px solid var(--c); }
+.clima-h-tab td small { display: block; color: var(--texto-suave); font-size: .66rem; white-space: normal; }
+.clima-h-tab td em { display: block; font-style: normal; font-size: .6rem; font-weight: 800; text-transform: uppercase; color: var(--neon); }
+.clima-h-tab b { color: var(--texto-forte); }
+.clima-h-tab tr.passou { opacity: .45; }
+.clima-h-tab tr.agora td { background: rgba(61,255,168,.08); }
+.clima-h-ic { font-size: 1.15rem; }
+.clima-h-tab td:nth-child(2) { text-align: center; }
+.clima-h-tab td:nth-child(2) small { display: none; }
+.clima-h-tab td:last-child { white-space: normal; min-width: 130px; }
+b.clima-h-chuva { color: #38bdf8; }
+.clima-h-forte { color: var(--tom-aviso, #ffc83d); font-weight: 800; }
+.clima-h-st { display: inline-flex; align-items: center; gap: .35rem; font-weight: 800; }
+.clima-h-st i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
 .clima-d-chuva { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 .clima-d-chuva > div { display: grid; gap: .1rem; padding: .7rem .8rem; border-radius: 14px; border: 1px solid var(--borda); background: rgba(56,189,248,.05); }
 .clima-d-chuva span { font-size: .72rem; color: var(--texto-suave); }

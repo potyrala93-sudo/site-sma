@@ -27,16 +27,7 @@
   ];
   const SEM = { nome: 'Sem dado', curto: '—', cor: '#64748b' };
   const st = s => STATUS[s] || SEM;
-  function tempo(c) {
-    if (c == null) return ['❔', 'Sem dado'];
-    if (c === 0) return ['☀️', 'Céu limpo']; if (c === 1) return ['🌤️', 'Predomínio de sol']; if (c === 2) return ['⛅', 'Parcialmente nublado']; if (c === 3) return ['☁️', 'Nublado'];
-    if (c === 45 || c === 48) return ['🌫️', 'Nevoeiro'];
-    if (c >= 51 && c <= 55) return ['🌦️', c === 55 ? 'Garoa forte' : 'Garoa']; if (c === 56 || c === 57) return ['🌧️', 'Garoa congelante'];
-    if (c === 61) return ['🌧️', 'Chuva fraca']; if (c === 63) return ['🌧️', 'Chuva moderada']; if (c === 65) return ['🌧️', 'Chuva forte']; if (c === 66 || c === 67) return ['🌧️', 'Chuva congelante'];
-    if (c >= 71 && c <= 77) return ['🌨️', 'Neve']; if (c === 80) return ['🌦️', 'Pancadas fracas']; if (c === 81) return ['🌧️', 'Pancadas de chuva']; if (c === 82) return ['⛈️', 'Pancadas fortes'];
-    if (c === 85 || c === 86) return ['🌨️', 'Pancadas de neve']; if (c === 95) return ['⛈️', 'Trovoadas']; if (c >= 96) return ['⛈️', 'Trovoadas com granizo'];
-    return ['🌥️', 'Variável'];
-  }
+  const tempo = c => window.SMA_CLIMA_MOTOR?.tempo(c) || ['❔', 'Sem dado'];
   const direcao = g => (g == null ? '' : ['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO'][Math.round(g / 45) % 8]);
   // Chuva prevista (mm) em escala de azul
   const CHUVA = [[0.1, '#64748b', 'sem chuva'], [1, '#bae6fd', 'até 1 mm'], [5, '#7dd3fc', '1 a 5 mm'], [15, '#38bdf8', '5 a 15 mm'], [30, '#0284c7', '15 a 30 mm'], [Infinity, '#1e3a8a', 'acima de 30 mm']];
@@ -426,7 +417,7 @@
   /* ======================================================================
      DETALHE DA FAZENDA
      ====================================================================== */
-  let grafico = null;
+  let grafico = null, detalheHoras = null;
   function montarDetalhe() {
     if ($('#clima-detalhe')) return;
     const el = document.createElement('div');
@@ -437,7 +428,7 @@
         <div id="clima-d-corpo"></div>
       </aside>`;
     document.body.appendChild(el);
-    el.addEventListener('click', e => { if (e.target.closest('[data-fechar]')) fecharDetalhe(); if (e.target.closest('#clima-d-ativ')) carregarAtividades(); });
+    el.addEventListener('click', e => { if (e.target.closest('[data-fechar]')) fecharDetalhe(); if (e.target.closest('#clima-d-ativ')) carregarAtividades(); const dia = e.target.closest('[data-dia]'); if (dia) mostrarHoras(dia.dataset.dia); });
   }
   function fecharDetalhe() { $('#clima-detalhe').hidden = true; if (!tela.aberta) document.body.classList.remove('clima-sem-rolagem'); grafico?.destroy(); grafico = null; }
 
@@ -457,9 +448,10 @@
         <div class="clima-d-status"><span class="clima-pill" style="--c:${s.cor}">${s.nome}</span>${a.motivo ? `<small>${esc(a.motivo)}</small>` : ''}${a.deltaT != null ? `<small>Delta T ${n1(a.deltaT)} °C</small>` : ''}</div>
         <p class="clima-d-prox"><i data-lucide="calendar-clock"></i>Próxima janela boa: <b>${p.proximaJanela ? esc(p.proximaJanela.agora ? `agora (até ${p.proximaJanela.rotulo.split('–')[1]})` : p.proximaJanela.rotulo) : 'nenhuma nos próximos 7 dias'}</b></p>
       </header>
-      <section class="clima-d-bloco"><h4>Próximas 72 horas</h4><div class="clima-d-graf"><canvas id="clima-d-canvas" aria-label="Temperatura, chuva, vento e janela de aplicação nas próximas 72 horas"></canvas><p class="clima-d-carregando">Carregando as próximas horas…</p></div>
+      <section class="clima-d-bloco"><h4>Próximas 24 horas</h4><div class="clima-d-graf"><canvas id="clima-d-canvas" aria-label="Temperatura, chuva, vento e janela de aplicação hora a hora nas próximas 24 horas"></canvas><p class="clima-d-carregando">Carregando as próximas horas…</p></div>
         <div class="clima-d-faixa-leg">${STATUS.map(x => `<span><i style="--c:${x.cor}"></i>${x.curto}</span>`).join('')}<span>faixa = janela de aplicação hora a hora</span></div></section>
-      <section class="clima-d-bloco"><h4>7 dias</h4><div class="clima-d-dias">${p.dias.map(d => { const [di, dd] = tempo(d.codigo); return `<div class="clima-d-dia"><b>${esc(d.rotulo)}</b><span class="clima-d-ic" title="${dd}">${di}</span><span><b>${n0(d.tmax)}°</b> / ${n0(d.tmin)}°</span><small>💧 ${n1(d.chuva)} mm · ${n0(d.prob)}%</small><small>💨 até ${n0(d.vento)} km/h</small></div>`; }).join('')}</div></section>
+      <section class="clima-d-bloco"><h4>7 dias <small class="clima-mudo">· toque num dia para ver hora a hora</small></h4><div class="clima-d-dias" role="tablist" aria-label="Dias da previsão">${p.dias.map(d => { const [di, dd] = tempo(d.codigo); return `<button type="button" class="clima-d-dia" role="tab" aria-selected="false" aria-controls="clima-d-horas" data-dia="${d.data}"><b>${esc(d.rotulo)}</b><span class="clima-d-ic" title="${dd}">${di}</span><span><b>${n0(d.tmax)}°</b> / ${n0(d.tmin)}°</span><small>💧 ${n1(d.chuva)} mm · ${n0(d.prob)}%</small><small>💨 até ${n0(d.vento)} km/h</small></button>`; }).join('')}</div>
+        <div class="clima-d-horas" id="clima-d-horas" role="tabpanel" hidden></div></section>
       <section class="clima-d-bloco clima-d-chuva">
         <div><span>Chuva nos últimos 7 dias</span><b>${n1(pass)} mm</b></div>
         <div><span>Prevista nos próximos 7 dias</span><b>${n1(p.chuva7d)} mm</b></div>
@@ -472,15 +464,20 @@
     try {
       const [r] = await Promise.all([detalheDoPonto(f.ponto), chartjs()]);
       if (el.dataset.fazenda !== nome || el.hidden) return;
-      desenharGrafico(r.horas72);
+      detalheHoras = r.horas || { iAgora: 0, ...r.horas72 };   // horas72: resposta antiga ainda em cache
+      desenharGrafico(detalheHoras);
+      const aberto = $('#clima-d-horas'); if (aberto && !aberto.hidden) { const d = aberto.dataset.dia; aberto.hidden = true; mostrarHoras(d); }
     } catch (erro) { const c = $('.clima-d-carregando'); if (c) c.textContent = `Não consegui carregar as próximas horas (${erro.message}).`; }
   }
 
-  function desenharGrafico(h) {
+  // Recorte das horas [de, ate) do hora a hora do detalhe
+  const recorte = (H, de, ate) => Object.fromEntries(Object.entries(H).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.slice(de, ate)]));
+  function desenharGrafico(H) {
     const C = window.Chart; if (!C) return;
+    const h = recorte(H, H.iAgora, H.iAgora + 24);
     $('.clima-d-carregando')?.remove();
     grafico?.destroy();
-    const rot = h.horas.map(t => `${t.slice(8, 10)}/${t.slice(5, 7)} ${t.slice(11, 13)}h`);
+    const rot = h.horas.map((t, i) => (i === 0 || t.slice(11, 13) === '00' ? `${t.slice(8, 10)}/${t.slice(5, 7)} ${t.slice(11, 13)}h` : `${t.slice(11, 13)}h`));
     const faixa = {
       id: 'faixaJanela',
       beforeDatasetsDraw(chart) {
@@ -506,15 +503,42 @@
         layout: { padding: { bottom: 4 } },
         plugins: {
           legend: { position: 'bottom', labels: { color: '#cfe3df', usePointStyle: true, boxWidth: 8, padding: 14, font: { family: 'Manrope', weight: 700 } } },
-          tooltip: { backgroundColor: 'rgba(4,18,17,.95)', borderColor: 'rgba(61,255,168,.4)', borderWidth: 1, padding: 10, callbacks: { afterBody: it => { const i = it[0].dataIndex; return [`Umidade ${n0(h.ur[i])}% · Delta T ${n1(h.deltaT[i])} °C`, `Janela: ${st(h.status[i]).nome}${h.motivo[i] ? ` (${h.motivo[i]})` : ''}`]; } } }
+          tooltip: { backgroundColor: 'rgba(4,18,17,.95)', borderColor: 'rgba(61,255,168,.4)', borderWidth: 1, padding: 10, callbacks: { title: it => { const t = h.horas[it[0].dataIndex]; return `${t.slice(8, 10)}/${t.slice(5, 7)} às ${t.slice(11, 13)}h`; }, afterBody: it => { const i = it[0].dataIndex; return [`Umidade ${n0(h.ur[i])}% · Delta T ${n1(h.deltaT[i])} °C`, `Janela: ${st(h.status[i]).nome}${h.motivo[i] ? ` (${h.motivo[i]})` : ''}`]; } } }
         },
         scales: {
-          x: { ticks: { color: '#9fb6b2', maxRotation: 0, autoSkip: true, maxTicksLimit: 9, font: { family: 'Manrope' } }, grid: { color: 'rgba(255,255,255,.05)' } },
+          x: { ticks: { color: '#9fb6b2', maxRotation: 0, autoSkip: true, maxTicksLimit: 13, font: { family: 'Manrope' } }, grid: { color: 'rgba(255,255,255,.05)' } },
           y: { position: 'left', title: { display: true, text: '°C · km/h', color: '#9fb6b2' }, ticks: { color: '#9fb6b2' }, grid: { color: 'rgba(255,255,255,.06)' } },
           mm: { position: 'right', beginAtZero: true, suggestedMax: 5, title: { display: true, text: 'mm', color: '#7dd3fc' }, ticks: { color: '#7dd3fc' }, grid: { display: false } }
         }
       }
     });
+  }
+
+  // Card do dia → tabela hora a hora daquele dia (mesmos dados do gráfico)
+  function mostrarHoras(dia) {
+    const alvo = $('#clima-d-horas'); if (!alvo) return;
+    const aberto = !alvo.hidden && alvo.dataset.dia === dia;
+    $$('#clima-detalhe [data-dia]').forEach(b => { const at = !aberto && b.dataset.dia === dia; b.classList.toggle('ativo', at); b.setAttribute('aria-selected', String(at)); });
+    if (aberto) { alvo.hidden = true; alvo.dataset.dia = ''; return; }
+    alvo.hidden = false; alvo.dataset.dia = dia;
+    const H = detalheHoras;
+    if (!H) { alvo.innerHTML = '<p class="clima-mudo">Carregando as horas…</p>'; return; }
+    const ix = H.horas.map((t, i) => (t.startsWith(dia) ? i : -1)).filter(i => i >= 0);
+    if (!ix.length) { alvo.innerHTML = '<p class="clima-mudo">Sem previsão hora a hora para este dia.</p>'; return; }
+    const agora = H.horas[H.iAgora];
+    alvo.innerHTML = `<div class="clima-h-rolagem"><table class="clima-h-tab"><thead><tr><th>Hora</th><th>Tempo</th><th>Temp.</th><th>Chuva</th><th>Umidade</th><th>Vento</th><th>Rajada</th><th>Janela de aplicação</th></tr></thead><tbody>${ix.map(i => {
+      const [ic, desc] = tempo(H.codigo[i]), s = st(H.status[i]), passou = H.horas[i] < agora;
+      return `<tr class="${passou ? 'passou' : ''} ${H.horas[i] === agora ? 'agora' : ''}" style="--c:${s.cor}">
+        <td><b>${H.horas[i].slice(11, 13)}h</b>${H.horas[i] === agora ? '<em>agora</em>' : ''}</td>
+        <td><span class="clima-h-ic" title="${desc}">${ic}</span><small>${desc}</small></td>
+        <td><b>${n0(H.t[i])}°</b></td>
+        <td>${(H.chuva[i] || 0) > 0 ? `<b class="clima-h-chuva">${n1(H.chuva[i])} mm</b>` : '<span class="clima-mudo">0</span>'}<small>${n0(H.prob[i])}%</small></td>
+        <td>${n0(H.ur[i])}%</td>
+        <td>${n0(H.vento[i])} km/h <small>${direcao(H.direcao?.[i])}</small></td>
+        <td class="${(H.rajada[i] || 0) >= CFG.alertas.rajadaKmh ? 'clima-h-forte' : ''}">${n0(H.rajada[i])} km/h</td>
+        <td><span class="clima-h-st"><i></i>${s.curto}</span>${H.motivo[i] ? `<small>${esc(H.motivo[i])}</small>` : ''}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+    alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   // Atividades do PGO nesta fazenda (mesmo padrão de nome: "SÃO MIGUEL (S-G12D )")

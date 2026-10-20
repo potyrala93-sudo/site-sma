@@ -36,9 +36,19 @@
       .filter(l => (l.FAZENDA || '').trim() && (l.UP || '').trim())   // ignora linhas vazias
       .map((l, i) => {
         const fazenda = l.FAZENDA.replace(/\s+/g, ' ').trim(), up = l.UP.trim(), ativ = (l.ATIVIDADE || '').trim() || '—', rf = (l.RF || '').trim() || '—';
-        return { id: `${rf}|${fazenda}|${up}|${ativ}|${i}`, rf, fazenda, up, atividade: ativ, area: valor(l.AREA), tarifa: valor(l.TARIFA) };
+        return { id: `${rf}|${fazenda}|${up}|${ativ}|${i}`, rf, fazenda, up, atividade: ativ, area: valor(l.AREA), tarifa: valor(l.TARIFA), insumos: insumosDa(l) };
       });
   }
+  // "Insumo 1" + "Dose 1", "Insumo 2" + "Dose 2"… (aparecem só no PDF)
+  function insumosDa(l) {
+    const lista = [];
+    for (let n = 1; n <= 12; n++) {
+      const nome = String(l[`INSUMO ${n}`] ?? '').trim(), dose = String(l[`DOSE ${n}`] ?? l[`DOSAGEM ${n}`] ?? '').trim();
+      if (nome || dose) lista.push({ nome: nome || '—', dose });
+    }
+    return lista;
+  }
+  const textoInsumos = l => (l?.length ? l.map(x => `<span class="p-insumo"><b>${escapar(x.nome)}</b>${x.dose ? ` ${escapar(x.dose)}` : ''}</span>`).join('') : '<span class="p-insumo-sem">—</span>');
   // Exemplo para conhecer a tela enquanto a planilha está vazia (sempre sinalizado na tela)
   function dadosExemplo() {
     const base = [
@@ -47,7 +57,7 @@
       ['RF 11', 'Sítio São Bento', [['S7BL02', 53.8], ['S7BL03', 79.4], ['S7BL04', 22.6]]],
       ['RF 11', 'Vitória', [['S7AK02', 6.5], ['S7AK17', 41.2], ['S7AK21', 28.7]]]
     ];
-    return base.flatMap(([rf, faz, ups], fi) => ups.map(([up, area], ui) => ({ RF: rf, FAZENDA: faz, UP: up, AREA: String(area).replace('.', ','), ATIVIDADE: ui % 2 ? 'Adubação de cobertura' : 'Controle de matocompetição', TARIFA: `R$ ${(fi % 2 ? 182.5 : 164.9).toFixed(2).replace('.', ',')}` })));
+    return base.flatMap(([rf, faz, ups], fi) => ups.map(([up, area], ui) => ({ RF: rf, FAZENDA: faz, UP: up, AREA: String(area).replace('.', ','), ATIVIDADE: ui % 2 ? 'Adubação de cobertura' : 'Controle de matocompetição', ...(ui % 2 ? { 'INSUMO 1': 'NPK 20-00-20', 'DOSE 1': '150 kg/ha' } : { 'INSUMO 1': 'Glifosato', 'DOSE 1': '3,0 L/ha', 'INSUMO 2': 'Adjuvante', 'DOSE 2': '0,5 L/ha' }), TARIFA: `R$ ${(fi % 2 ? 182.5 : 164.9).toFixed(2).replace('.', ',')}` })));
   }
 
   /* ======================================================================
@@ -446,23 +456,25 @@
     r.faz.forEach((f, fi) => {
       const desl = r.linhas.find(l => l.tipo === 'desloc' && l.para === f.nome);
       if (desl) html += `<tr class="p-desloc" style="--c:${f.cor}"><td colspan="5" data-rotulo="Deslocamento"><span class="p-desloc-txt"><i data-lucide="truck"></i>Deslocamento: ${escapar(desl.de)} → ${escapar(desl.para)}</span></td><td></td><td></td><td></td>
-        <td data-rotulo="Início">${br(desl.inicio)}</td><td data-rotulo="Término">${br(desl.fim)}</td><td data-rotulo="Dias">${fmt1(desl.dias)}</td></tr>`;
+        <td data-rotulo="Início">${br(desl.inicio)}</td><td data-rotulo="Término">${br(desl.fim)}</td><td data-rotulo="Dias">${fmt1(desl.dias)}</td><td class="p-so-print"></td></tr>`;
       const its = r.itens.filter(i => i.fazenda === f.nome);
       html += its.map(i => `<tr style="--c:${i.cor}">
         <td data-rotulo="Ordem"><span class="p-ordem">${ord(i.ordem)}</span></td><td data-rotulo="RF">${escapar(i.rf)}</td>
         <td data-rotulo="Fazenda"><span class="p-faz"><i class="p-bolinha"></i>${escapar(i.fazenda)}</span></td>
         <td data-rotulo="UP"><span class="q-up">${escapar(i.up)}</span></td><td data-rotulo="Atividade"><span class="p-ativ">${escapar(i.atividade)}</span></td>
         <td data-rotulo="Área (ha)">${fmtHa(i.area)}</td><td data-rotulo="Tarifa (R$/ha)">${brl(i.tarifa)}</td><td data-rotulo="Faturamento"><b>${brl(i.fat)}</b></td>
-        <td data-rotulo="Início">${br(i.inicio)}</td><td data-rotulo="Término">${br(i.fim)}</td><td data-rotulo="Dias">${fmt1(i.dias)}</td></tr>`).join('');
+        <td data-rotulo="Início">${br(i.inicio)}</td><td data-rotulo="Término">${br(i.fim)}</td><td data-rotulo="Dias">${fmt1(i.dias)}</td><td class="p-so-print">${textoInsumos(i.insumos)}</td></tr>`).join('');
       html += `<tr class="p-subtotal" style="--c:${f.cor}"><td colspan="5" data-rotulo="Subtotal">Subtotal · ${escapar(f.nome)}</td><td data-rotulo="Área">${fmtHa(its.reduce((s, i) => s + i.area, 0))}</td><td></td>
-        <td data-rotulo="Faturamento">${brl(its.reduce((s, i) => s + i.fat, 0))}</td><td data-rotulo="Início">${br(its[0].inicio)}</td><td data-rotulo="Término">${br(its[its.length - 1].fim)}</td><td data-rotulo="Dias">${fmt1(its.reduce((s, i) => s + i.dias, 0))}</td></tr>`;
+        <td data-rotulo="Faturamento">${brl(its.reduce((s, i) => s + i.fat, 0))}</td><td data-rotulo="Início">${br(its[0].inicio)}</td><td data-rotulo="Término">${br(its[its.length - 1].fim)}</td><td data-rotulo="Dias">${fmt1(its.reduce((s, i) => s + i.dias, 0))}</td><td class="p-so-print"></td></tr>`;
     });
     html += `<tr class="p-total"><td colspan="5" data-rotulo="Total geral">Total geral${r.diasDesloc ? ` <small>(inclui ${r.diasDesloc} dia(s) de deslocamento)</small>` : ''}</td><td data-rotulo="Área">${fmtHa(r.area)}</td><td></td><td data-rotulo="Faturamento">${brl(r.faturamento)}</td>
-      <td data-rotulo="Início">${br(r.inicioReal)}</td><td data-rotulo="Término">${br(r.termino)}</td><td data-rotulo="Dias">${fmt1(totalDias)}</td></tr>`;
-    $('#p-tab-prog').innerHTML = `<table class="q-tab p-tab-prog"><thead><tr><th>Ordem</th><th>RF</th><th>Fazenda</th><th>UP</th><th>Atividade</th><th>Área (ha)</th><th>Tarifa (R$/ha)</th><th>Faturamento (R$)</th><th>Início</th><th>Término</th><th>Dias</th></tr></thead><tbody>${html}</tbody></table>`;
+      <td data-rotulo="Início">${br(r.inicioReal)}</td><td data-rotulo="Término">${br(r.termino)}</td><td data-rotulo="Dias">${fmt1(totalDias)}</td><td class="p-so-print"></td></tr>`;
+    $('#p-tab-prog').innerHTML = `<table class="q-tab p-tab-prog"><thead><tr><th>Ordem</th><th>RF</th><th>Fazenda</th><th>UP</th><th>Atividade</th><th>Área (ha)</th><th>Tarifa (R$/ha)</th><th>Faturamento (R$)</th><th>Início</th><th>Término</th><th>Dias</th><th class="p-so-print">Insumos e doses</th></tr></thead><tbody>${html}</tbody></table>`;
 
     $('#p-legenda').innerHTML = r.faz.map(f => `<span><i style="--c:${f.cor}"></i>${escapar(f.nome)}</span>`).join('') + '<span><i class="cinza"></i>Sem trabalho</span>';
     renderCalendario(r);
+    renderClima(r);
+    carregarClima();
     renderCabecalhoPDF(r, sup);
     aplicarFotos();
     icones();
@@ -495,8 +507,9 @@
         });
         const trabalhoFds = fds && trab.length;
         const primeira = grupos.find(g => !g.desloc) || grupos[0];
+        const tempoDia = [...new Set(grupos.map(g => g.fazenda))].map(nome => climaNoDia(nome, k)).filter(Boolean);
         cel += `<div class="p-dia ${noPeriodo ? '' : 'fora'} ${parado ? 'parado' : ''} ${fds ? 'fds' : ''} ${trabalhoFds ? 'fds-trab' : ''} ${marca}" ${primeira ? `style="--c:${primeira.cor}"` : ''}>
-          <span class="p-dia-n">${dd}${marca ? `<em>${marca === 'entrada' ? 'Entrada' : 'Término'}</em>` : ''}${trabalhoFds ? '<i class="p-fds-tag" title="Fim de semana trabalhado">FDS</i>' : ''}</span>
+          <span class="p-dia-n">${dd}${marca ? `<em>${marca === 'entrada' ? 'Entrada' : 'Término'}</em>` : ''}${trabalhoFds ? '<i class="p-fds-tag" title="Fim de semana trabalhado">FDS</i>' : ''}${tempoDia.map(c => `<span class="p-dia-clima ${c.nivel}" title="${escapar(c.titulo)}"><i>${c.ic}</i><b>${c.tmax}°</b><small>💧${c.chuva}</small>${c.nivel ? '<em>⚠</em>' : ''}</span>`).join('')}</span>
           ${parado ? `<span class="p-dia-sem">${cfg.feriados.includes(k) ? 'Feriado' : 'Sem trabalho'}</span>` : ''}
           ${grupos.map(g => g.desloc
             ? `<span class="p-dia-desloc" title="Deslocamento ${escapar(g.de)} → ${escapar(g.fazenda)}">🚚 Deslocamento<small>→ ${escapar(g.fazenda)}</small></span>`
@@ -513,6 +526,119 @@
       <div class="p-pc-titulo"><img src="assets/img/folhito/folhito-rosto.png" alt="" onerror="this.remove()"><div><h1>Programação de Atividades</h1><p>SMA Silvicultura · Unidade São Miguel · emitido em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></div></div>
       <div class="p-pc-sup"><img data-foto-sup alt=""><div><small>Supervisor responsável</small><b>${escapar(sup?.nome || '—')}</b><small>Equipes programadas: <b>${r.equipes.map(e => `${e.nome} (${descEquipe(e)})`).join(' · ')}</b></small></div></div>
       <p class="p-pc-filtros">Filtros: RF <b>${escapar(cfg.rf || 'todos')}</b> · Atividades <b>${escapar(cfg.atividades.join(', ') || 'todas')}</b> · Entrada <b>${br(r.entrada)}</b> · Deslocamento: <b>${DESLOC} dia por troca de fazenda</b><br>Fins de semana: ${resumoFds(r).texto}${cfg.feriados.length ? ` · Feriados: <b>${cfg.feriados.map(f => br(deISO(f))).join(', ')}</b>` : ''}${estado.exemplo ? ' · <b>DADOS DE EXEMPLO</b>' : ''}</p>`;
+  }
+
+  /* ======================================================================
+     5b. CLIMA: cruza a fazenda programada com a base de clima (coordenadas e município)
+     Mesmo resumo do painel de clima da Home (/api/clima, guardado no navegador por 30 min).
+     ====================================================================== */
+  const CL = D.CLIMA;
+  const clima = { dados: null, indice: null, carregando: false, erro: '' };
+  const CHAVE_CLIMA = 'clima:resumo';
+  const carregarScript = src => new Promise((ok, falha) => { const e = document.createElement('script'); e.src = src; e.onload = ok; e.onerror = () => falha(new Error(`não carregou ${src}`)); document.head.appendChild(e); });
+  const motorClima = async () => { if (!window.SMA_CLIMA_MOTOR) await carregarScript('js/clima-motor.js'); return window.SMA_CLIMA_MOTOR; };
+  // previsão aceitável: no máximo 1/4 dos pontos sem resposta do Open-Meteo
+  const completo = d => Object.keys(d.pontos || {}).length && !(d.semPrevisao >= Object.keys(d.pontos).length / 4);
+  async function buscarClima() {
+    try { const c = JSON.parse(localStorage.getItem(CHAVE_CLIMA) || 'null'); if (c && Date.now() - c.quando < CL.cacheMin * 60_000 && c.dados?.fazendas && completo(c.dados)) return c.dados; } catch { /* sem cache */ }
+    let d = null;
+    if (comServidor) {
+      try { const r = await fetch('api/clima', { signal: AbortSignal.timeout(25_000) }); if (r.ok) d = await r.json(); } catch { /* cai para o navegador */ }
+    }
+    if (!d || !completo(d)) {
+      const M = await motorClima();
+      const r = await fetch(`https://docs.google.com/spreadsheets/d/${CL.planilha}/export?format=csv&gid=${CL.aba}`, { signal: AbortSignal.timeout(25_000) });
+      if (!r.ok) throw new Error('planilha de coordenadas indisponível');
+      d = await M.montarResumo(await r.text(), CL);
+    }
+    try { localStorage.setItem(CHAVE_CLIMA, JSON.stringify({ quando: Date.now(), dados: d })); } catch { /* sem espaço */ }
+    return d;
+  }
+  async function carregarClima() {
+    if (clima.dados || clima.carregando || !CL) return;
+    clima.carregando = true;
+    try {
+      const [d] = await Promise.all([buscarClima(), motorClima()]);
+      clima.dados = d; clima.indice = null; clima.erro = '';
+    } catch (erro) { clima.erro = erro.message; console.warn('Programação: clima indisponível', erro); }
+    clima.carregando = false;
+    if (estado.resultado) { renderCalendario(estado.resultado); renderClima(estado.resultado); icones(); }
+  }
+  // Nome da fazenda → base de clima: 1º pelo código "(S-G12B)", depois pelo nome sem acentos
+  const chaveNome = t => String(t ?? '').replace(/\([^)]*\)/g, ' ').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+  const codigoDe = t => (/\(\s*([A-Z]{1,2}-[A-Z0-9]+)\s*\)/i.exec(t || '') || [])[1]?.toUpperCase() || '';
+  function fazendaClima(nome) {
+    if (!clima.dados) return null;
+    if (!clima.indice) {
+      const porCodigo = new Map(), porNome = new Map();
+      clima.dados.fazendas.forEach(f => {
+        const c = codigoDe(f.nome); if (c) porCodigo.set(c, f);
+        const k = chaveNome(f.nome); (porNome.get(k) || porNome.set(k, []).get(k)).push(f);
+      });
+      clima.indice = { porCodigo, porNome };
+    }
+    const c = codigoDe(nome);
+    if (c && clima.indice.porCodigo.has(c)) return { f: clima.indice.porCodigo.get(c), varias: 1 };
+    const l = clima.indice.porNome.get(chaveNome(nome)) || [];
+    return l.length ? { f: l.find(f => clima.dados.pontos[f.ponto]) || l[0], varias: l.length } : null;
+  }
+  // Avisos de um dia de previsão (limites em js/dados.js → CLIMA.alertas e CLIMA.programacao)
+  function avisosDoDia(d) {
+    const A = CL.alertas, P = CL.programacao || {}, alerta = [], atencao = [];
+    if (d.chuva > A.chuvaDiaMm) alerta.push(`chuva forte (${fmt1(d.chuva)} mm)`);
+    else if (d.chuva >= P.chuvaMm || d.prob >= P.probChuva) atencao.push(`chuva de ${fmt1(d.chuva)} mm (${Math.round(d.prob ?? 0)}%)`);
+    if (d.rajada > A.rajadaKmh) alerta.push(`rajadas de ${Math.round(d.rajada)} km/h`);
+    else if (d.rajada >= P.rajadaKmh) atencao.push(`rajadas de ${Math.round(d.rajada)} km/h`);
+    if (d.tmax > A.tempMax) alerta.push(`calor de ${Math.round(d.tmax)} °C`);
+    if (d.tmin != null && d.tmin < A.geadaMin) alerta.push(`risco de geada (mín. ${Math.round(d.tmin)} °C)`);
+    if (d.ideais != null && d.ideais < P.horasBoasMin) atencao.push(d.ideais ? `só ${d.ideais} h boas para aplicar` : 'nenhuma hora boa para aplicar');
+    return { alerta, atencao, nivel: alerta.length ? 'alerta' : atencao.length ? 'atencao' : '' };
+  }
+  const tempoWMO = c => window.SMA_CLIMA_MOTOR?.tempo(c) || ['', ''];
+  function climaNoDia(nome, dia) {
+    const m = fazendaClima(nome); if (!m) return null;
+    const d = clima.dados.pontos[m.f.ponto]?.dias.find(x => x.data === dia); if (!d) return null;
+    const [ic, desc] = tempoWMO(d.codigo), av = avisosDoDia(d);
+    return {
+      ic, tmax: Math.round(d.tmax), chuva: fmt1(d.chuva), nivel: av.nivel,
+      titulo: `${nome}: ${desc}, ${Math.round(d.tmax)}°/${Math.round(d.tmin)}°, chuva ${fmt1(d.chuva)} mm (${Math.round(d.prob ?? 0)}%), rajada ${Math.round(d.rajada)} km/h${av.nivel ? ` · Atenção: ${[...av.alerta, ...av.atencao].join(', ')}` : ''}`
+    };
+  }
+  // Painel fora do calendário: cada fazenda com dia programado nos próximos 7 dias
+  function renderClima(r) {
+    const el = $('#p-clima'); if (!el) return;
+    if (!clima.dados) {
+      el.innerHTML = clima.erro
+        ? `<p class="p-cl-msg"><i data-lucide="cloud-off"></i>Não consegui ler a previsão do tempo (${escapar(clima.erro)}).</p>`
+        : '<p class="p-cl-msg"><i data-lucide="cloud-sun"></i>Buscando a previsão do tempo das fazendas…</p>';
+      return;
+    }
+    const dias = Object.values(clima.dados.pontos)[0]?.dias || [];
+    const ini = dias[0]?.data, fim = dias.at(-1)?.data;
+    const quando = new Date(clima.dados.atualizado).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    const topo = `<div class="p-cl-topo"><div><span class="eyebrow">Previsão do tempo</span><h3>Clima nas fazendas programadas</h3></div><small>Próximos 7 dias (${br(deISO(ini))} a ${br(deISO(fim))}) · Open-Meteo · atualizado ${quando}</small></div>`;
+    const cards = r.faz.map(f => ({
+      f, m: fazendaClima(f.nome),
+      diasFaz: [...r.porDia.entries()].filter(([k, l]) => k >= ini && k <= fim && l.some(t => t.fazenda === f.nome)).map(([k]) => k).sort()
+    })).filter(x => x.diasFaz.length);
+    if (!cards.length) { el.innerHTML = `${topo}<p class="p-cl-msg"><i data-lucide="calendar-clock"></i>Nenhum dia desta programação cai nos próximos 7 dias: a previsão aparece aqui quando a data chegar perto.</p>`; return; }
+    el.innerHTML = topo + `<div class="p-cl-grade">${cards.map(({ f, diasFaz, m }) => {
+      if (!m) return `<article class="p-cl-faz" style="--c:${f.cor}"><header><b>${escapar(f.nome)}</b><small>Fazenda não encontrada na base de clima (coordenadas)</small></header></article>`;
+      const p = clima.dados.pontos[m.f.ponto];
+      if (!p) return `<article class="p-cl-faz" style="--c:${f.cor}"><header><b>${escapar(f.nome)}</b><small>${escapar(m.f.municipio)} · previsão indisponível agora (o Open-Meteo não respondeu para este ponto)</small></header></article>`;
+      const lista = diasFaz.map(k => p.dias.find(d => d.data === k)).filter(Boolean);
+      const avisos = lista.map(d => { const a = avisosDoDia(d); return { d, n: a.nivel, t: [...a.alerta, ...a.atencao].join(' · ') }; }).filter(a => a.n);   // um aviso por dia
+      const rajMax = Math.max(0, ...lista.map(d => d.rajada || 0)), chuvaTot = lista.reduce((s, d) => s + (d.chuva || 0), 0);
+      return `<article class="p-cl-faz" style="--c:${f.cor}">
+        <header><b>${escapar(f.nome)}</b><small>${escapar(m.f.municipio)}${m.varias > 1 ? ' · há outra fazenda com este nome na base' : ''}</small></header>
+        <div class="p-cl-resumo"><span>💨 Rajada máx. <b>${Math.round(rajMax)} km/h</b></span><span>💧 Chuva <b>${fmt1(chuvaTot)} mm</b></span>${p.proximaJanela ? `<span>✅ Próxima janela boa <b>${escapar(p.proximaJanela.rotulo)}</b></span>` : ''}</div>
+        <div class="p-cl-dias">${lista.map(d => {
+          const [ic, desc] = tempoWMO(d.codigo), a = avisosDoDia(d);
+          return `<div class="p-cl-dia ${a.nivel}" title="${escapar(desc)}"><small class="p-cl-rot">${escapar(d.rotulo)}</small><i>${ic}</i><b>${Math.round(d.tmax)}° <span>/ ${Math.round(d.tmin)}°</span></b><small>💧 ${fmt1(d.chuva)} mm · ${Math.round(d.prob ?? 0)}%</small><small>💨 ${Math.round(d.vento)} · rajada ${Math.round(d.rajada)}</small>${d.ideais != null ? `<small>🟢 ${d.ideais} h boas</small>` : ''}</div>`;
+        }).join('')}</div>
+        ${avisos.length ? `<ul class="p-cl-avisos">${avisos.map(a => `<li class="${a.n}">⚠️ <b>${escapar(a.d.rotulo)}:</b> ${escapar(a.t)}</li>`).join('')}</ul>` : '<p class="p-cl-ok">✔ Sem avisos nos dias programados</p>'}
+      </article>`;
+    }).join('')}</div>`;
   }
 
   /* ======================================================================
@@ -578,6 +704,7 @@
       pags.push(`${cabCurto}<h2 class="p-pdf-tit">Tabela da programação${linhas.length > POR_PAGINA ? ` <small>(${Math.floor(i / POR_PAGINA) + 1}/${Math.ceil(linhas.length / POR_PAGINA)})</small>` : ''}</h2>
         <table class="q-tab p-tab-prog">${cab}<tbody>${linhas.slice(i, i + POR_PAGINA).join('')}</tbody></table>`);
     }
+    if ($('#p-clima .p-cl-faz')) pags.push(`${cabCurto}<div class="p-clima">${$('#p-clima').innerHTML}</div>`);
     $$('#p-meses .p-mes').forEach(m => pags.push(`${cabCurto}<div class="p-legenda">${$('#p-legenda').innerHTML}</div><article class="p-mes">${m.innerHTML}</article>`));
     return pags;
   }

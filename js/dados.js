@@ -226,7 +226,9 @@ const CLIMA = {
   },
   alertas: { chuvaDiaMm: 30, rajadaKmh: 40, tempMax: 35, geadaMin: 3 },
   plantio: { chuva7dMm: 20 },  // acumulado em 7 dias ≥ isto = "umidade favorável ao plantio"; senão "prever irrigação"
-  chuvaHojeMm: 1             // "chuva prevista hoje" a partir deste total no dia
+  chuvaHojeMm: 1,            // "chuva prevista hoje" a partir deste total no dia
+  // Programação de Atividades: aviso de atenção no dia programado (além dos alertas acima)
+  programacao: { chuvaMm: 5, probChuva: 60, rajadaKmh: 30, horasBoasMin: 3 }
 };
 // Mapas micro das fazendas (Produção → aba Mapas): pasta pública do Google Drive com os PDFs
 const MAPAS = { pasta: '1SPU9-qjt1zEQywDvUnzB7yXCgpCr3lvK', cacheMin: 30 };

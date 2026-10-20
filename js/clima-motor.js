@@ -137,7 +137,8 @@ function resumir(h, CFG) {
     const d = somarDias(hoje, k), ix = porDia.get(d); if (!ix) continue;
     const vals = key => ix.map(i => h[key][i]).filter(x => x != null);
     const soma = a => a.reduce((s, x) => s + x, 0), max = a => (a.length ? Math.max(...a) : null), min = a => (a.length ? Math.min(...a) : null);
-    dias.push({ data: d, rotulo: rotuloDia(d, hoje), tmax: r1(max(vals('temperature_2m'))), tmin: r1(min(vals('temperature_2m'))), chuva: r1(soma(vals('precipitation'))), prob: max(vals('precipitation_probability')), vento: r1(max(vals('wind_speed_10m'))), rajada: r1(max(vals('wind_gusts_10m'))), codigo: max(vals('weather_code')) });
+    const ideais = ix.filter(i => status[i] === 0 && +h.time[i].slice(11, 13) >= 6 && +h.time[i].slice(11, 13) <= 18).length;   // horas boas de dia (6h–18h)
+    dias.push({ data: d, rotulo: rotuloDia(d, hoje), ideais, tmax: r1(max(vals('temperature_2m'))), tmin: r1(min(vals('temperature_2m'))), chuva: r1(soma(vals('precipitation'))), prob: max(vals('precipitation_probability')), vento: r1(max(vals('wind_speed_10m'))), rajada: r1(max(vals('wind_gusts_10m'))), codigo: max(vals('weather_code')) });
   }
   const passada = [...porDia.entries()].filter(([d]) => d < hoje && d >= somarDias(hoje, -7)).flatMap(([, ix]) => ix).reduce((s, i) => s + (h.precipitation[i] || 0), 0);
   // Próxima janela boa: primeira sequência de horas ideais (a partir de agora)
@@ -165,14 +166,29 @@ function resumir(h, CFG) {
   };
 }
 
-// As próximas 72 h (para o gráfico do detalhe)
-function proximas72(h, CFG) {
-  const { hora } = agoraSP();
+// Hora a hora de hoje (desde 00h) até o fim do 7º dia: o gráfico usa as 24 h a partir de "agora" (iAgora)
+// e cada card de dia abre as horas daquele dia
+function horaAHora(h, CFG) {
+  const { dia: hoje, hora } = agoraSP();
   const { status, deltaT, motivo } = janelas(h, CFG.janela);
-  let i0 = h.time.indexOf(hora); if (i0 < 0) i0 = Math.max(0, h.time.findIndex(t => t > hora) - 1);
-  const ix = Array.from({ length: Math.min(72, h.time.length - i0) }, (_, k) => i0 + k);
+  const fim = somarDias(hoje, 7);
+  const ix = h.time.map((t, i) => (t >= hoje && t < fim ? i : -1)).filter(i => i >= 0);
   const col = k => ix.map(i => h[k][i]);
-  return { horas: col('time'), t: col('temperature_2m'), ur: col('relative_humidity_2m'), chuva: col('precipitation'), prob: col('precipitation_probability'), vento: col('wind_speed_10m'), rajada: col('wind_gusts_10m'), codigo: col('weather_code'), status: ix.map(i => status[i]), deltaT: ix.map(i => deltaT[i]), motivo: ix.map(i => motivo[i] || '') };
+  const horas = col('time');
+  let iAgora = horas.indexOf(hora); if (iAgora < 0) iAgora = Math.max(0, horas.findIndex(t => t > hora) - 1);
+  return { iAgora, horas, t: col('temperature_2m'), ur: col('relative_humidity_2m'), chuva: col('precipitation'), prob: col('precipitation_probability'), vento: col('wind_speed_10m'), rajada: col('wind_gusts_10m'), direcao: col('wind_direction_10m'), codigo: col('weather_code'), status: ix.map(i => status[i]), deltaT: ix.map(i => deltaT[i]), motivo: ix.map(i => motivo[i] || '') };
+}
+
+/* ---------- Tempo pelo código WMO: [ícone, descrição] ---------- */
+function tempo(c) {
+  if (c == null) return ['❔', 'Sem dado'];
+  if (c === 0) return ['☀️', 'Céu limpo']; if (c === 1) return ['🌤️', 'Predomínio de sol']; if (c === 2) return ['⛅', 'Parcialmente nublado']; if (c === 3) return ['☁️', 'Nublado'];
+  if (c === 45 || c === 48) return ['🌫️', 'Nevoeiro'];
+  if (c >= 51 && c <= 55) return ['🌦️', c === 55 ? 'Garoa forte' : 'Garoa']; if (c === 56 || c === 57) return ['🌧️', 'Garoa congelante'];
+  if (c === 61) return ['🌧️', 'Chuva fraca']; if (c === 63) return ['🌧️', 'Chuva moderada']; if (c === 65) return ['🌧️', 'Chuva forte']; if (c === 66 || c === 67) return ['🌧️', 'Chuva congelante'];
+  if (c >= 71 && c <= 77) return ['🌨️', 'Neve']; if (c === 80) return ['🌦️', 'Pancadas fracas']; if (c === 81) return ['🌧️', 'Pancadas de chuva']; if (c === 82) return ['⛈️', 'Pancadas fortes'];
+  if (c === 85 || c === 86) return ['🌨️', 'Pancadas de neve']; if (c === 95) return ['⛈️', 'Trovoadas']; if (c >= 96) return ['⛈️', 'Trovoadas com granizo'];
+  return ['🌥️', 'Variável'];
 }
 
 /* ---------- Open-Meteo ---------- */
@@ -227,7 +243,7 @@ async function montarResumo(texto, CFG, guardarHoraria = () => {}) {
   };
 }
 
-/* ---------- Detalhe de um ponto (72 h) ---------- */
+/* ---------- Detalhe de um ponto (hora a hora, 7 dias) ---------- */
 function pontoValido(id, CFG) {
   const m = /^(-?\d{1,2}\.\d{1,4}),(-?\d{1,3}\.\d{1,4})$/.exec(id || '');
   if (!m) return null;
@@ -236,8 +252,8 @@ function pontoValido(id, CFG) {
   return { lat, lon };
 }
 function montarDetalhe(id, hourly, CFG, quando = Date.now()) {
-  return { id, atualizado: new Date(quando).toISOString(), ...resumir(hourly, CFG), horas72: proximas72(hourly, CFG) };
+  return { id, atualizado: new Date(quando).toISOString(), ...resumir(hourly, CFG), horas: horaAHora(hourly, CFG) };
 }
 
-  globalThis.SMA_CLIMA_MOTOR = { fazendasDoTexto, resumir, proximas72, previsao, montarResumo, pontoValido, montarDetalhe };
+  globalThis.SMA_CLIMA_MOTOR = { fazendasDoTexto, resumir, horaAHora, tempo, previsao, montarResumo, pontoValido, montarDetalhe };
 })();
