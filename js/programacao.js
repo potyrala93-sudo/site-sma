@@ -509,7 +509,7 @@
         const primeira = grupos.find(g => !g.desloc) || grupos[0];
         const tempoDia = [...new Set(grupos.map(g => g.fazenda))].map(nome => climaNoDia(nome, k)).filter(Boolean);
         cel += `<div class="p-dia ${noPeriodo ? '' : 'fora'} ${parado ? 'parado' : ''} ${fds ? 'fds' : ''} ${trabalhoFds ? 'fds-trab' : ''} ${marca}" ${primeira ? `style="--c:${primeira.cor}"` : ''}>
-          <span class="p-dia-n">${dd}${marca ? `<em>${marca === 'entrada' ? 'Entrada' : 'Término'}</em>` : ''}${trabalhoFds ? '<i class="p-fds-tag" title="Fim de semana trabalhado">FDS</i>' : ''}${tempoDia.map(c => `<span class="p-dia-clima ${c.nivel}" title="${escapar(c.titulo)}"><i>${c.ic}</i><b>${c.tmax}°</b><small>💧${c.chuva}</small>${c.nivel ? '<em>⚠</em>' : ''}</span>`).join('')}</span>
+          <span class="p-dia-n">${dd}${marca ? `<em>${marca === 'entrada' ? 'Entrada' : 'Término'}</em>` : ''}${trabalhoFds ? '<i class="p-fds-tag" title="Fim de semana trabalhado">FDS</i>' : ''}${tempoDia.map(c => `<span class="p-dia-clima ${c.nivel} ${c.estendido ? 'estendido' : ''}" title="${escapar(c.titulo)}"><i>${c.ic}</i><b>${c.tmax}°</b><small>💧${c.chuva}</small>${c.nivel ? '<em>⚠</em>' : ''}</span>`).join('')}</span>
           ${parado ? `<span class="p-dia-sem">${cfg.feriados.includes(k) ? 'Feriado' : 'Sem trabalho'}</span>` : ''}
           ${grupos.map(g => g.desloc
             ? `<span class="p-dia-desloc" title="Deslocamento ${escapar(g.de)} → ${escapar(g.fazenda)}">🚚 Deslocamento<small>→ ${escapar(g.fazenda)}</small></span>`
@@ -533,7 +533,8 @@
      Mesmo resumo do painel de clima da Home (/api/clima, guardado no navegador por 30 min).
      ====================================================================== */
   const CL = D.CLIMA;
-  const clima = { dados: null, indice: null, carregando: false, erro: '' };
+  const clima = { dados: null, indice: null, carregando: false, erro: '', ext: new Map(), pedidos: new Set(), tentados: new Set() };
+  const DIAS_EXT = 16;   // previsão estendida (máximo do Open-Meteo) só para os pontos das fazendas programadas
   const CHAVE_CLIMA = 'clima:resumo';
   const carregarScript = src => new Promise((ok, falha) => { const e = document.createElement('script'); e.src = src; e.onload = ok; e.onerror = () => falha(new Error(`não carregou ${src}`)); document.head.appendChild(e); });
   const motorClima = async () => { if (!window.SMA_CLIMA_MOTOR) await carregarScript('js/clima-motor.js'); return window.SMA_CLIMA_MOTOR; };
@@ -562,8 +563,38 @@
       clima.dados = d; clima.indice = null; clima.erro = '';
     } catch (erro) { clima.erro = erro.message; console.warn('Programação: clima indisponível', erro); }
     clima.carregando = false;
+    if (estado.resultado) { renderCalendario(estado.resultado); renderClima(estado.resultado); icones(); carregarEstendida(estado.resultado); }
+  }
+  // Previsão estendida (16 dias) dos pontos das fazendas programadas: cobre todos os dias até o término
+  async function estendidaDoPonto(id) {
+    const chave = `clima:ext:${id}`;
+    try { const c = JSON.parse(localStorage.getItem(chave) || 'null'); if (c && Date.now() - c.quando < CL.cacheMin * 60_000) return c.dados; } catch { /* sem cache */ }
+    let d = null;
+    if (comServidor) {
+      try { const r = await fetch(`api/clima/ponto/${encodeURIComponent(id)}?dias=${DIAS_EXT}`, { signal: AbortSignal.timeout(25_000) }); if (r.ok) d = await r.json(); } catch { /* cai para o navegador */ }
+    }
+    if (!d?.dias?.length) {
+      const M = await motorClima(), p = M.pontoValido(id, CL); if (!p) return null;
+      const [hourly] = await M.previsao([p], { dias: DIAS_EXT }); if (!hourly) return null;
+      d = M.montarDetalhe(id, hourly, CL, Date.now(), DIAS_EXT);
+    }
+    const dados = { dias: d.dias, proximaJanela: d.proximaJanela };   // sem o hora a hora: fica leve no navegador
+    try { localStorage.setItem(chave, JSON.stringify({ quando: Date.now(), dados })); } catch { /* sem espaço */ }
+    return dados;
+  }
+  async function carregarEstendida(r) {
+    if (!clima.dados || !r?.termino) return;
+    const ultimo = Object.values(clima.dados.pontos)[0]?.dias.at(-1)?.data;
+    if (!ultimo || paraISO(r.termino) <= ultimo) return;   // os 7 dias do resumo já cobrem a programação
+    const ids = [...new Set(r.faz.map(f => fazendaClima(f.nome)?.f.ponto).filter(id => id && !clima.ext.has(id) && !clima.pedidos.has(id) && !clima.tentados.has(id)))];
+    if (!ids.length) return;
+    ids.forEach(id => { clima.pedidos.add(id); clima.tentados.add(id); });
+    const res = await Promise.all(ids.map(id => estendidaDoPonto(id).catch(() => null)));
+    ids.forEach((id, i) => { clima.pedidos.delete(id); if (res[i]) clima.ext.set(id, res[i]); });
     if (estado.resultado) { renderCalendario(estado.resultado); renderClima(estado.resultado); icones(); }
   }
+  // Dias de previsão de um ponto: a estendida, se já veio; senão os 7 do resumo
+  const diasDoPonto = id => clima.ext.get(id)?.dias || clima.dados?.pontos[id]?.dias || [];
   // Nome da fazenda → base de clima: 1º pelo código "(S-G12B)", depois pelo nome sem acentos
   const chaveNome = t => String(t ?? '').replace(/\([^)]*\)/g, ' ').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
   const codigoDe = t => (/\(\s*([A-Z]{1,2}-[A-Z0-9]+)\s*\)/i.exec(t || '') || [])[1]?.toUpperCase() || '';
@@ -597,14 +628,16 @@
   const tempoWMO = c => window.SMA_CLIMA_MOTOR?.tempo(c) || ['', ''];
   function climaNoDia(nome, dia) {
     const m = fazendaClima(nome); if (!m) return null;
-    const d = clima.dados.pontos[m.f.ponto]?.dias.find(x => x.data === dia); if (!d) return null;
+    const d = diasDoPonto(m.f.ponto).find(x => x.data === dia); if (!d) return null;
     const [ic, desc] = tempoWMO(d.codigo), av = avisosDoDia(d);
     return {
-      ic, tmax: Math.round(d.tmax), chuva: fmt1(d.chuva), nivel: av.nivel,
+      ic, tmax: Math.round(d.tmax), chuva: fmt1(d.chuva), nivel: av.nivel, estendido: d.data > limite7(),
       titulo: `${nome}: ${desc}, ${Math.round(d.tmax)}°/${Math.round(d.tmin)}°, chuva ${fmt1(d.chuva)} mm (${Math.round(d.prob ?? 0)}%), rajada ${Math.round(d.rajada)} km/h${av.nivel ? ` · Atenção: ${[...av.alerta, ...av.atencao].join(', ')}` : ''}`
     };
   }
-  // Painel fora do calendário: cada fazenda com dia programado nos próximos 7 dias
+  // Último dia da previsão de 7 dias (depois dele, previsão estendida: menos precisa)
+  const limite7 = () => Object.values(clima.dados?.pontos || {})[0]?.dias.at(-1)?.data || '';
+  // Painel fora do calendário: cada fazenda com o clima de todos os dias programados (até o término)
   function renderClima(r) {
     const el = $('#p-clima'); if (!el) return;
     if (!clima.dados) {
@@ -613,28 +646,35 @@
         : '<p class="p-cl-msg"><i data-lucide="cloud-sun"></i>Buscando a previsão do tempo das fazendas…</p>';
       return;
     }
-    const dias = Object.values(clima.dados.pontos)[0]?.dias || [];
-    const ini = dias[0]?.data, fim = dias.at(-1)?.data;
+    const ini = Object.values(clima.dados.pontos)[0]?.dias[0]?.data || paraISO(new Date());
+    const termino = r.termino ? paraISO(r.termino) : ini;
+    // até onde há previsão para as fazendas desta programação (16 dias quando a estendida chegou)
+    const fim = r.faz.reduce((mx, f) => { const m = fazendaClima(f.nome); const u = m ? diasDoPonto(m.f.ponto).at(-1)?.data : ''; return u > mx ? u : mx; }, limite7());
+    // ainda falta a estendida de algum ponto (pedida agora ou nem pedida ainda)
+    const buscando = termino > fim && r.faz.some(f => { const id = fazendaClima(f.nome)?.f.ponto; return id && !clima.ext.has(id) && (clima.pedidos.has(id) || !clima.tentados.has(id)); });
+    const foraDoAlcance = termino > fim && !buscando;
     const quando = new Date(clima.dados.atualizado).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-    const topo = `<div class="p-cl-topo"><div><span class="eyebrow">Previsão do tempo</span><h3>Clima nas fazendas programadas</h3></div><small>Próximos 7 dias (${br(deISO(ini))} a ${br(deISO(fim))}) · Open-Meteo · atualizado ${quando}</small></div>`;
+    const topo = `<div class="p-cl-topo"><div><span class="eyebrow">Previsão do tempo</span><h3>Clima nas fazendas programadas</h3></div><small>${br(deISO(ini))} a ${br(deISO(termino < fim ? termino : fim))} · Open-Meteo · atualizado ${quando}${fim > limite7() ? `<br>Depois de ${br(deISO(limite7()))}: previsão estendida (borda tracejada), menos precisa` : ''}</small></div>`
+      + (buscando ? '<p class="p-cl-msg"><i data-lucide="loader"></i>Buscando a previsão estendida até o término…</p>' : '')
+      + (foraDoAlcance ? `<p class="p-cl-msg"><i data-lucide="calendar-x"></i>A previsão alcança até ${br(deISO(fim))}; os dias seguintes até o término (${br(r.termino)}) ainda não têm previsão.</p>` : '');
     const cards = r.faz.map(f => ({
       f, m: fazendaClima(f.nome),
       diasFaz: [...r.porDia.entries()].filter(([k, l]) => k >= ini && k <= fim && l.some(t => t.fazenda === f.nome)).map(([k]) => k).sort()
     })).filter(x => x.diasFaz.length);
-    if (!cards.length) { el.innerHTML = `${topo}<p class="p-cl-msg"><i data-lucide="calendar-clock"></i>Nenhum dia desta programação cai nos próximos 7 dias: a previsão aparece aqui quando a data chegar perto.</p>`; return; }
+    if (!cards.length) { el.innerHTML = `${topo}<p class="p-cl-msg"><i data-lucide="calendar-clock"></i>Nenhum dia desta programação cai no alcance da previsão (até 16 dias): ela aparece aqui quando a data chegar perto.</p>`; return; }
     el.innerHTML = topo + `<div class="p-cl-grade">${cards.map(({ f, diasFaz, m }) => {
       if (!m) return `<article class="p-cl-faz" style="--c:${f.cor}"><header><b>${escapar(f.nome)}</b><small>Fazenda não encontrada na base de clima (coordenadas)</small></header></article>`;
-      const p = clima.dados.pontos[m.f.ponto];
+      const p = clima.ext.get(m.f.ponto) || clima.dados.pontos[m.f.ponto];
       if (!p) return `<article class="p-cl-faz" style="--c:${f.cor}"><header><b>${escapar(f.nome)}</b><small>${escapar(m.f.municipio)} · previsão indisponível agora (o Open-Meteo não respondeu para este ponto)</small></header></article>`;
-      const lista = diasFaz.map(k => p.dias.find(d => d.data === k)).filter(Boolean);
+      const lista = diasFaz.map(k => diasDoPonto(m.f.ponto).find(d => d.data === k)).filter(Boolean);
       const avisos = lista.map(d => { const a = avisosDoDia(d); return { d, n: a.nivel, t: [...a.alerta, ...a.atencao].join(' · ') }; }).filter(a => a.n);   // um aviso por dia
       const rajMax = Math.max(0, ...lista.map(d => d.rajada || 0)), chuvaTot = lista.reduce((s, d) => s + (d.chuva || 0), 0);
       return `<article class="p-cl-faz" style="--c:${f.cor}">
         <header><b>${escapar(f.nome)}</b><small>${escapar(m.f.municipio)}${m.varias > 1 ? ' · há outra fazenda com este nome na base' : ''}</small></header>
-        <div class="p-cl-resumo"><span>💨 Rajada máx. <b>${Math.round(rajMax)} km/h</b></span><span>💧 Chuva <b>${fmt1(chuvaTot)} mm</b></span>${p.proximaJanela ? `<span>✅ Próxima janela boa <b>${escapar(p.proximaJanela.rotulo)}</b></span>` : ''}</div>
+        <div class="p-cl-resumo"><span>💨 Rajada máx. <b>${Math.round(rajMax)} km/h</b></span><span>💧 Chuva <b>${fmt1(chuvaTot)} mm</b></span><span>📅 <b>${lista.length}</b> dia(s) com previsão</span>${p.proximaJanela ? `<span>✅ Próxima janela boa <b>${escapar(p.proximaJanela.rotulo)}</b></span>` : ''}</div>
         <div class="p-cl-dias">${lista.map(d => {
           const [ic, desc] = tempoWMO(d.codigo), a = avisosDoDia(d);
-          return `<div class="p-cl-dia ${a.nivel}" title="${escapar(desc)}"><small class="p-cl-rot">${escapar(d.rotulo)}</small><i>${ic}</i><b>${Math.round(d.tmax)}° <span>/ ${Math.round(d.tmin)}°</span></b><small>💧 ${fmt1(d.chuva)} mm · ${Math.round(d.prob ?? 0)}%</small><small>💨 ${Math.round(d.vento)} · rajada ${Math.round(d.rajada)}</small>${d.ideais != null ? `<small>🟢 ${d.ideais} h boas</small>` : ''}</div>`;
+          return `<div class="p-cl-dia ${a.nivel} ${d.data > limite7() ? 'estendido' : ''}" title="${escapar(desc)}${d.data > limite7() ? ' · previsão estendida' : ''}"><small class="p-cl-rot">${escapar(d.rotulo)}</small><i>${ic}</i><b>${Math.round(d.tmax)}° <span>/ ${Math.round(d.tmin)}°</span></b><small>💧 ${fmt1(d.chuva)} mm · ${Math.round(d.prob ?? 0)}%</small><small>💨 ${Math.round(d.vento)} · rajada ${Math.round(d.rajada)}</small>${d.ideais != null ? `<small>🟢 ${d.ideais} h boas</small>` : ''}</div>`;
         }).join('')}</div>
         ${avisos.length ? `<ul class="p-cl-avisos">${avisos.map(a => `<li class="${a.n}">⚠️ <b>${escapar(a.d.rotulo)}:</b> ${escapar(a.t)}</li>`).join('')}</ul>` : '<p class="p-cl-ok">✔ Sem avisos nos dias programados</p>'}
       </article>`;

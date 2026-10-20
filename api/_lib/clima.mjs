@@ -30,14 +30,16 @@ export async function resumoClima(CFG, fresco = false) {
   return cache.promessa;
 }
 
-export async function detalheClima(CFG, id) {
+// dias: 7 (padrão, reaproveita o resumo) ou 16 (previsão estendida, só para os pontos pedidos)
+export async function detalheClima(CFG, id, dias = 7) {
   const p = pontoValido(id, CFG);
   if (!p) throw Object.assign(new Error('ponto inválido'), { status: 400 });
-  let h = horarias.get(id);
+  const chave = dias === 7 ? id : `${id}|${dias}`;
+  let h = horarias.get(chave);
   if (!h || Date.now() - h.quando > CFG.cacheMin * 60_000) {
-    const [hourly] = await previsao([p]);
+    const [hourly] = await previsao([p], { dias });
     if (!hourly) throw Object.assign(new Error('o Open-Meteo não respondeu'), { status: 502 });
-    h = { quando: Date.now(), hourly }; horarias.set(id, h);
+    h = { quando: Date.now(), hourly }; horarias.set(chave, h);
   }
-  return montarDetalhe(id, h.hourly, CFG, h.quando);
+  return montarDetalhe(id, h.hourly, CFG, h.quando, dias);
 }

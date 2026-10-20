@@ -246,8 +246,8 @@ img[data-foto-sup] { transition: opacity .35s; }
 .p-desloc-txt { display: inline-flex; align-items: center; gap: .4rem; font-weight: 700; color: var(--tom-aviso, #fde68a); }
 .p-desloc-txt svg { width: 15px; height: 15px; }
 .p-dia-desloc { display: block; padding: .15rem .3rem; border-radius: 6px; font-size: .62rem; font-weight: 800; line-height: 1.2; color: var(--tom-aviso, #fde68a); background: rgba(251,191,36,.14); border: 1px dashed rgba(251,191,36,.6); }
-.p-dia-desloc small { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.p-dia-faz em { display: block; font-style: normal; font-size: .58rem; font-weight: 700; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-dia-desloc small { display: block; font-weight: 600; overflow-wrap: break-word; }
+.p-dia-faz em { display: block; margin-top: 1px; font-style: normal; font-size: .58rem; font-weight: 700; line-height: 1.2; opacity: .85; }
 .p-fds-tag { margin-left: auto; font-style: normal; font-size: .56rem; font-weight: 800; padding: .05rem .3rem; border-radius: 5px; color: #04201a; background: #fbbf24; }
 .p-dia.fds-trab { outline: 1px dashed rgba(251,191,36,.7); outline-offset: -1px; }
 
@@ -536,8 +536,8 @@ img[data-foto-sup] { transition: opacity .35s; }
 .p-dia.termino { box-shadow: 0 0 0 2px #f472b6, 0 0 20px -4px #f472b6; }
 .p-dia.termino em { color: #fff; background: #db2777; }
 .p-dia-sem { margin-top: auto; font-size: .68rem; font-weight: 700; color: #94a3b8; }
-.p-dia-faz { display: block; padding: .15rem .3rem; border-radius: 6px; font-size: .64rem; line-height: 1.2; color: #04201a; background: var(--c); overflow: hidden; text-overflow: ellipsis; }
-.p-dia-faz b { display: block; font-size: .62rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-dia-faz { display: block; padding: .15rem .3rem; border-radius: 6px; font-size: .64rem; line-height: 1.2; color: #04201a; background: var(--c); overflow-wrap: break-word; }
+.p-dia-faz b { display: block; font-size: .62rem; }
 
 /* ---------- Responsivo ---------- */
 @media (max-width: 1200px) {
@@ -711,13 +711,15 @@ img[data-foto-sup] { transition: opacity .35s; }
 .p-cl-topo small, .p-cl-msg { color: var(--texto-suave); font-size: .78rem; }
 .p-cl-msg { display: flex; align-items: center; gap: .5rem; margin: 0; }
 .p-cl-msg svg { width: 18px; height: 18px; color: var(--neon); }
-.p-cl-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: .8rem; }
+.p-cl-grade { display: grid; grid-template-columns: 1fr; gap: .8rem; }
 .p-cl-faz { padding: .8rem .9rem; border-radius: 16px; border: 1px solid var(--borda); border-left: 4px solid var(--c); background: rgb(var(--tinta-rgb) / .03); }
 .p-cl-faz header b { display: block; font-size: .95rem; color: var(--texto-forte); }
 .p-cl-faz header small { color: var(--texto-suave); font-size: .72rem; }
 .p-cl-resumo { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin: .5rem 0; font-size: .74rem; color: var(--texto-suave); }
 .p-cl-resumo b { color: var(--texto-forte); }
-.p-cl-dias { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: .4rem; }
+.p-cl-dias { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: .4rem; }
+.p-cl-dia.estendido, .p-dia-clima.estendido { border-style: dashed; }
+.p-cl-dia.estendido { opacity: .9; }
 .p-cl-dia { display: grid; gap: .05rem; padding: .45rem .5rem; border-radius: 12px; border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .4); font-size: .7rem; }
 .p-cl-dia i { font-style: normal; font-size: 1.3rem; line-height: 1.2; }
 .p-cl-dia b { font-size: .9rem; color: var(--texto-forte); }
@@ -726,7 +728,7 @@ img[data-foto-sup] { transition: opacity .35s; }
 .p-cl-dia .p-cl-rot { font-weight: 800; color: var(--neon); font-size: .66rem; }
 .p-cl-dia.atencao { border-color: rgba(251,191,36,.7); background: rgba(251,191,36,.1); }
 .p-cl-dia.alerta { border-color: rgba(255,77,94,.75); background: rgba(255,77,94,.1); }
-.p-cl-avisos { list-style: none; margin: .55rem 0 0; padding: 0; display: grid; gap: .25rem; font-size: .74rem; }
+.p-cl-avisos { list-style: none; margin: .55rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: .25rem .5rem; font-size: .74rem; }
 .p-cl-avisos li { padding: .3rem .55rem; border-radius: 8px; border-left: 3px solid; }
 .p-cl-avisos li.atencao { border-color: #fbbf24; background: rgba(251,191,36,.1); color: var(--tom-aviso, #fde68a); }
 .p-cl-avisos li.alerta { border-color: #ff4d5e; background: rgba(255,77,94,.1); color: var(--tom-erro, #ff8a96); }
@@ -737,7 +739,8 @@ img[data-foto-sup] { transition: opacity .35s; }
 .p-pdf-pag .p-dia-clima.atencao { background: #fef3c7 !important; border-color: #f59e0b !important; }
 .p-pdf-pag .p-dia-clima.alerta { background: #fee2e2 !important; border-color: #ef4444 !important; }
 .p-pdf-pag .p-clima { padding: 0; }
-.p-pdf-pag .p-cl-grade { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.p-pdf-pag .p-cl-grade { gap: 10px; }
+.p-pdf-pag .p-cl-dias { grid-template-columns: repeat(8, 1fr); }
 .p-pdf-pag .p-cl-faz, .p-pdf-pag .p-cl-dia { background: #f8fbfa !important; border-color: #d5e5df !important; }
 .p-pdf-pag .p-cl-faz { border-left-color: var(--c) !important; }
 .p-pdf-pag .p-cl-dia.atencao, .p-pdf-pag .p-cl-avisos li.atencao { background: #fef3c7 !important; border-color: #f59e0b !important; }

@@ -504,7 +504,7 @@ async function rotaClima(req, res, ponto) {
   if (!CFG) return json(res, 503, { erro: 'Clima não configurado.' });
   const url = new URL(req.url, 'http://x');
   try {
-    const dados = ponto ? await detalheClima(CFG, decodeURIComponent(ponto)) : await resumoClima(CFG, url.searchParams.get('fresco') === '1');
+    const dados = ponto ? await detalheClima(CFG, decodeURIComponent(ponto), url.searchParams.get('dias') === '16' ? 16 : 7) : await resumoClima(CFG, url.searchParams.get('fresco') === '1');
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
       // na Vercel, a mesma resposta serve todo mundo por 30 min (protege o limite gratuito do Open-Meteo)

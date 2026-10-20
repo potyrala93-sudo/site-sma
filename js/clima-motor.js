@@ -118,7 +118,8 @@ function janelas(h, J) {
 }
 
 /* ---------- Resumo de um ponto de previsão ---------- */
-function resumir(h, CFG) {
+// nDias: 7 no painel geral; até 16 na previsão estendida de um ponto (Programação)
+function resumir(h, CFG, nDias = 7) {
   const { dia: hoje, hora } = agoraSP();
   const J = CFG.janela, A = CFG.alertas;
   const { status, deltaT, motivo } = janelas(h, J);
@@ -129,11 +130,11 @@ function resumir(h, CFG) {
     hora: h.time[iAgora], t: r1(v('temperature_2m', iAgora)), ur: v('relative_humidity_2m', iAgora), vento: r1(v('wind_speed_10m', iAgora)), rajada: r1(v('wind_gusts_10m', iAgora)),
     direcao: v('wind_direction_10m', iAgora), chuva: r1(v('precipitation', iAgora)), codigo: v('weather_code', iAgora), status: status[iAgora], deltaT: deltaT[iAgora], motivo: motivo[iAgora] || ''
   };
-  // Dias (de hoje a +6) e chuva dos últimos 7 dias
+  // Dias (de hoje a +nDias−1) e chuva dos últimos 7 dias
   const porDia = new Map();
   h.time.forEach((t, i) => { const d = t.slice(0, 10); (porDia.get(d) || porDia.set(d, []).get(d)).push(i); });
   const dias = [];
-  for (let k = 0; k < 7; k++) {
+  for (let k = 0; k < nDias; k++) {
     const d = somarDias(hoje, k), ix = porDia.get(d); if (!ix) continue;
     const vals = key => ix.map(i => h[key][i]).filter(x => x != null);
     const soma = a => a.reduce((s, x) => s + x, 0), max = a => (a.length ? Math.max(...a) : null), min = a => (a.length ? Math.min(...a) : null);
@@ -168,10 +169,10 @@ function resumir(h, CFG) {
 
 // Hora a hora de hoje (desde 00h) até o fim do 7º dia: o gráfico usa as 24 h a partir de "agora" (iAgora)
 // e cada card de dia abre as horas daquele dia
-function horaAHora(h, CFG) {
+function horaAHora(h, CFG, nDias = 7) {
   const { dia: hoje, hora } = agoraSP();
   const { status, deltaT, motivo } = janelas(h, CFG.janela);
-  const fim = somarDias(hoje, 7);
+  const fim = somarDias(hoje, nDias);
   const ix = h.time.map((t, i) => (t >= hoje && t < fim ? i : -1)).filter(i => i >= 0);
   const col = k => ix.map(i => h[k][i]);
   const horas = col('time');
@@ -194,9 +195,9 @@ function tempo(c) {
 /* ---------- Open-Meteo ---------- */
 // Lotes de até 25 pontos baixados ao mesmo tempo (no servidor da Vercel, um lote grande por vez passava do tempo).
 // Um lote que falhar é tentado de novo; se falhar outra vez, só os pontos dele ficam sem previsão.
-async function previsao(pontos, { tamanho = 25, prazo = 25_000 } = {}) {
+async function previsao(pontos, { tamanho = 25, prazo = 25_000, dias = 7 } = {}) {
   const baixar = async lote => {
-    const url = `${API}?latitude=${lote.map(p => p.lat.toFixed(4)).join(',')}&longitude=${lote.map(p => p.lon.toFixed(4)).join(',')}&hourly=${HORARIAS.join(',')}&timezone=${encodeURIComponent(TZ)}&forecast_days=7&past_days=7&wind_speed_unit=kmh`;
+    const url = `${API}?latitude=${lote.map(p => p.lat.toFixed(4)).join(',')}&longitude=${lote.map(p => p.lon.toFixed(4)).join(',')}&hourly=${HORARIAS.join(',')}&timezone=${encodeURIComponent(TZ)}&forecast_days=${dias}&past_days=7&wind_speed_unit=kmh`;
     for (let tentativa = 1; ; tentativa++) {
       try {
         const r = await fetch(url, { signal: AbortSignal.timeout(prazo) });
@@ -251,8 +252,8 @@ function pontoValido(id, CFG) {
   if (lat < CFG.faixas.lat[0] || lat > CFG.faixas.lat[1] || lon < CFG.faixas.lon[0] || lon > CFG.faixas.lon[1]) return null;
   return { lat, lon };
 }
-function montarDetalhe(id, hourly, CFG, quando = Date.now()) {
-  return { id, atualizado: new Date(quando).toISOString(), ...resumir(hourly, CFG), horas: horaAHora(hourly, CFG) };
+function montarDetalhe(id, hourly, CFG, quando = Date.now(), nDias = 7) {
+  return { id, atualizado: new Date(quando).toISOString(), nDias, ...resumir(hourly, CFG, nDias), horas: horaAHora(hourly, CFG, nDias) };
 }
 
   globalThis.SMA_CLIMA_MOTOR = { fazendasDoTexto, resumir, horaAHora, tempo, previsao, montarResumo, pontoValido, montarDetalhe };
