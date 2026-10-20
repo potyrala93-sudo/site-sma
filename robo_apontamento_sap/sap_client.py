@@ -262,10 +262,10 @@ class SapClient:
             return
         # Alternativa: clicar no ícone do SAP Logon na tela (imagens/icone_sap.png)
         from sap_imagem import clicar_imagem
-        pb = self.cfg.get("plano_b", {})
-        icone = Path(pb.get("pasta_imagens", "imagens")) / pb.get("imagens", {}).get("icone_sap", "icone_sap.png")
+        im = self.cfg.get("imagem", {})
+        icone = Path(__file__).resolve().parent / im.get("pasta", "imagens") / "icone_sap.png"
         log.info("saplogon.exe não encontrado; procurando o ícone %s na tela.", icone)
-        clicar_imagem(icone, float(pb.get("confidence", 0.85)), cliques=2, timeout=10)
+        clicar_imagem(icone, float(im.get("confidence", 0.9)), timeout=10)
 
     # =====================================================================
     # 3.2 Entrar na transação

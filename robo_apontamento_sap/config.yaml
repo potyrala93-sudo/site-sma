@@ -3,7 +3,7 @@
 # Itens marcados com  # CONFIRMAR  precisam ser ajustados antes do uso real.
 # ===========================================================================
 
-modo: scripting      # scripting (GUI Scripting) | imagem (plano B) | auto (scripting, senão imagem)
+modo: imagem         # imagem (padrão, sem IDs) | scripting (GUI Scripting) | auto (scripting, senão imagem)
 simulacao: true      # true = dry-run: faz tudo MENOS o check verde e o Salvar Guia.
                      # Para gravar de verdade: simulacao: false  ou  python main.py --real
 
@@ -12,25 +12,33 @@ execucao:
   linha_final: null            # ex.: 10
   tentativas: 2                # retentativas só para falhas transitórias (timeout, COM)
   pausa_entre_tentativas: 3    # segundos
-  ignorar_status: ["OK", "VERIFICAR"]   # STATUS que começam com isso não são reprocessados
+  ignorar_status: ["OK", "APONTADO", "VERIFICAR"]   # STATUS que começam com isso não são reprocessados
+  texto_status_ok: "Apontado"  # escrito na coluna STATUS quando o Status Reg fica "Criado"
   pular_se_ja_criado: true     # se a linha do SAP já estiver "Criado", não aponta de novo
   atualizar_planilha_em_simulacao: false
 
 planilha:
-  modo: api                    # api (conta de serviço, lê e grava STATUS) | csv (pública, só leitura)
+  modo: csv                    # csv (link público; STATUS gravado pelo Apps Script) | api (conta de serviço)
   id: "1LfeQc6hKUXOGqR2sJfqmNilrvNghozRVFiL_i9jA68c"
   gid: 0
   credenciais: credentials.json
   linha_cabecalho: 1
   renderizacao: FORMATTED_VALUE   # FORMATTED_VALUE (como aparece) | UNFORMATTED_VALUE (números/seriais)
   colunas:                     # letras das colunas
-    os: "A"                    # [COLUNA_OS] — CONFIRMAR
-    servico: "E"
-    quantidade: "F"
-    data: "G"
-    insumo: "H"                # [COLUNA_INSUMO] — CONFIRMAR (null se não existir)
-    status: auto               # auto = procura cabeçalho "STATUS" ou cria após a última coluna
+    os: "A"                    # O.S
+    servico: "E"               # NI OPERAÇÃO
+    quantidade: "F"            # ÁREA REAL
+    data: "G"                  # DATA FIM
+    insumo: ["H", "K", "N", "Q"]   # INS1..INS4: qualquer um preenchido = tem insumo
+    status: auto               # auto = procura o cabeçalho "STATUS" (coluna T)
   valores_com_insumo: ["SIM", "S", "X", "TRUE", "VERDADEIRO", "1", "COM INSUMO"]
+
+nuvem:                         # STATUS na planilha + prints no Drive (apps_script/Codigo.gs)
+  apps_script_url: ""          # opcional (para salvar prints no Drive). Vazio = STATUS direto na planilha
+  token: "lMCRBIunTexwHLCIo3Ytjv76"   # o mesmo valor da constante TOKEN no Codigo.gs
+  pasta_drive: "APONTAMENTO SAP"   # dentro dela: uma pasta por O.S. com os prints
+  pasta_prints: prints         # cópia local dos prints
+  navegador: msedge            # sem Apps Script: STATUS gravado pelo Edge invisível (planilha editável pelo link)
 
 sap:
   saplogon_exe: "C:/Program Files (x86)/SAP/FrontEnd/SAPgui/saplogon.exe"   # CONFIRMAR caminho
@@ -52,7 +60,8 @@ selecao:
   lote_de: "0"
   lote_ate: "0"
   max_registros: "1000"
-  formato_data: "%d.%m.%Y"     # formato de data do seu usuário SAP (DD.MM.AAAA)
+  nao_preencher: [fornecedor, max_registros]   # já vêm preenchidos no SAP (10003396 e 1.000): o robô não mexe
+  formato_data: "%d%m%Y"       # digitado sem pontos (01102026); o SAP formata sozinho
   periodo:                     # Data planejada de/até
     modo: mes_atual            # mes_atual | mes_da_execucao (mês da coluna G) | fixo
     data_inicial: "01/10/2026" # [DATA_INICIAL] — só no modo fixo
@@ -70,50 +79,36 @@ logs:
   nivel: INFO                  # no arquivo de log sempre vai DEBUG
 
 # ---------------------------------------------------------------------------
-# PLANO B (modo: imagem). Prints recortados da sua tela, em /imagens.
-# dx/dy = deslocamento em pixels do centro do RÓTULO até a caixa de texto. CALIBRAR.
+# MODO IMAGEM (padrão). Imagens em /imagens recortadas dos prints reais
+# (Windows com escala 125%, SAP maximizado). dx/dy = distância em pixels do
+# CENTRO da imagem até o ponto de clique. Já medidos — só mude se a tela mudar.
 # ---------------------------------------------------------------------------
-plano_b:
-  pasta_imagens: imagens
-  confidence: 0.85
-  timeout_imagem: 10
-  pausa_entre_acoes: 0.3
-  pausa_pos_roundtrip: 0.8
-  titulo_janela_sap: ".*SAP.*"
+imagem:
+  pasta: imagens
+  confidence: 0.9              # 0.8–0.95; baixe se não encontrar, suba se confundir
+  timeout: 15                  # espera máxima por cada tela/imagem (s)
+  pausa_entre_acoes: 0.15
   maximizar: true
-  imagens:
-    icone_sap: icone_sap.png
-    campo_comando: campo_comando.png
-    favorito_zflpp005: favorito_zflpp005.png
-    aba_operacao_material: aba_operacao_material.png
-    botao_salvar_guia: botao_salvar_guia.png
-    botao_sim_salvar: botao_sim_salvar.png       # opcional
-    erro_barra_status: erro_barra_status.png     # ícone vermelho da barra de status
-    cursor_ocupado: cursor_ocupado.png           # opcional
-  campos_selecao:
-    ordem_servico: {imagem: rotulo_ordem_servico.png, dx: 260, dy: 0}
-    nucleo:        {imagem: rotulo_nucleo.png,        dx: 260, dy: 0}
-    centro:        {imagem: rotulo_centro.png,        dx: 260, dy: 0}
-    fornecedor:    {imagem: rotulo_fornecedor.png,    dx: 260, dy: 0}
-    lote_de:       {imagem: rotulo_lote_controle.png, dx: 260, dy: 0}
-    lote_ate:      {imagem: rotulo_lote_controle.png, dx: 470, dy: 0}
-    data_de:       {imagem: rotulo_data_planejada.png, dx: 260, dy: 0}
-    data_ate:      {imagem: rotulo_data_planejada.png, dx: 470, dy: 0}
-    max_registros: {imagem: rotulo_max_registros.png, dx: 260, dy: 0}
+  titulo_janela_sap: '\\Remote$'  # SAP pelo Citrix: janela "<tela> - \\Remote"
+  dx_campo_comando: 93         # do ícone verde de Enter até o campo de comando
+  exigir_leitura_servico: true # false = não valida o Serviço se o Ctrl+C não funcionar
+  limiar_checkbox: 12
+  campos:
+    ordem_servico:  {imagem: rotulo_ordem_servico,  dx: 192, dy: 0}
+    nucleo:         {imagem: rotulo_nucleo,         dx: 192, dy: 0}
+    centro:         {imagem: rotulo_centro,         dx: 192, dy: 0}
+    fornecedor:     {imagem: rotulo_fornecedor,     dx: 192, dy: 0}
+    lote_de:        {imagem: rotulo_lote_controle,  dx: 192, dy: 0}
+    lote_ate:       {imagem: rotulo_lote_controle,  dx: 442, dy: 0}
+    data_de:        {imagem: rotulo_data_planejada, dx: 192, dy: 0}
+    data_ate:       {imagem: rotulo_data_planejada, dx: 442, dy: 0}
+    max_registros:  {imagem: rotulo_max_registros,  dx: 192, dy: 0}
+    data_execucao:        {imagem: rotulo_data_execucao,      dx: 177, dy: 0}
+    quantidade_executada: {imagem: rotulo_qtd_executada,      dx: 194, dy: 0}
+    confirmacao_final:    {imagem: chk_confirmacao_final_off, dx: -63, dy: 0}
   grade:
-    cabecalhos:
-      servico: col_servico.png
-      maq_evento: col_maq_evento.png
-      perc_exec: col_perc_exec.png
-      qt_executada: col_qt_executa.png
-      status_reg: col_status_reg.png
-    dy_primeira_linha: 18
-    altura_linha: 18
+    dy_primeira_linha: 23      # do cabeçalho da coluna até a 1ª linha
+    altura_linha: 23
     max_linhas: 15
-  popup:
-    titulo: popup_equipes_eventos.png
-    data_execucao:        {imagem: rotulo_data_execucao.png, dx: 200, dy: 0}
-    quantidade_executada: {imagem: rotulo_qtd_executada.png, dx: 200, dy: 0}
-    checkbox_desmarcado: chk_confirmacao_final_off.png
-    checkbox_marcado: chk_confirmacao_final_on.png
-    botao_confirmar: botao_check_verde.png
+    dx_coluna:
+      maq_evento: -34          # o ícone fica à esquerda da célula

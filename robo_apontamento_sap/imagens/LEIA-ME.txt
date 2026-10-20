@@ -1,23 +1,34 @@
-Pasta das imagens de referência do PLANO B (modo: imagem) e do ícone do SAP Logon.
+Imagens de referência do MODO IMAGEM, recortadas dos prints do SAP de 20/10/2026
+(Windows com escala 125%, SAP maximizado). Para recapturar: Win+Shift+S, recorte só o
+elemento e salve com o MESMO nome. Ver README, seção 8.
 
-Como capturar: Win+Shift+S, recorte SÓ o elemento (pouca margem), salve em PNG
-com o nome abaixo. Windows com zoom 100% e SAP sempre no mesmo tema.
+icone_enter.png                 ícone verde de Enter (âncora do campo de comando)
+icone_sap.png                   ícone do SAP Logon na barra de tarefas
+favorito_zflpp005.png           favorito "ZFLPP005 - Entrada de apontamento" (Easy Access)
+tela_selecao.png                "Opções para seleção:" — identifica a tela de seleção
+rotulo_ordem_servico.png        rótulos dos campos da seleção (texto + espaço até a caixa)
+rotulo_nucleo.png
+rotulo_centro.png
+rotulo_fornecedor.png
+rotulo_lote_controle.png
+rotulo_data_planejada.png
+rotulo_max_registros.png
+botao_salvar_guia.png           botão "Salvar Guia" — identifica a grade de resultados
+col_maq_evento.png              cabeçalhos das colunas da grade
+col_status_reg.png
+col_servico.png
+col_perc_exec.png
+col_qt_executa.png
+perc_100.png                    célula "100,00" (% Exec. depois do apontamento)
+status_criado.png               célula "Criado" (Status Reg depois de salvar)
+popup_equipes_eventos.png       título do popup "Equipes e Eventos"
+rotulo_data_execucao.png        "Data Execução:" no popup
+rotulo_qtd_executada.png        "Quantidade Executada:" no popup
+chk_confirmacao_final_off.png   checkbox "Confirmação final" DESMARCADO
+botao_check_verde.png           check verde do popup (canto inferior esquerdo)
+erro_barra_status.png           ícone vermelho de erro da barra de status (ex.: "Não existem entradas")
+confirmar_descartar.png         pergunta "Ao voltar, as alterações não salvas serão perdidas..."
+botao_sim.png                   botão "Sim" dessa pergunta (descartar sem gravar)
 
-icone_sap.png                    ícone do SAP Logon (área de trabalho/barra de tarefas)
-campo_comando.png                campo de comando (canto superior esquerdo)
-favorito_zflpp005.png            favorito "ZFLPP005 - Entrada de apontamento - ord.serviço"
-rotulo_ordem_servico.png         texto "Ordem de Serviço" da tela de seleção
-rotulo_nucleo.png, rotulo_centro.png, rotulo_fornecedor.png,
-rotulo_lote_controle.png, rotulo_data_planejada.png, rotulo_max_registros.png
-aba_operacao_material.png        aba "Operação/Material"
-col_servico.png, col_maq_evento.png, col_perc_exec.png,
-col_qt_executa.png, col_status_reg.png     cabeçalhos das colunas da grade
-popup_equipes_eventos.png        título do popup "Equipes e Eventos"
-rotulo_data_execucao.png, rotulo_qtd_executada.png
-chk_confirmacao_final_off.png    checkbox "Confirmação final" DESMARCADO
-chk_confirmacao_final_on.png     checkbox "Confirmação final" MARCADO
-botao_check_verde.png            check verde do popup
-botao_salvar_guia.png            botão "Salvar Guia"
-erro_barra_status.png            ícone vermelho de erro da barra de status
-botao_sim_salvar.png             (opcional) "Sim" do popup de confirmação ao salvar
-cursor_ocupado.png               (opcional) indicador de processamento
+Recortadas da tela ao vivo (Citrix) em 20/10/2026: icone_enter, erro_barra_status,
+confirmar_descartar, botao_sim. As demais, dos prints.

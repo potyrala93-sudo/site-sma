@@ -5,3 +5,6 @@ relatorios/
 ids_tela.txt
 __pycache__/
 .venv/
+prints/
+pendentes.json
+apontados.json

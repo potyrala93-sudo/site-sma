@@ -8,7 +8,7 @@ Exemplos:
     python main.py --listar-ids             # grava os IDs da tela SAP atual em ids_tela.txt
 
 Status gravados na planilha/relatório:
-    OK                  apontado e Status Reg = Criado
+    OK                  apontado e Status Reg = Criado (na planilha: "Apontado")
     ERRO: <motivo>      não gravou nada no SAP; pode ser reprocessado
     VERIFICAR: <motivo> falhou DEPOIS do check verde → conferir manualmente no SAP
     PULADO: <motivo>    não processado (insumo, já criado...)
@@ -17,16 +17,18 @@ Status gravados na planilha/relatório:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 import time
 from datetime import date, datetime
 from pathlib import Path
 
+from nuvem import Nuvem
 from planilha import LinhaPlanilha, Planilha
 from utils import (ErroConfiguracao, ErroNegocio, ParadaEmergencia, ParadaSolicitada, Relatorio,
                    carregar_yaml, configurar_logging, converter_data, formatar_quantidade,
-                   parse_numero, primeiro_ultimo_dia, texto_inteiro, vazio)
+                   normalizar_servico, parse_numero, primeiro_ultimo_dia, texto_inteiro, vazio)
 
 BASE = Path(__file__).resolve().parent
 log = logging.getLogger("robo")
@@ -42,6 +44,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--linhas", help="intervalo de linhas da planilha, ex.: 2-10 ou 5")
     p.add_argument("--modo", choices=["scripting", "imagem", "auto"], help="sobrepõe o modo do config")
     p.add_argument("--listar-ids", action="store_true", help="grava os IDs da tela atual do SAP e sai")
+    p.add_argument("--ignorar-historico", action="store_true",
+                   help="aponta mesmo O.S. que já constam em apontados.json (cuidado: duplica)")
+    p.add_argument("--testar-imagens", action="store_true",
+                   help="modo imagem: mostra quais imagens estão visíveis na tela agora e sai")
     return p.parse_args()
 
 
@@ -126,13 +132,41 @@ def processar_linha(robo, linha: LinhaPlanilha, d: dict, cfg: dict, simulacao: b
     robo.pesquisar_os(d["os"], data_ini, data_fim)                       # 3.3
     idx = robo.localizar_servico(d["servico"])                            # 3.4
     if ex.get("pular_se_ja_criado", True) and robo.ja_criado(idx):
-        return "PULADO", "já consta 'Criado' no SAP"
+        # Já está apontada no SAP: não aponta de novo, mas registra como apontada
+        return "OK", "já constava 'Criado' no SAP (não apontado de novo)"
     robo.apontar(idx, d["data_sap"], d["quantidade_sap"], simulacao)      # 3.5
     if simulacao:
         return "SIMULACAO", f"popup preenchido (data {d['data_sap']}, qtd {d['quantidade_sap']}) e cancelado"
     idx = robo.conferir_apontamento(idx, d["servico"], d["quantidade"])   # 3.6
     msg = robo.salvar(idx, d["servico"])
     return "OK", msg or "Status Reg = Criado"
+
+
+class Historico:
+    """Registro local (apontados.json) de tudo que este robô já levou a 'Criado'.
+
+    Necessário porque, depois de salvo, a ZFLPP005 volta a mostrar a linha como
+    pendente (Status Reg vazio, 0,00) quando a O.S. é pesquisada de novo — então o SAP
+    sozinho não impede um segundo apontamento. Também protege enquanto o "Apontado"
+    ainda não chegou na planilha."""
+
+    def __init__(self, arquivo: Path) -> None:
+        self.arquivo = arquivo
+        try:
+            self.dados = json.loads(arquivo.read_text(encoding="utf-8"))
+        except (FileNotFoundError, ValueError):
+            self.dados = {}
+
+    @staticmethod
+    def chave(os_num: str, servico) -> str:
+        return f"{texto_inteiro(os_num)}|{normalizar_servico(servico)}"
+
+    def get(self, os_num: str, servico):
+        return self.dados.get(self.chave(os_num, servico))
+
+    def registrar(self, os_num: str, servico, **info) -> None:
+        self.dados[self.chave(os_num, servico)] = {"data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"), **info}
+        self.arquivo.write_text(json.dumps(self.dados, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def filtrar_intervalo(linhas: list[LinhaPlanilha], texto: str | None, cfg: dict) -> list[LinhaPlanilha]:
@@ -177,17 +211,27 @@ def main() -> int:
         arq = robo.listar_ids(BASE / "ids_tela.txt")
         log.info("IDs da tela atual gravados em %s", arq)
         return 0
+    if args.testar_imagens:
+        if not hasattr(robo, "testar_imagens"):
+            log.error("--testar-imagens só funciona com modo: imagem")
+            return 1
+        robo.testar_imagens()
+        return 0
 
     ex = cfg.get("execucao", {})
     escrever = (not simulacao) or bool(ex.get("atualizar_planilha_em_simulacao", False))
-    planilha = Planilha(cfg, escrever=escrever)
+    nuvem = Nuvem(cfg, BASE)
+    nuvem.processar_fila()  # reenvia o que ficou pendente de execuções anteriores
+    planilha = Planilha(cfg, escrever=escrever, nuvem=nuvem)
+    texto_ok = str(ex.get("texto_status_ok", "Apontado"))
+    historico = Historico(BASE / "apontados.json")
     try:
         linhas = filtrar_intervalo(planilha.carregar(), args.linhas, cfg)
     except Exception as e:  # noqa: BLE001
         log.error("Falha ao ler a planilha: %s", e)
         return 1
 
-    ignorar = [str(s).upper() for s in ex.get("ignorar_status", ["OK", "VERIFICAR"])]
+    ignorar = [str(s).upper() for s in ex.get("ignorar_status", ["OK", "APONTADO", "VERIFICAR"])]
     tentativas_max = max(1, int(ex.get("tentativas", 2)))
     pausa = float(ex.get("pausa_entre_tentativas", 3))
     relatorio = Relatorio(BASE / cfg.get("relatorio", {}).get("pasta", "relatorios"), simulacao)
@@ -201,12 +245,23 @@ def main() -> int:
             if any(linha.status.upper().startswith(s) for s in ignorar):
                 log.info("Linha %d já processada (%s) — ignorando.", linha.numero, linha.status)
                 continue
+            ja = historico.get(texto_inteiro(linha.os), linha.servico)
+            if ja and not args.ignorar_historico:
+                log.info("Linha %d: O.S. %s já foi apontada por este robô em %s — não aponta de novo.",
+                         linha.numero, texto_inteiro(linha.os), ja["data_hora"])
+                if not simulacao:
+                    if linha.status.strip().upper() != texto_ok.upper():  # garante o "Apontado" na planilha
+                        planilha.atualizar_status(linha.numero, texto_ok, texto_inteiro(linha.os), linha.servico)
+                continue
             parada.verificar()
             log.info("-" * 70)
             log.info("Linha %d: OS=%s serviço=%s qtd=%s data=%s insumo=%s", linha.numero, linha.os,
                      linha.servico, linha.quantidade, linha.data, "sim" if linha.possui_insumo else "não")
 
             status, msg, tentativa, dados = "ERRO", "", 0, {}
+            os_num = texto_inteiro(linha.os)
+            # Prints de registro: prints/<OS>/ e, no modo real, pasta da O.S. no Drive
+            robo.evidencia = (lambda etapa, _os=os_num: nuvem.print_tela(_os, etapa, enviar=not simulacao))
             try:
                 dados = preparar_dados(linha, cfg)
             except ErroNegocio as e:
@@ -236,8 +291,13 @@ def main() -> int:
                 # Falhou depois do check verde: o SAP pode ter gravado → conferência manual
                 if status == "ERRO" and robo.ponto_sem_retorno:
                     status = "VERIFICAR"
+                if status in ("ERRO", "VERIFICAR"):
+                    robo.evidencia("erro")
 
-            texto_status = "OK" if status == "OK" else f"{status}: {msg}"
+            if status == "OK" and not simulacao:
+                historico.registrar(os_num, linha.servico, linha=linha.numero,
+                                    quantidade=dados.get("quantidade_sap"), mensagem=msg)
+            texto_status = texto_ok if status == "OK" else f"{status}: {msg}"
             (log.info if status in ("OK", "SIMULACAO", "PULADO") else log.error)(
                 "Linha %d → %s", linha.numero, texto_status)
             relatorio.registrar(linha=linha.numero, os=texto_inteiro(linha.os), servico=texto_inteiro(linha.servico),
@@ -245,7 +305,7 @@ def main() -> int:
                                 data_execucao=dados["data"].strftime("%d/%m/%Y") if dados.get("data") else linha.data,
                                 status=status, mensagem=msg, tentativas=tentativa)
             if status != "SIMULACAO" or escrever:
-                planilha.atualizar_status(linha.numero, texto_status)
+                planilha.atualizar_status(linha.numero, texto_status, os_num, linha.servico)
 
             try:                                                          # 3.7
                 robo.ponto_sem_retorno = False
@@ -266,6 +326,10 @@ def main() -> int:
         log.exception("Erro inesperado — robô interrompido.")
         codigo = 1
     finally:
+        pendentes = nuvem.processar_fila()
+        if pendentes:
+            log.warning("%d envio(s) para planilha/Drive ficaram na fila (pendentes.json); "
+                        "serão reenviados na próxima execução.", pendentes)
         xlsx = relatorio.salvar_excel()
         log.info("=" * 70)
         log.info("Resumo: %s", relatorio.resumo() or "nenhuma linha processada")

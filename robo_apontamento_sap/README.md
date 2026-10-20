@@ -6,6 +6,10 @@ serviço, preenche o popup **Equipes e Eventos**, clica em **Salvar Guia** e con
 **Status Reg** ficou **Criado**. O resultado vai para a coluna **STATUS** da planilha e
 para um relatório Excel/CSV.
 
+O robô trabalha **por imagem** (modo padrão): ele enxerga a tela e clica como uma pessoa,
+usando os recortes da pasta `imagens/`, tirados dos prints reais do SAP. **Não precisa de
+IDs do SAP nem de liberar o GUI Scripting.**
+
 > **Comece sempre em modo simulação** (`simulacao: true`, que é o padrão). Nesse modo o
 > robô faz tudo, **menos** clicar no check verde e no Salvar Guia.
 
@@ -16,47 +20,44 @@ para um relatório Excel/CSV.
 | Arquivo | Para que serve |
 |---|---|
 | `main.py` | Orquestra o fluxo, retentativas, relatório e STATUS |
-| `sap_client.py` | Automação via **SAP GUI Scripting** (abordagem principal) |
-| `sap_imagem.py` | **Plano B** por imagem (pyautogui + opencv + pywinauto) |
+| `sap_imagem.py` | Automação **por imagem** (pyautogui + opencv + pywinauto) — padrão |
+| `sap_client.py` | Automação alternativa via SAP GUI Scripting (precisa de IDs — opcional) |
 | `planilha.py` | Leitura da planilha e gravação do STATUS |
 | `utils.py` | Conversões (data, quantidade, serviço), esperas, tecla de emergência, relatório |
-| `config.yaml` | Configurações (colunas, fornecedor, período, timeouts, modo) |
-| `sap_ids.yaml` | IDs dos campos do SAP — **precisam ser confirmados** |
-| `imagens/` | Prints de referência (só plano B e ícone do SAP Logon) |
+| `config.yaml` | Configurações (colunas, fornecedor, período, posições das imagens) |
+| `imagens/` | Recortes da tela usados para localizar cada campo e botão |
+| `sap_ids.yaml` | Só para o modo scripting (pode ignorar) |
 | `logs/`, `relatorios/` | Criadas automaticamente |
 
-## 2. Instalação
+## 2. Instalação (uma vez)
 
-1. Instale o **Python 3.11+** (marque *Add Python to PATH*).
-2. Na pasta do robô:
+Na pasta do robô:
 
 ```bash
 python -m venv .venv
 ```
 
 ```bash
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 ```
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 3. Habilitar o SAP GUI Scripting
+## 3. Condições da tela (importante no modo imagem)
 
-São duas chaves — se uma estiver desligada, o robô avisa *"SAP GUI Scripting desabilitado"*.
+As imagens foram recortadas com a tela **nestas condições** — mantenha-as:
 
-**No servidor (time de Basis/TI da Suzano):** parâmetro `sapgui/user_scripting = TRUE`
-(transação RZ11). Em muitas empresas é liberado por usuário — abra um chamado se necessário.
+- Escala do Windows em **125%** (Configurações → Sistema → Tela → Escala).
+- SAP **maximizado** (o robô maximiza sozinho), mesmo tema e tamanho de fonte.
+- Grade **Operação/Material** com as colunas *Maq Evento*, *Status Reg*, *Serviço*,
+  *% Exec.* e *Qt Executa* **visíveis** (sem rolar para o lado).
+- **Não mexa no mouse/teclado** enquanto o robô roda — ele usa os mesmos.
+- Não deixe outras janelas por cima do SAP.
 
-**No seu computador:**
-1. No SAP, clique no ícone de **Opções** (monitor colorido, *Personalizar layout local*, ou Alt+F12) → **Opções...**
-2. **Acessibilidade e Scripting → Scripting**.
-3. Marque **Ativar scripting** e **desmarque** *Notificar quando um script se conectar ao SAP GUI*
-   e *Notificar quando um script abrir uma conexão* (senão aparece um aviso a cada execução).
-4. Feche e abra o SAP Logon.
-
-Se a TI não liberar, use o **plano B**: `modo: imagem` no `config.yaml` (seção 9).
+Se algo mudar (outra escala, outro monitor, layout novo), basta recapturar as imagens
+afetadas — veja a seção 8.
 
 ## 4. Conta de serviço do Google (para ler e gravar a planilha)
 
@@ -67,10 +68,48 @@ Se a TI não liberar, use o **plano B**: `modo: imagem` no `config.yaml` (seçã
 4. Abra a conta criada → aba **Chaves → Adicionar chave → JSON**. Salve o arquivo como
    `credentials.json` na pasta do robô. **Não compartilhe nem versione esse arquivo**.
 5. Copie o e-mail da conta (algo como `robo-apontamento@projeto.iam.gserviceaccount.com`)
-   e **compartilhe a planilha com ele como Editor** (botão Compartilhar da planilha).
+   e **compartilhe a planilha com ele como Editor**.
 
 Alternativa sem conta de serviço: se a planilha for pública ("qualquer pessoa com o link"),
 use `planilha.modo: csv`. Nesse modo o robô **só lê**: o STATUS fica apenas no relatório.
+
+## 4.1 Planilha e Drive (STATUS "Apontado" + prints)
+
+**STATUS — funciona sozinho, sem login.** A planilha está como "qualquer pessoa com o link
+pode editar", então o robô lê pelo CSV público e, quando o Status Reg fica **Criado**,
+abre a planilha num **Microsoft Edge invisível** (`planilha_web.py`), escreve **Apontado**
+na coluna STATUS da linha da O.S. e confere pelo CSV que gravou. Se a planilha deixar de
+ser editável pelo link, use o Apps Script abaixo.
+
+**Prints no Drive — exige o Apps Script** (o Google não deixa salvar arquivos no Drive sem
+login). Sem ele, os prints ficam em `prints/<O.S.>/` e na fila, e sobem quando a URL for
+configurada. O Apps Script (`apps_script/Codigo.gs`) roda com a sua conta:
+
+- quando o Status Reg fica **Criado**, escreve **Apontado** na coluna STATUS da linha;
+- salva os prints de cada O.S. em **Drive › APONTAMENTO SAP › <número da O.S.>**
+  (`1_grade`, `2_popup_preenchido`, `3_criado` e, se der problema, `erro`).
+
+Publicar (uma vez):
+
+1. Abra a planilha → **Extensões → Apps Script**.
+2. Apague o conteúdo do `Código.gs` e cole todo o arquivo `apps_script/Codigo.gs`. Salve.
+3. **Implantar → Nova implantação** → engrenagem → **App da Web**.
+   *Executar como:* **Eu** · *Quem pode acessar:* **Qualquer pessoa**. Clique em **Implantar**
+   e autorize o acesso (Planilhas e Drive).
+4. Copie a **URL do app da Web** (termina em `/exec`) e cole em `config.yaml → nuvem.apps_script_url`.
+5. Teste abrindo a URL no navegador: deve aparecer `{"ok":true,...}`.
+
+O `TOKEN` no topo do `Codigo.gs` já é igual ao `nuvem.token` do `config.yaml` — é o que
+impede outra pessoa de escrever na planilha pela URL. Mantenha os dois iguais.
+
+Enquanto a URL não estiver configurada (ou sem internet), nada se perde: STATUS e prints
+ficam em `pendentes.json` e são enviados na próxima execução. Os prints também ficam em
+`prints/<O.S.>/` na pasta do robô.
+
+**Histórico local (`apontados.json`):** depois de salva, a ZFLPP005 volta a mostrar a linha
+como pendente se a O.S. for pesquisada de novo. Por isso o robô guarda tudo que levou a
+"Criado" e **nunca aponta a mesma O.S. + serviço duas vezes**. Só use `--ignorar-historico`
+se tiver certeza.
 
 ## 5. Ajustar o `config.yaml`
 
@@ -78,80 +117,73 @@ Itens marcados com `# CONFIRMAR`:
 
 - `planilha.colunas.os` → letra da coluna da O.S. (**[COLUNA_OS]**).
 - `planilha.colunas.insumo` → letra da coluna de insumo (**[COLUNA_INSUMO]**), ou `null`.
-  Valores considerados "tem insumo": `valores_com_insumo` (SIM, S, X, ...).
-- `sap.saplogon_exe` → caminho do `saplogon.exe`.
-- `selecao.periodo` → *Data planejada*:
-  - `mes_atual`: 1º e último dia do mês corrente (padrão);
-  - `mes_da_execucao`: mês da data da coluna G de cada linha;
-  - `fixo`: usa `data_inicial` / `data_final`.
+- `selecao.periodo` → *Data planejada*: `mes_atual` (padrão), `mes_da_execucao` ou `fixo`.
 
 A coluna **STATUS** é encontrada pelo cabeçalho "STATUS"; se não existir, é criada após a
 última coluna preenchida.
 
-## 6. Mapear os IDs do SAP (`sap_ids.yaml`)
+## 6. Como rodar
 
-Transações Z têm nomes de campo próprios, então os IDs do arquivo são **exemplos**.
-
-### Opção A — Gravador de Scripts (recomendado)
-1. No SAP, **Alt+F12 → Gravação e reprodução de script...**
-2. Clique em **Gravar** (botão vermelho). Anote o caminho do arquivo `.vbs` em *Salvar em*.
-3. Faça **manualmente** um apontamento completo: entre na ZFLPP005, preencha a seleção,
-   F8, clique na aba Operação/Material, dê duplo clique em *Maq Evento*, preencha o popup,
-   marque *Confirmação final*, check verde, Salvar Guia. *(Faça numa O.S. de teste ou
-   cancele antes de salvar.)*
-4. Pare a gravação e abra o `.vbs` no Bloco de Notas. Você verá linhas como:
-
-```vb
-session.findById("wnd[0]/usr/ctxtS_AUFNR-LOW").text = "123456"
-session.findById("wnd[0]/usr/cntlGRID1/shellcont/shell").setCurrentCell 0,"MAQ_EVENTO"
-session.findById("wnd[0]/usr/cntlGRID1/shellcont/shell").doubleClickCurrentCell
-session.findById("wnd[1]/usr/chkGS_X-CONF").selected = true
-session.findById("wnd[1]/tbar[0]/btn[0]").press
-```
-
-5. Copie cada ID (o texto entre aspas do `findById`) para a chave correspondente do
-   `sap_ids.yaml`. O que aparece no `setCurrentCell` (ex.: `MAQ_EVENTO`) é o **nome técnico**
-   da coluna — use-o em `grade.colunas` (é mais confiável que o título).
-
-### Opção B — Listar os IDs da tela
-Deixe o SAP na tela desejada (seleção, grade ou com o popup aberto) e rode:
+1. Abra o SAP e **faça login** (o robô nunca guarda nem digita senha).
+2. **Teste das imagens** (deixe o SAP na tela de seleção da ZFLPP005):
 
 ```bash
-python main.py --listar-ids
+python main.py --testar-imagens
 ```
 
-Será gerado `ids_tela.txt` com todos os elementos (ID, tipo, texto) e, para a grade ALV,
-as colunas no formato `coluna NOME_TECNICO = 'Título'`.
+   O log mostra quais imagens foram encontradas na tela. Repita com a grade aberta:
+   o robô também tenta ler o Serviço da 1ª linha com Ctrl+C.
 
-## 7. Como rodar
-
-1. Abra o SAP e **faça login** (o robô nunca guarda nem digita senha). Se o SAP estiver
-   fechado, ele abre o SAP Logon e espera você logar.
-2. Simulação (padrão), só algumas linhas:
+3. **Simulação** numa linha (preenche o popup e cancela com ESC):
 
 ```bash
-python main.py --simular --linhas 2-5
+python main.py --simular --linhas 2
 ```
 
-3. Confira o log em `logs/` e o relatório em `relatorios/`. Status `SIMULACAO` = o popup foi
-   preenchido corretamente e cancelado.
-4. Modo real (grava no SAP), primeiro numa linha só:
+4. **Modo real** numa linha, para validar:
 
 ```bash
 python main.py --real --linhas 2
 ```
 
-5. Tudo certo? Rode a planilha inteira:
+5. Tudo certo? A planilha inteira:
 
 ```bash
 python main.py --real
 ```
 
-**Parar com segurança:** pressione **Ctrl+Shift+Q**. O robô termina a etapa atual e para.
-Se já tiver clicado no check verde, ele termina o Salvar Guia antes de parar, para não
-deixar apontamento pela metade. (Plano B: levar o mouse ao canto superior esquerdo também aborta.)
+**Parar com segurança:** **Ctrl+Shift+Q** (o robô termina a etapa atual e para; se já
+tiver clicado no check verde, termina o Salvar Guia antes). **Emergência:** jogue o mouse
+no **canto superior esquerdo** da tela — o pyautogui aborta na hora.
 
-## 8. Status e relatório
+## 7. O que o robô faz em cada linha
+
+1. Clica no campo de comando, digita `/nZFLPP005` e Enter (se falhar, duplo clique no favorito).
+2. Preenche Ordem de Serviço, Núcleo `*`, Centro `*`, Fornecedor, Lote 0 até 0, Data
+   planejada e Nº máx de registros; aperta **F8**.
+3. Na grade, lê o **Serviço** (clique na célula + Ctrl+C) e compara com a coluna E
+   ignorando zeros à esquerda. Divergente → `ERRO`, ESC, próxima linha.
+4. Duplo clique no ícone de **Maq Evento** → popup **Equipes e Eventos**: Data Execução
+   (`DDMMAAAA`), Quantidade Executada (`45,620`), marca **Confirmação final**, check verde.
+5. Confere **% Exec. = 100,00**, clica em **Salvar Guia** e espera **Status Reg = Criado**.
+6. Grava `OK` na planilha, ESC e vai para a próxima.
+
+O texto é colado via área de transferência (Ctrl+V), então o teclado ABNT2 não atrapalha.
+A espera é sempre "até a próxima tela aparecer", com limite em `imagem.timeout`.
+
+## 8. Recapturar uma imagem
+
+1. Deixe o SAP na tela onde o elemento aparece.
+2. **Win+Shift+S** → recorte **só** o elemento, com pouca margem.
+3. Salve em `imagens/` com **o mesmo nome** do arquivo que está substituindo (lista em
+   `imagens/LEIA-ME.txt`).
+4. Se recapturar um **rótulo** de campo, confira o `dx` em `config.yaml → imagem.campos`
+   (distância em pixels do centro do rótulo até onde clicar). Rode `--testar-imagens`.
+
+`imagem.confidence` (0.9) controla o quanto a imagem precisa ser parecida: baixe para 0.85
+se ele não encontrar algo; suba se confundir elementos.
+
+## 9. Status e relatório
 
 | Status | Significado | Reprocessa na próxima execução? |
 |---|---|---|
@@ -162,45 +194,28 @@ deixar apontamento pela metade. (Plano B: levar o mouse ao canto superior esquer
 | `SIMULACAO: ...` | Dry-run (não vai para a planilha) | — |
 
 O relatório (`relatorios/relatorio_AAAAMMDD_HHMMSS.xlsx` + `.csv`) traz: linha, OS, serviço,
-quantidade, data, status, mensagem, tentativas e data/hora. O CSV é gravado linha a linha,
-então nada se perde se o robô cair.
+quantidade, data, status, mensagem, tentativas e data/hora.
 
-## 9. Plano B — por imagem
+## 10. Proteções
 
-1. `modo: imagem` (ou `auto`, que tenta o scripting e cai para imagem).
-2. Capture os prints listados em `imagens/LEIA-ME.txt`.
-3. Calibre em `config.yaml → plano_b`: `dx`/`dy` (distância do rótulo até a caixa de texto),
-   `dy_primeira_linha` e `altura_linha` da grade, `confidence`.
-4. Windows com zoom 100%, SAP maximizado, mesmo tema sempre.
-
-É bem mais frágil que o scripting: use só se o scripting estiver bloqueado.
-
-## 10. Como o robô funciona (partes críticas)
-
-- **Esperas:** depois de cada ação o robô aguarda `session.Busy == False` (timeout
-  `sap.timeout_padrao`) e espera elementos aparecerem — sem sleeps fixos.
-- **Leitura do ALV:** a grade é um `GuiShell` do tipo `GridView`. O `GetCellValue(linha, coluna)`
-  exige o nome técnico; o robô traduz títulos ("Serviço") para nomes técnicos e rola a grade
-  (`firstVisibleRow`) antes de ler, porque o ALV só carrega as linhas visíveis.
-- **Duplo clique na célula:** `setCurrentCell(linha, coluna)` + `doubleClickCurrentCell()`.
-  Se *Maq Evento* for um link (hotspot), use `acao_maq_evento: clique`.
-- **Comparação do serviço:** ignora zeros à esquerda (`0024001761` = `24001761`) e trata
-  números vindos da planilha como `24001761.0`.
-- **Popups inesperados:** o texto é registrado no log e a janela é fechada com **F12/Cancelar**
-  (nunca Enter, que em popups de confirmação equivale a "Sim").
-- **Retentativas:** só para falhas transitórias (timeout, erro COM). Erros de negócio não são
-  retentados, e **nada é retentado depois do check verde** (evita apontamento duplicado).
-- **Insumo:** linhas com insumo são marcadas `PULADO` **antes** de entrar no SAP
+- **Retentativas** só para falhas transitórias (tela demorou, imagem não apareceu).
+  Erros de negócio não são retentados, e **nada é retentado depois do check verde**
+  (evita apontamento duplicado).
+- **Já Criado:** se a linha da grade já mostrar *Criado*, o robô pula.
+- **Insumo:** linhas com insumo viram `PULADO` antes de entrar no SAP
   (regra a definir — ponto `REGRA_INSUMO` em `main.py`).
-- **Proteção contra duplicidade:** se a linha da grade já estiver *Criado*, o robô pula
-  (`execucao.pular_se_ja_criado`).
 
 ## 11. Problemas comuns
 
 | Mensagem | O que fazer |
 |---|---|
-| `SAP GUI Scripting desabilitado` | Seção 3, ou use o plano B |
-| `elemento não encontrado: wnd[0]/usr/...` | ID errado no `sap_ids.yaml` — seção 6 |
-| `coluna 'X' não encontrada no ALV. Disponíveis: ...` | Use um dos nomes técnicos listados em `grade.colunas` |
+| `'tela_selecao' não apareceu` / `imagem não encontrada` | Rode `--testar-imagens`; confira escala 125% e SAP maximizado; recapture a imagem |
+| `não consegui ler a coluna Serviço (Ctrl+C retornou vazio)` | Teste Ctrl+C manualmente numa célula da grade; se o SAP não copiar, use `exigir_leitura_servico: false` (a validação do serviço deixa de ser feita) |
+| `cabeçalho da coluna 'X' não encontrado` | A coluna saiu da área visível ou mudou de largura: restaure o layout da grade |
 | `APIError 403` na planilha | Compartilhe a planilha com o e-mail da conta de serviço |
-| Datas não batem | Ajuste `selecao.formato_data` ao formato de data do seu usuário SAP |
+
+## 12. Modo scripting (alternativo)
+
+Se um dia o SAP GUI Scripting for liberado, `modo: scripting` usa o `sap_client.py`, que é
+mais rápido e não depende da tela. Exige preencher os IDs em `sap_ids.yaml` (gravador de
+scripts: Alt+F12 → Gravação e reprodução de script, ou `python main.py --listar-ids`).

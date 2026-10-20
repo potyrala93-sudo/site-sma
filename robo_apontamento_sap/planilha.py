@@ -56,7 +56,7 @@ class LinhaPlanilha:
 
 
 class Planilha:
-    def __init__(self, cfg: dict, escrever: bool = True) -> None:
+    def __init__(self, cfg: dict, escrever: bool = True, nuvem=None) -> None:
         p = cfg["planilha"]
         self.modo = str(p.get("modo", "api")).lower()
         self.id = p["id"]
@@ -66,7 +66,10 @@ class Planilha:
         self.linha_cabecalho = int(p.get("linha_cabecalho", 1))
         self.colunas = p["colunas"]
         self.valores_insumo = {normalizar_texto(x) for x in p.get("valores_com_insumo", [])}
-        self.escrever = escrever and self.modo == "api"
+        # true = qualquer valor preenchido na coluna de insumo conta como "tem insumo"
+        self.insumo_qualquer_valor = bool(p.get("insumo_qualquer_valor", True))
+        self.escrever = escrever
+        self.nuvem = nuvem  # modo csv: STATUS gravado pelo Apps Script (nuvem.py)
         self.ws = None
         self.col_status: int | None = None
         self._criar_cabecalho_status = False
@@ -84,18 +87,21 @@ class Planilha:
         self._resolver_coluna_status(cabecalho)
 
         c = {k: (letra_para_indice(v) if v and str(v).lower() != "auto" else None)
-             for k, v in self.colunas.items() if k != "status"}
+             for k, v in self.colunas.items() if k not in ("status", "insumo")}
+        # Insumo: uma letra ou uma lista (ex.: INS1..INS4 = H, K, N, Q)
+        ins = self.colunas.get("insumo") or []
+        cols_insumo = [letra_para_indice(x) for x in (ins if isinstance(ins, list) else [ins])]
         for obrig in ("os", "servico", "quantidade", "data"):
             if not c.get(obrig):
                 raise ErroConfiguracao(f"planilha.colunas.{obrig} não configurada")
-        if not c.get("insumo"):
+        if not cols_insumo:
             log.warning("Coluna de insumo não configurada: todas as linhas serão tratadas como SEM insumo.")
 
         linhas = []
         for num, row in enumerate(valores[self.linha_cabecalho:], start=self.linha_cabecalho + 1):
             def cel(idx: int | None) -> Any:
                 return row[idx - 1] if idx and idx - 1 < len(row) else ""
-            insumo = cel(c.get("insumo"))
+            insumo = [cel(i) for i in cols_insumo]
             linhas.append(LinhaPlanilha(
                 numero=num, os=cel(c["os"]), servico=cel(c["servico"]),
                 quantidade=cel(c["quantidade"]), data=cel(c["data"]), insumo=insumo,
@@ -124,6 +130,10 @@ class Planilha:
         return list(csv.reader(io.StringIO(texto)))
 
     def _tem_insumo(self, v: Any) -> bool:
+        if isinstance(v, list):
+            return any(self._tem_insumo(x) for x in v)
+        if self.insumo_qualquer_valor and not vazio(v):
+            return True
         if isinstance(v, bool):
             return v
         if isinstance(v, (int, float)):
@@ -146,8 +156,12 @@ class Planilha:
         log.info("Coluna STATUS não existe; será criada na coluna %s.", indice_para_letra(self.col_status))
 
     # ----------------------------------------------------------------- escrita
-    def atualizar_status(self, linha: int, texto: str) -> None:
-        if not self.escrever or self.ws is None:
+    def atualizar_status(self, linha: int, texto: str, os_num: str | None = None, servico=None) -> None:
+        if not self.escrever:
+            return
+        if self.ws is None:  # modo csv: grava pelo Apps Script
+            if self.nuvem is not None:
+                self.nuvem.status(linha, texto, os_num, servico)
             return
         texto = texto[:250]
         for tentativa in range(1, 4):

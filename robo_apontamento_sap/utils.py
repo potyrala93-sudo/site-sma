@@ -76,6 +76,10 @@ def configurar_logging(pasta: str | Path, nivel: str = "INFO") -> Path:
     fh.setFormatter(fmt)
     raiz.addHandler(fh)
 
+    try:  # o console do Windows (cp1252) não exibe alguns caracteres, ex.: "→"
+        sys.stdout.reconfigure(errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(getattr(logging, str(nivel).upper(), logging.INFO))
     ch.setFormatter(fmt)
