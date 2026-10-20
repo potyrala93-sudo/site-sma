@@ -364,7 +364,17 @@
         </form>
       </section>
       <div class="container"><div class="fat-erros" id="rm-erros" role="alert" hidden></div></div>
-      <section class="container fat-secao" aria-label="Resumo por situação"><div class="rm-cards" id="rm-cards"></div></section>
+      <section class="container fat-secao rm-filtro-sec" aria-label="Resumo por situação">
+        <div class="rm-remontas glass" id="rm-remontas" role="group" aria-label="Quais remontas ver">
+          <span class="rm-remontas-rot"><i data-lucide="filter"></i>Ver remonta</span>
+          <button type="button" data-r="todas">Todas</button>
+          <button type="button" data-r="1" aria-pressed="true">Remonta 1</button>
+          <button type="button" data-r="2" aria-pressed="true">Remonta 2</button>
+          <button type="button" data-r="3" aria-pressed="true">Remonta 3</button>
+          <small id="rm-remontas-info"></small>
+        </div>
+        <div class="rm-cards" id="rm-cards"></div>
+      </section>
       <section class="container fat-secao" aria-labelledby="rm-prog-tit">
         <div class="fat-sec-head"><div><span class="eyebrow">Prioridade</span><h2 class="fat-sec-titulo" id="rm-prog-tit">Programar <span class="serif">agora</span></h2></div></div>
         <div class="rm-programar" id="rm-programar"></div>

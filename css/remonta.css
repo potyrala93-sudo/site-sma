@@ -133,3 +133,14 @@
   .rm-campo.destaque { grid-column: 1 / -1; }
   .rm-busca { min-width: 0; flex: 1 1 100%; }
 }
+
+/* ---------- Seletor de remonta (muda cartões, Programar agora e a ordem das fazendas) ---------- */
+.rm-filtro-sec { display: grid; gap: .7rem; }
+.rm-remontas { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; padding: .6rem .8rem; border-radius: 16px; }
+.rm-remontas-rot { display: inline-flex; align-items: center; gap: .35rem; margin-right: .2rem; font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-suave); }
+.rm-remontas-rot svg { width: 15px; height: 15px; color: var(--eucalipto-claro); }
+.rm-remontas button { padding: .45rem .9rem; border-radius: 999px; font-size: .84rem; font-weight: 800; color: var(--texto-suave); border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .5); transition: background .2s, color .2s, border-color .2s; }
+.rm-remontas button:hover { color: var(--texto-forte); border-color: var(--eucalipto-claro); }
+.rm-remontas button.ativo { color: #04201a; background: var(--eucalipto-claro); border-color: var(--eucalipto-claro); }
+.rm-remontas button[data-r="todas"] { border-style: dashed; }
+.rm-remontas small { flex-basis: 100%; font-size: .76rem; color: var(--texto-suave); }

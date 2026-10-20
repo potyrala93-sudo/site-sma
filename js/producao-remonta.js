@@ -45,7 +45,7 @@
 
   /* ---------- Parâmetros (salvos no navegador) ---------- */
   const CHAVE = 'remonta:param';
-  const padrao = () => ({ ...CFG.padrao, ref: '' });   // ref vazio = hoje
+  const padrao = () => ({ ...CFG.padrao, ref: '', remontas: [1, 2, 3] });   // ref vazio = hoje · remontas: quais ver (próxima remonta da UP)
   let par;
   try { par = { ...padrao(), ...(JSON.parse(localStorage.getItem(CHAVE) || 'null') || {}) }; } catch { par = padrao(); }
   const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(par)); } catch { /* opcional */ } };
@@ -117,7 +117,8 @@
   }
   function calcular() {
     const ref = refData();
-    const calc = estado.linhas.map(x => calcularUP(x, ref));
+    const escolhidas = new Set((par.remontas?.length ? par.remontas : [1, 2, 3]).map(Number));
+    const calc = estado.linhas.map(x => calcularUP(x, ref)).filter(u => u.prox == null || escolhidas.has(u.prox + 1));
     // Fazer junto: UPs "No prazo" que vencem até X dias depois do maior vencimento entre as urgentes da fazenda
     const porFaz = new Map();
     calc.forEach(u => (porFaz.get(u.fazenda) || porFaz.set(u.fazenda, []).get(u.fazenda)).push(u));
@@ -148,8 +149,13 @@
     const ref = refData();
     $('#rm-ref-txt').textContent = dmy(ref) + (par.ref ? '' : ' (hoje)');
     $('#rm-lido').textContent = estado.lido ? estado.lido.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-    renderParam(); renderCards(); renderProgramar(); renderLista();
+    renderParam(); renderRemontas(); renderCards(); renderProgramar(); renderLista();
     icones();
+  }
+  function renderRemontas() {
+    const sel = new Set((par.remontas || [1, 2, 3]).map(Number));
+    $$('#rm-remontas [data-r]').forEach(b => { const on = b.dataset.r === 'todas' ? sel.size === 3 : sel.has(+b.dataset.r); b.classList.toggle('ativo', on); b.setAttribute('aria-pressed', String(on)); });
+    $('#rm-remontas-info').textContent = sel.size === 3 ? 'Todas as remontas' : `Só ${[...sel].sort().map(n => `Remonta ${n}`).join(' e ')}: cartões, "Programar agora" e a ordem das fazendas consideram só ${sel.size > 1 ? 'elas' : 'ela'}`;
   }
   function renderParam() {
     const f = $('#rm-param');
@@ -256,6 +262,14 @@
     const k = e.target.name; if (!k) return;
     if (k === 'ref') par.ref = e.target.value && e.target.value !== iso(dia0(new Date())) ? e.target.value : '';
     else { const v = parseInt(e.target.value, 10); if (!Number.isFinite(v) || v < 0) return; par[k] = v; }
+    salvar(); calcular(); render();
+  });
+  $('#rm-remontas').addEventListener('click', e => {
+    const b = e.target.closest('[data-r]'); if (!b) return;
+    const n = +b.dataset.r, sel = new Set((par.remontas || [1, 2, 3]).map(Number));
+    if (b.dataset.r === 'todas') { par.remontas = [1, 2, 3]; }
+    else if (e.ctrlKey || e.metaKey || e.shiftKey) { sel.has(n) ? sel.delete(n) : sel.add(n); par.remontas = sel.size ? [...sel].sort() : [n]; }
+    else par.remontas = sel.size === 1 && sel.has(n) ? [1, 2, 3] : [n];   // clique escolhe só uma; clicar de novo volta a todas
     salvar(); calcular(); render();
   });
   $('#rm-hoje').addEventListener('click', () => { par.ref = ''; salvar(); calcular(); render(); });
