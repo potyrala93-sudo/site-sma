@@ -40,6 +40,7 @@
     concluida: { nome: 'Concluída',        cor: '#64748b', ordem: 6 }
   };
   const ORDEM_CARDS = ['vencida', 'hoje', 'atencao', 'prazo', 'semBase', 'antiga', 'concluida'];
+  const CARDS = ['vencida', 'hoje', 'atencao', 'prazo', 'semBase'];   // pendência antiga e concluída não aparecem
   const URGENTES = new Set(['vencida', 'hoje', 'atencao']);
 
   /* ---------- Parâmetros (salvos no navegador) ---------- */
@@ -157,7 +158,7 @@
     $('#rm-hoje').hidden = !par.ref;
   }
   function renderCards() {
-    $('#rm-cards').innerHTML = ORDEM_CARDS.map(k => {
+    $('#rm-cards').innerHTML = CARDS.map(k => {
       const l = estado.calc.filter(u => u.sit === k), s = SIT[k], on = estado.ativos.has(k);
       return `<button type="button" class="rm-card glass ${on ? 'ativo' : ''} ${k === 'hoje' && l.length ? 'pulsa' : ''}" data-sit="${k}" aria-pressed="${on}" style="--c:${s.cor}">
         <span class="rm-card-rot"><i></i>${s.nome}</span><strong class="rm-mono">${l.length}</strong><small><span class="rm-mono">${ha(l.reduce((t, u) => t + u.area, 0))}</span> ha</small>
@@ -176,56 +177,78 @@
   }
   const resumoFazenda = f => `Programar a fazenda: <b>${f.programar.length} UP${f.programar.length > 1 ? 's' : ''}</b>, ${mono(ha(f.haProgramar))} ha. Prazo mais curto: ${mono(dmy(f.maisCurto.venc))} na UP <b>${esc(f.maisCurto.up)}</b>.`;
 
-  // Célula de remonta: aplicada ✓, próxima (cor da situação) ou projeção
+  // Células de data: aplicada (✓ data), próxima a vencer (data na cor da situação), prevista (prev. data)
+  function celulaData(d) { return d ? `<span class="rm-feita">✓ ${mono(dma(d))}</span>` : '<span class="rm-nada">—</span>'; }
   function celulaR(u, i) {
-    if (u.r[i]) return `<span class="rm-feita">✓ ${mono(dma(u.r[i]))}</span>`;
+    if (u.r[i]) return celulaData(u.r[i]);
     if (u.prox === i && u.venc) return `<span class="rm-proxima" style="--c:${SIT[u.sit].cor}">${mono(dma(u.venc))}</span>`;
     if (u.prev[i]) return `<span class="rm-prev">prev. ${mono(dma(u.prev[i]))}</span>`;
     return '<span class="rm-nada">—</span>';
   }
+  const nomeRemonta = i => `Remonta ${i + 1}`;
   function textoSituacao(u) {
-    if (u.sit === 'concluida') return 'R1, R2 e R3 aplicadas';
-    if (u.sit === 'semBase') return u.prox === 0 ? 'sem Pós + Pré para calcular a R1' : `sem a data da R${u.prox} para calcular a R${u.prox + 1}`;
-    const r = `R${u.prox + 1}`;
-    if (u.resta === 0) return `${r} · vence hoje`;
-    return u.resta < 0 ? `${r} · venceu há ${-u.resta} d` : `${r} · vence em ${u.resta} d`;
+    if (u.sit === 'semBase') return u.prox === 0 ? 'falta o Pós + Pré' : `falta a data da ${nomeRemonta(u.prox - 1)}`;
+    if (u.resta === 0) return 'vence hoje';
+    return u.resta < 0 ? `venceu há ${-u.resta} d` : `vence em ${u.resta} d`;
   }
-  function linhaUP(u, comFazenda) {
+  const atencao = u => (u.avisos.length ? `<span class="rm-atencao" role="img" tabindex="0" aria-label="Atenção: ${esc(u.avisos.join('; '))}" title="${esc(u.avisos.join('\n'))}">⚠</span>` : '');
+  function linhaUP(u, comFazenda, n) {
     const s = SIT[u.sit];
     return `<tr class="rm-l-${u.sit}" style="--c:${s.cor}">
+      <td data-rotulo="Ordem" class="rm-n">${n}º</td>
       ${comFazenda ? `<td data-rotulo="Fazenda" class="rm-faz-cel">${esc(u.fazenda)}</td>` : ''}
-      <td data-rotulo="UP"><span class="q-up">${esc(u.up)}</span>${u.junto ? '<span class="rm-junto" title="Vence perto das UPs urgentes desta fazenda: aproveite a ida">Fazer junto</span>' : ''}</td>
-      <td data-rotulo="Vencimento">${u.venc ? `<span class="rm-venc" style="--c:${s.cor}">${mono(dmy(u.venc))}</span><small class="rm-sit-txt">R${u.prox + 1}</small>` : '<span class="rm-nada">—</span>'}</td>
+      <td data-rotulo="UP" class="rm-up-cel"><span class="q-up">${esc(u.up)}</span>${atencao(u)}${u.junto ? '<span class="rm-junto" title="Vence perto das UPs urgentes desta fazenda: aproveite a ida">junto</span>' : ''}</td>
       <td data-rotulo="Área (ha)" class="num">${mono(ha(u.area))}</td>
-      <td data-rotulo="Dias de plantio" class="num">${u.diasPlantio != null ? mono(u.diasPlantio) : '—'}</td>
-      <td data-rotulo="Pós + Pré">${u.pp ? mono(dma(u.pp)) : '<span class="rm-nada">—</span>'}</td>
+      <td data-rotulo="Pós + Pré emergente">${celulaData(u.pp)}</td>
       <td data-rotulo="Remonta 1">${celulaR(u, 0)}</td><td data-rotulo="Remonta 2">${celulaR(u, 1)}</td><td data-rotulo="Remonta 3">${celulaR(u, 2)}</td>
-      <td data-rotulo="Situação"><span class="rm-selo" style="--c:${s.cor}">${s.nome}</span><small class="rm-sit-txt">${textoSituacao(u)}</small>
-        ${u.avisos.map(a => `<small class="rm-aviso">⚠ ${esc(a)}</small>`).join('')}</td>
+      <td data-rotulo="Próxima remonta">${u.venc ? `<b class="rm-prox-nome">${nomeRemonta(u.prox)}</b>` : '<span class="rm-nada">—</span>'}</td>
+      <td data-rotulo="Situação" class="rm-sit-cel"><span class="rm-selo" style="--c:${s.cor}">${s.nome}</span> <small class="rm-sit-txt">${textoSituacao(u)}</small></td>
     </tr>`;
   }
-  const cabecalho = comFazenda => `<thead><tr>${comFazenda ? '<th>Fazenda</th>' : ''}<th>UP</th><th>Vencimento</th><th class="num">Área (ha)</th><th class="num">Dias de plantio</th><th>Pós + Pré</th><th>Remonta 1</th><th>Remonta 2</th><th>Remonta 3</th><th>Situação</th></tr></thead>`;
-  const tabela = (ups, comFazenda) => `<div class="rm-rolagem"><table class="q-tab rm-tab">${cabecalho(comFazenda)}<tbody>${ups.map(u => linhaUP(u, comFazenda)).join('')}</tbody></table></div>`;
+  const cabecalho = comFazenda => `<thead><tr><th class="rm-n" title="Ordem de vencimento">Nº</th>${comFazenda ? '<th>Fazenda</th>' : ''}<th>UP</th><th class="num">Área (ha)</th><th>Pós + Pré emergente</th><th>Remonta 1</th><th>Remonta 2</th><th>Remonta 3</th><th>Próxima remonta</th><th>Situação</th></tr></thead>`;
+  const tabela = (ups, comFazenda) => `<table class="q-tab rm-tab ${comFazenda ? 'com-fazenda' : ''}">${cabecalho(comFazenda)}<tbody>${ups.map((u, i) => linhaUP(u, comFazenda, i + 1)).join('')}</tbody></table>`;
+  const legenda = '<p class="rm-legenda"><span><span class="rm-feita">✓ 01/10/26</span> aplicada</span><span><span class="rm-proxima" style="--c:#fbbf24">01/10/26</span> próxima a vencer</span><span><span class="rm-prev">prev. 01/10/26</span> prevista</span><span><span class="rm-atencao">⚠</span> data a conferir na planilha (passe o mouse)</span></p>';
 
+  // Ordem das fazendas: primeiro as que têm UP vencida/vencendo/em atenção (a mais atrasada antes),
+  // depois as que só têm UPs no prazo, pela data mais próxima; por último as sem data base
+  function ordemFazendas(lista) {
+    const chave = f => {
+      const urg = f.vis.filter(u => URGENTES.has(u.sit)), prazo = f.vis.filter(u => u.venc);
+      return [urg.length ? 0 : prazo.length ? 1 : 2, urg.length ? Math.min(...urg.map(u => +u.venc)) : prazo.length ? Math.min(...prazo.map(u => +u.venc)) : Infinity];
+    };
+    return lista.map(f => ({ ...f, chave: chave(f) })).sort((a, b) => a.chave[0] - b.chave[0] || a.chave[1] - b.chave[1] || a.nome.localeCompare(b.nome));
+  }
   function renderLista() {
     const el = $('#rm-lista');
     if (!estado.calc.length) { el.innerHTML = `<div class="fat-painel glass"><p class="rm-vazio">${estado.carregando ? 'Carregando…' : 'Nenhuma UP para mostrar.'}</p></div>`; return; }
+    const vazio = '<div class="fat-painel glass"><p class="rm-vazio">Nenhuma UP com esses filtros.</p></div>';
     if (estado.visao === 'lista') {
       const ups = estado.calc.filter(visivel).sort(ordenarUPs);
-      el.innerHTML = ups.length ? `<div class="fat-painel glass">${tabela(ups, true)}</div>` : '<div class="fat-painel glass"><p class="rm-vazio">Nenhuma UP com esses filtros.</p></div>';
+      el.innerHTML = ups.length ? `<div class="fat-painel glass rm-tabela-wrap">${legenda}${tabela(ups, true)}</div>` : vazio;
       return;
     }
-    const primeiro = f => (f.vis[0]?.venc ? +f.vis[0].venc : Infinity);
-    const fazendas = estado.fazendas.map(f => ({ ...f, vis: f.ups.filter(visivel).sort(ordenarUPs) })).filter(f => f.vis.length)
-      .sort((a, b) => primeiro(a) - primeiro(b) || a.pior - b.pior || a.nome.localeCompare(b.nome));
-    el.innerHTML = fazendas.length ? fazendas.map(f => {
-      const cor = SIT[ORDEM_CARDS.find(k => SIT[k].ordem === f.pior)].cor;
-      return `<article class="rm-fazenda fat-painel glass" id="rm-faz-${encodeURIComponent(f.nome)}" style="--c:${cor}">
-        <header class="rm-faz-topo"><div><h3>${esc(f.nome)}</h3><small>${f.ups.length} UP${f.ups.length > 1 ? 's' : ''} · ${mono(ha(f.ups.reduce((s, u) => s + u.area, 0)))} ha${f.vis.length < f.ups.length ? ` · ${f.vis.length} na lista` : ''}</small></div>${f.vis[0]?.venc ? `<span class="rm-faz-prox">Primeiro vencimento: ${mono(dmy(f.vis[0].venc))}</span>` : ''}</header>
-        ${f.urg.length ? `<div class="rm-faz-prog"><p><i data-lucide="calendar-check"></i>${resumoFazenda(f)}</p>${f.junto.length ? `<p class="rm-junto-txt"><i data-lucide="link-2"></i>Fazer junto: ${f.junto.map(u => `<b>${esc(u.up)}</b> ${mono(`(${dm(u.venc)})`)}`).join(', ')}</p>` : ''}</div>` : ''}
+    const fazendas = ordemFazendas(estado.fazendas.map(f => ({ ...f, vis: f.ups.filter(visivel).sort(ordenarUPs) })).filter(f => f.vis.length));
+    if (!fazendas.length) { el.innerHTML = vazio; return; }
+    // Sequência sugerida: a ordem em que as fazendas devem ser feitas
+    const seq = `<div class="fat-painel glass rm-sequencia"><span class="eyebrow">Sequência sugerida</span><ol>${fazendas.map((f, i) => {
+      const u = f.vis.find(x => x.venc), s = SIT[f.vis[0].sit];
+      return `<li style="--c:${s.cor}"><button type="button" data-ir="${esc(f.nome)}"><b class="rm-seq-n">${i + 1}º</b><span><b>${esc(f.nome)}</b><small>${u ? `${textoSituacao(u)} · ${mono(dm(u.venc))}` : 'sem data base'}</small></span></button></li>`;
+    }).join('')}</ol></div>`;
+    el.innerHTML = seq + fazendas.map((f, i) => {
+      const s = SIT[f.vis[0].sit], urg = f.vis.filter(u => URGENTES.has(u.sit)), junto = f.vis.filter(u => u.junto);
+      const fazer = [...urg, ...junto], haFazer = fazer.reduce((t, u) => t + u.area, 0), u0 = f.vis.find(x => x.venc);
+      return `<article class="rm-fazenda fat-painel glass" id="rm-faz-${encodeURIComponent(f.nome)}" style="--c:${s.cor}">
+        <header class="rm-faz-topo">
+          <span class="rm-faz-n">${i + 1}º</span>
+          <div class="rm-faz-nome"><h3>${esc(f.nome)}</h3><small>${f.vis.length} UP${f.vis.length > 1 ? 's' : ''} · ${mono(ha(f.vis.reduce((t, u) => t + u.area, 0)))} ha</small></div>
+          ${i === 0 ? '<span class="rm-primeiro">Fazer primeiro</span>' : ''}
+          <div class="rm-faz-dec">${fazer.length
+            ? `<b>Ir agora: ${fazer.length} UP${fazer.length > 1 ? 's' : ''} · ${mono(ha(haFazer))} ha</b><small>prazo mais curto ${mono(dmy(urg.sort((a, b) => a.venc - b.venc)[0]?.venc || u0.venc))}${junto.length ? ` · inclui ${junto.length} para fazer junto` : ''}</small>`
+            : u0 ? `<b>Próximo vencimento ${mono(dmy(u0.venc))}</b><small>${textoSituacao(u0)}</small>` : '<b>Sem data base</b><small>falta lançar datas</small>'}</div>
+        </header>
         ${tabela(f.vis, false)}
       </article>`;
-    }).join('') : '<div class="fat-painel glass"><p class="rm-vazio">Nenhuma UP com esses filtros.</p></div>';
+    }).join('');
   }
 
   /* ---------- Eventos ---------- */
@@ -251,13 +274,15 @@
     $$('.rm-visao [data-visao]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
     renderLista(); icones();
   });
-  $('#rm-programar').addEventListener('click', e => {
+  const irParaFazenda = e => {
     const b = e.target.closest('[data-ir]'); if (!b) return;
     if (estado.visao !== 'fazenda') $('.rm-visao [data-visao="fazenda"]').click();
     const alvo = document.getElementById(`rm-faz-${encodeURIComponent(b.dataset.ir)}`);
-    if (!alvo) { estado.ativos = new Set(ORDEM_CARDS); estado.busca = ''; $('#rm-busca').value = ''; render(); }
+    if (!alvo) { estado.ativos = new Set(CARDS); estado.busca = ''; $('#rm-busca').value = ''; render(); }
     document.getElementById(`rm-faz-${encodeURIComponent(b.dataset.ir)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  };
+  $('#rm-programar').addEventListener('click', irParaFazenda);
+  $('#rm-lista').addEventListener('click', irParaFazenda);
 
   /* ---------- Início: só quando a aba é aberta (lê de novo a cada abertura da página) ---------- */
   function iniciar() { if (estado.iniciado) return; estado.iniciado = true; render(); carregar(); }
