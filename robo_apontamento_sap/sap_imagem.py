@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from utils import (ErroConfiguracao, ErroNegocio, ErroSAP, ParadaEmergencia, TempoEsgotado,
-                   esperar_ate, normalizar_servico)
+                   esperar_ate, normalizar_servico, parse_numero)
 
 log = logging.getLogger("robo.imagem")
 
@@ -180,6 +180,17 @@ class SapImagem:
         ctypes.windll.user32.keybd_event(VK_END, scan, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0)
         time.sleep(0.05)
 
+    @staticmethod
+    def _shift_home() -> None:
+        """SHIFT+HOME com HOME estendida (seleciona o texto do campo até o início)."""
+        u = ctypes.windll.user32
+        VK_SHIFT, VK_HOME, EXT, UP = 0x10, 0x24, 0x1, 0x2
+        u.keybd_event(VK_SHIFT, u.MapVirtualKeyW(VK_SHIFT, 0), 0, 0)
+        u.keybd_event(VK_HOME, u.MapVirtualKeyW(VK_HOME, 0), EXT, 0)
+        u.keybd_event(VK_HOME, u.MapVirtualKeyW(VK_HOME, 0), EXT | UP, 0)
+        u.keybd_event(VK_SHIFT, u.MapVirtualKeyW(VK_SHIFT, 0), UP, 0)
+        time.sleep(0.05)
+
     def _digitar(self, valor: Any) -> None:
         """Substitui o conteúdo do campo com foco: vai para o fim, apaga tudo com
         Backspace e digita tecla por tecla.
@@ -227,8 +238,15 @@ class SapImagem:
     def _ler_celula(self, coluna: str, linha: int) -> str:
         """Clica na célula e copia o valor com Ctrl+C."""
         x, y = self._pos_celula(coluna, linha)
+        return self._ler_em(x, y)
+
+    def _ler_em(self, x: int, y: int, editavel: bool = False) -> str:
+        """Clica no ponto e copia com Ctrl+C. Em célula editável, seleciona o texto antes."""
         escrever_clipboard("")
         self.pag.click(x, y)
+        if editavel:
+            self._tecla_end()
+            self._shift_home()
         self.pag.hotkey("ctrl", "c")
         try:  # no Citrix o valor copiado demora um pouco para chegar ao computador
             return esperar_ate(ler_clipboard, 4, intervalo=0.15, descricao="área de transferência")
@@ -315,6 +333,7 @@ class SapImagem:
         self.checar_parada()
         self._focar()
         self._comando(f"/n{self.transacao}")
+        self._descartar_se_perguntar(2)
         if self._achar("tela_selecao", 10):
             return
         log.warning("/n%s não abriu a tela; tentando o favorito.", self.transacao)
@@ -373,7 +392,7 @@ class SapImagem:
         vistos = []
         for i in range(int(self.im["grade"].get("max_linhas", 15))):
             v = self._ler_celula("servico", i)
-            if not v:
+            if not v or (vistos and v == vistos[-1]):  # área vazia: o Ctrl+C repete a célula anterior
                 break
             vistos.append(v)
             if normalizar_servico(v) == alvo:
@@ -426,6 +445,68 @@ class SapImagem:
             raise ErroSAP("o popup não fechou após o check verde (o SAP recusou os dados?)")
         if self._erro_na_barra():
             raise ErroSAP("SAP mostrou erro na barra de status após o check verde")
+
+    def apontar_insumos(self, linha: int, insumos: list[tuple[str, str]]) -> None:
+        """Insumos da O.S. (antes do Salvar Guia).
+        Duplo clique na 'Descrição do serviço' abre a grade de materiais. Cada material
+        do SAP é casado com o NI da planilha (ignorando zeros à esquerda) e a quantidade
+        DAQUELE NI vai na 'Qtd. Cons' da linha do material — nunca pela posição, porque
+        a ordem na planilha e no SAP pode ser diferente."""
+        self.checar_parada()
+        x, y = self._pos_celula("descricao_servico", linha)
+        self.pag.doubleClick(x, y)
+        cab_mat = self._achar("col_material", self.timeout)
+        if cab_mat is None:
+            raise ErroSAP("a grade de materiais (insumos) não abriu")
+        g = self.im["grade"]
+        dy0, alt = int(g.get("dy_primeira_linha", 23)), int(g.get("altura_linha", 23))
+        x_mat = cab_mat[0] + int(g.get("dx_coluna", {}).get("material", 30))
+        cab_qtd = self._esperar("col_qtd_cons", 5)
+
+        materiais: list[str] = []
+        for i in range(int(g.get("max_linhas", 15))):
+            v = self._ler_em(x_mat, cab_mat[1] + dy0 + i * alt)
+            if not v or (materiais and v == materiais[-1]):
+                break
+            materiais.append(v)
+        if not materiais:
+            raise ErroSAP("não consegui ler os materiais da grade de insumos")
+        no_sap = {normalizar_servico(m): i for i, m in enumerate(materiais)}
+        log.info("Materiais no SAP: %s", ", ".join(materiais))
+
+        faltando = [ni for ni, _ in insumos if normalizar_servico(ni) not in no_sap]
+        if faltando:
+            raise ErroNegocio(f"insumo(s) da planilha não existem na O.S. no SAP: {', '.join(map(str, faltando))} "
+                              f"(SAP tem: {', '.join(materiais)})")
+        sobra = set(no_sap) - {normalizar_servico(ni) for ni, _ in insumos}
+        if sobra:
+            log.warning("Materiais no SAP sem quantidade na planilha (ficam como estão): %s", ", ".join(sorted(sobra)))
+
+        for ni, qtd in insumos:
+            i = no_sap[normalizar_servico(ni)]
+            yq = cab_qtd[1] + dy0 + i * alt
+            for tentativa in range(2):
+                self.pag.click(cab_qtd[0], yq)
+                self._digitar(qtd)
+                self.pag.press("enter")
+                time.sleep(0.6)
+                lido = self._ler_em(cab_qtd[0], yq, editavel=True)
+                try:
+                    ok = abs(parse_numero(lido) - parse_numero(qtd)) < 0.0005
+                except ValueError:
+                    ok = False
+                if ok:
+                    log.info("Insumo %s: Qtd. Cons = %s", materiais[i], lido)
+                    break
+                log.warning("Insumo %s: célula mostra %r, esperado %s (tentativa %d)", materiais[i], lido, qtd,
+                            tentativa + 1)
+            else:
+                raise ErroSAP(f"não consegui gravar a quantidade {qtd} do insumo {materiais[i]}")
+            self.pag.click(x_mat, yq)  # sai da edição clicando numa célula só de leitura
+        time.sleep(0.5)
+        if self._erro_na_barra():
+            raise ErroSAP("SAP mostrou erro na barra de status ao apontar os insumos")
+        self._print("2b_insumos")
 
     def conferir_apontamento(self, linha: int, servico: Any, quantidade: float) -> int:
         if not self._imagem_na_celula("perc_100", "perc_exec", linha, timeout=self.timeout):

@@ -109,9 +109,29 @@ def preparar_dados(linha: LinhaPlanilha, cfg: dict) -> dict:
     except ValueError:
         data_exec = None
         problemas.append(f"data inválida ({linha.data!r})")
+    # Insumos: cada NI precisa de uma quantidade (e vice-versa)
+    casas = int(ap.get("casas_decimais", 3))
+    insumos = []
+    for ni, q in (linha.insumos or []):
+        ni_txt = texto_inteiro(ni)
+        if not ni_txt:
+            problemas.append(f"quantidade de insumo {q!r} sem NI")
+            continue
+        try:
+            if parse_numero(q) <= 0:
+                raise ValueError
+            insumos.append((ni_txt, formatar_quantidade(q, casas)))
+        except ValueError:
+            problemas.append(f"insumo {ni_txt} sem quantidade válida ({q!r})")
+    nis = [n for n, _ in insumos]
+    if len(set(nis)) != len(nis):
+        problemas.append("NI de insumo repetido na linha")
+    if linha.possui_insumo and not insumos and not problemas:
+        problemas.append("coluna de insumo preenchida mas sem NI/quantidade")
     if problemas:
         raise ErroNegocio("dado inválido na planilha: " + "; ".join(problemas))
     return {
+        "insumos": insumos,
         "os": os_,
         "servico": linha.servico,
         "quantidade": qtd,
@@ -125,10 +145,10 @@ def processar_linha(robo, linha: LinhaPlanilha, d: dict, cfg: dict, simulacao: b
     """Fluxo 3.3 → 3.6 para uma linha. Retorna (status, mensagem)."""
     ex = cfg.get("execucao", {})
 
-    # REGRA_INSUMO — por enquanto só pula. Checado antes de tocar no SAP para não
-    # deixar um apontamento confirmado sem "Salvar Guia".
-    if linha.possui_insumo:
-        return "PULADO", "possui insumo (regra a definir)"
+    # REGRA_INSUMO: "apontar" (padrão) faz a etapa de insumos antes do Salvar Guia;
+    # "pular" deixa a linha como PULADO sem tocar no SAP.
+    if d["insumos"] and str(ex.get("regra_insumo", "apontar")) == "pular":
+        return "PULADO", "possui insumo (regra_insumo: pular)"
 
     robo.ponto_sem_retorno = False
     data_ini, data_fim = periodo(cfg, d["data"])
@@ -138,8 +158,12 @@ def processar_linha(robo, linha: LinhaPlanilha, d: dict, cfg: dict, simulacao: b
         # Já está apontada no SAP: não aponta de novo, mas registra como apontada
         return "OK", "já constava 'Criado' no SAP (não apontado de novo)"
     robo.apontar(idx, d["data_sap"], d["quantidade_sap"], simulacao)      # 3.5
+    if d["insumos"]:                                                      # 3.5b insumos
+        robo.apontar_insumos(idx, d["insumos"])
     if simulacao:
-        return "SIMULACAO", f"popup preenchido (data {d['data_sap']}, qtd {d['quantidade_sap']}) e cancelado"
+        ins = "; insumos " + ", ".join(f"{n}={q}" for n, q in d["insumos"]) if d["insumos"] else ""
+        return "SIMULACAO", (f"popup preenchido (data {d['data_sap']}, qtd {d['quantidade_sap']}) e cancelado"
+                             f"{ins}; nada salvo")
     idx = robo.conferir_apontamento(idx, d["servico"], d["quantidade"])   # 3.6
     msg = robo.salvar(idx, d["servico"])
     return "OK", msg or "Status Reg = Criado"

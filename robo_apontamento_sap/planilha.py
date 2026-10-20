@@ -50,6 +50,7 @@ class LinhaPlanilha:
     insumo: Any
     status: str
     possui_insumo: bool
+    insumos: list = None   # [(NI, quantidade), ...] lidos dos pares de colunas (I/J, L/M, O/P, R/S)
 
     def vazia(self) -> bool:
         return all(vazio(v) for v in (self.os, self.servico, self.quantidade, self.data))
@@ -87,7 +88,7 @@ class Planilha:
         self._resolver_coluna_status(cabecalho)
 
         c = {k: (letra_para_indice(v) if v and str(v).lower() != "auto" else None)
-             for k, v in self.colunas.items() if k not in ("status", "insumo")}
+             for k, v in self.colunas.items() if k not in ("status", "insumo", "insumos")}
         # Insumo: uma letra ou uma lista (ex.: INS1..INS4 = H, K, N, Q)
         ins = self.colunas.get("insumo") or []
         cols_insumo = [letra_para_indice(x) for x in (ins if isinstance(ins, list) else [ins])]
@@ -96,6 +97,8 @@ class Planilha:
                 raise ErroConfiguracao(f"planilha.colunas.{obrig} não configurada")
         if not cols_insumo:
             log.warning("Coluna de insumo não configurada: todas as linhas serão tratadas como SEM insumo.")
+
+        pares = [(letra_para_indice(ni), letra_para_indice(q)) for ni, q in (self.colunas.get("insumos") or [])]
 
         linhas = []
         for num, row in enumerate(valores[self.linha_cabecalho:], start=self.linha_cabecalho + 1):
@@ -107,6 +110,7 @@ class Planilha:
                 quantidade=cel(c["quantidade"]), data=cel(c["data"]), insumo=insumo,
                 status=str(cel(self.col_status) or "").strip(),
                 possui_insumo=self._tem_insumo(insumo),
+                insumos=[(cel(ni), cel(q)) for ni, q in pares if not vazio(cel(ni)) or not vazio(cel(q))],
             ))
         log.info("Planilha carregada: %d linhas de dados (modo %s).", len(linhas), self.modo)
         return linhas

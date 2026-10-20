@@ -47,6 +47,8 @@ class PlanilhaWeb:
 
         def bate(n: int) -> bool:
             r = valores[n - 1] if 0 < n <= len(valores) else []
+            if not texto_inteiro(os_num):  # linha sem O.S. (ex.: erro "O.S. vazia"): confere pelo serviço
+                return n == linha_sugerida and len(r) > 4 and normalizar_servico(r[4]) == normalizar_servico(servico)
             ok = len(r) > 0 and texto_inteiro(r[0]) == texto_inteiro(os_num)
             if ok and servico is not None and len(r) > 4:
                 ok = normalizar_servico(r[4]) == normalizar_servico(servico)

@@ -13,7 +13,8 @@ execucao:
   tentativas: 2                # retentativas só para falhas transitórias (timeout, COM)
   pausa_entre_tentativas: 3    # segundos
   ignorar_status: ["OK", "APONTADO", "VERIFICAR"]   # STATUS que começam com isso não são reprocessados
-  texto_status_ok: "Apontado"  # escrito na coluna STATUS quando o Status Reg fica "Criado"
+  texto_status_ok: "Apontado"
+  regra_insumo: apontar        # apontar (Qtd. Cons na grade de materiais) | pular  # escrito na coluna STATUS quando o Status Reg fica "Criado"
   pular_se_ja_criado: true     # se a linha do SAP já estiver "Criado", não aponta de novo
   atualizar_planilha_em_simulacao: false
 
@@ -30,6 +31,11 @@ planilha:
     quantidade: "F"            # ÁREA REAL
     data: "G"                  # DATA FIM
     insumo: ["H", "K", "N", "Q"]   # INS1..INS4: qualquer um preenchido = tem insumo
+    insumos:                   # pares [NI do insumo, quantidade] — casados pelo Material no SAP
+      - ["I", "J"]
+      - ["L", "M"]
+      - ["O", "P"]
+      - ["R", "S"]
     status: auto               # auto = procura o cabeçalho "STATUS" (coluna T)
   valores_com_insumo: ["SIM", "S", "X", "TRUE", "VERDADEIRO", "1", "COM INSUMO"]
 
@@ -112,3 +118,4 @@ imagem:
     max_linhas: 15
     dx_coluna:
       maq_evento: -34          # o ícone fica à esquerda da célula
+      material: 30             # col_material.png inclui a coluna "Dep." à esquerda
