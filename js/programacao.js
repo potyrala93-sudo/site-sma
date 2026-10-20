@@ -759,20 +759,13 @@
   /* ---------- PDF: gerado direto no navegador (A4 paisagem), módulo compartilhado js/pdf.js ---------- */
   // Páginas: 1) cabeçalho + cards + equipes · 2..) tabela em partes · depois 1 mês por página
   /* ---------- Tabelas próprias do PDF: texto simples (sem "pílulas"), colunas largas, uma linha por UP ---------- */
-  const unidadeDose = d => (String(d || '').match(/[a-zA-Zµ][\w/.\s]*$/) || [''])[0].trim();   // "3,0 L/ha" → "L/ha"
-  const fmt2 = v => (v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  function quantidade(dose, area) {
-    const n = P.num(dose);
-    if (!(n > 0)) return { texto: '—', valor: 0, un: '' };
-    const un = unidadeDose(dose).replace(/\s*\/\s*ha$/i, '');
-    return { texto: `${fmt2(n * area)}${un ? ` ${un}` : ''}`, valor: n * area, un };
-  }
   const peso = (p, html) => ({ p, html });
   const doseHa = d => (!d ? '—' : /\/\s*ha/i.test(d) ? d : `${d} por ha`);
-  // Linha logo abaixo da UP: insumo · dose por ha · quantidade (dose × área da UP)
+  // Faixa logo abaixo da UP com o(s) insumo(s) e a dose por hectare (tabela simples: o html2canvas não desalinha)
   function linhaInsumos(i, variosRF) {
     if (!i.insumos?.length) return '';
-    return `<tr class="t-ins" style="--c:${i.cor}"><td></td><td colspan="${variosRF ? 10 : 9}">${i.insumos.map(x => `<span class="t-ins-it">🧪 <b>${escapar(x.nome)}</b> · dose ${escapar(doseHa(x.dose))} · quantidade <b class="t-ins-qtd">${quantidade(x.dose, i.area).texto}</b></span>`).join('')}</td></tr>`;
+    const n = i.insumos.length;
+    return `<tr class="t-ins" style="--c:${i.cor}"><td></td><td colspan="${variosRF ? 10 : 9}"><table class="t-ins-tab" style="--c:${i.cor}">${i.insumos.map((x, k) => `<tr>${k ? '' : `<td class="t-ins-rot" rowspan="${n}">${n > 1 ? 'Insumos' : 'Insumo'}</td>`}<td class="t-ins-nome">${escapar(x.nome)}</td><td class="t-ins-dose">Dose <b>${escapar(doseHa(x.dose))}</b></td></tr>`).join('')}</table></td></tr>`;
   }
   function linhasTabelaPDF(r) {
     const variosRF = new Set(r.itens.map(i => i.rf)).size > 1;
@@ -789,22 +782,6 @@
     linhas.push(peso(1, `<tr class="t-total"><td colspan="${variosRF ? 5 : 4}">Total geral${r.diasDesloc ? ` (inclui ${r.diasDesloc} dia(s) de deslocamento)` : ''}</td><td class="c-num">${fmtHa(r.area)}</td><td></td><td class="c-num">${brl(r.faturamento)}</td><td class="c-data">${br(r.inicioReal)}</td><td class="c-data">${br(r.termino)}</td><td class="c-num">${fmt1(r.diasProducao + r.diasDesloc)}</td></tr>`));
     return { cab, linhas };
   }
-  // Insumos: resumo por produto (quantidade total); o detalhe de cada UP vai na própria tabela da programação
-  function paginasInsumosPDF(r, cabCurto) {
-    const comInsumo = r.itens.filter(i => i.insumos?.length);
-    if (!comInsumo.length) return [];
-    const porProduto = new Map();
-    comInsumo.forEach(i => i.insumos.forEach(x => {
-      const k = `${x.nome}|${x.dose}`;
-      const g = porProduto.get(k) || porProduto.set(k, { nome: x.nome, dose: x.dose, area: 0, ups: [], ini: i.inicio, fim: i.fim }).get(k);
-      g.area += i.area; g.ups.push(i.up); if (i.inicio < g.ini) g.ini = i.inicio; if (i.fim > g.fim) g.fim = i.fim;
-    }));
-    const resumo = `<table class="p-pdf-tab p-pdf-ins"><thead><tr><th>Insumo</th><th class="c-num">Dose (por ha)</th><th class="c-num">Área (ha)</th><th class="c-num">Quantidade total</th><th class="c-num">UPs</th><th>Período</th></tr></thead><tbody>${[...porProduto.values()].map(g => `
-      <tr><td class="c-quebra"><b>${escapar(g.nome)}</b></td><td class="c-num">${escapar(g.dose || '—')}</td><td class="c-num">${fmtHa(g.area)}</td><td class="c-num c-qtd">${quantidade(g.dose, g.area).texto}</td><td class="c-num">${g.ups.length}</td><td>${br(g.ini)} a ${br(g.fim)}</td></tr>`).join('')}</tbody></table>
-      <p class="p-pdf-nota">Quantidade total = dose por hectare × área das UPs. Unidade da dose como está na planilha.</p>`;
-    return [`${cabCurto}<h2 class="p-pdf-tit">Insumos e doses · resumo por produto</h2>${resumo}`];
-  }
-
   function paginasPDF() {
     const r = estado.resultado, sup = pessoa(cfg.supervisor);
     const cabCompleto = $('#p-print-cab').innerHTML;
@@ -818,7 +795,6 @@
     linhas.forEach(l => { if (usado + l.p > CABE && partes.at(-1).length) { partes.push([]); usado = 0; } partes.at(-1).push(l.html); usado += l.p; });
     partes.forEach((p, i) => pags.push(`${cabCurto}<h2 class="p-pdf-tit">Tabela da programação${partes.length > 1 ? ` <small>(${i + 1}/${partes.length})</small>` : ''}</h2>
         <table class="p-pdf-tab">${cab}<tbody>${p.join('')}</tbody></table>`));
-    pags.push(...paginasInsumosPDF(r, cabCurto));
     if ($('#p-clima .p-cl-faz')) pags.push(`${cabCurto}<div class="p-clima">${$('#p-clima').innerHTML}</div>`);
     if (r.termino) mesesDoPeriodo(r).forEach(m => pags.push(`${cabCurto}<div class="p-legenda">${$('#p-legenda').innerHTML}</div>${calendarioPDF(r, m)}`));
     return pags;
