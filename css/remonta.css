@@ -1,0 +1,110 @@
+/* ==========================================================================
+   SMA · Silvicultura — Produção · Controle de Remonta Pré-Emergente
+   Mesmo padrão dos outros painéis (glass, kpi, q-tab, fat-btn); verde-eucalipto como destaque.
+   ========================================================================== */
+
+#aba-remonta { --eucalipto: #2f9e6b; --eucalipto-claro: #6fcf97; }
+.rm-mono { font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Consolas, 'Liberation Mono', monospace; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+
+/* ---------- Cabeçalho e parâmetros ---------- */
+.rm-topo { display: grid; gap: .8rem; }
+.rm-cab { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.3rem; border-radius: var(--raio-lg); border-left: 4px solid var(--eucalipto); }
+.rm-cab .fat-sec-titulo { margin: .2rem 0 .3rem; }
+.rm-cab-info { margin: 0; font-size: .86rem; color: var(--texto-suave); }
+.rm-cab-info b { color: var(--texto-forte); }
+.rm-cab-acoes { display: flex; flex-wrap: wrap; gap: .5rem; }
+.rm-cab-acoes a { text-decoration: none; }
+
+.rm-param { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; align-items: end; padding: .9rem 1rem; border-radius: 18px; }
+.rm-campo { display: grid; gap: .3rem; font-size: .72rem; font-weight: 800; letter-spacing: .03em; color: var(--texto-suave); }
+.rm-campo span { min-height: 2.2em; display: flex; align-items: flex-end; line-height: 1.15; }
+.rm-campo input { width: 100%; padding: .5rem .6rem; border-radius: 10px; border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .6); color: var(--texto-forte); font: 700 1rem ui-monospace, Consolas, monospace; }
+.rm-campo input:focus { outline: 0; border-color: var(--eucalipto-claro); box-shadow: 0 0 0 3px color-mix(in srgb, var(--eucalipto) 30%, transparent); }
+.rm-campo.destaque { padding: .45rem .55rem; border-radius: 12px; color: var(--texto-forte); background: color-mix(in srgb, var(--eucalipto) 18%, transparent); border: 1px solid color-mix(in srgb, var(--eucalipto) 60%, transparent); }
+.rm-campo.destaque input { font-size: 1.25rem; border-color: var(--eucalipto); }
+.rm-campo-data { position: relative; }
+.rm-campo-data input { font-size: .9rem; }
+.rm-hoje { position: absolute; right: .35rem; top: 0; padding: .05rem .45rem; border-radius: 999px; font-size: .66rem; font-weight: 800; color: #04201a; background: var(--eucalipto-claro); }
+.rm-hoje[hidden] { display: none; }
+.rm-restaurar { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; padding: .55rem .7rem; border-radius: 10px; font-size: .8rem; font-weight: 800; color: var(--texto-suave); border: 1px dashed var(--borda); }
+.rm-restaurar:hover { color: var(--texto-forte); border-color: var(--eucalipto-claro); }
+.rm-restaurar svg { width: 15px; height: 15px; }
+
+/* ---------- Cartões por situação (clicar filtra a lista) ---------- */
+.rm-cards { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .6rem; }
+.rm-card { position: relative; display: grid; gap: .15rem; padding: .8rem .85rem; border-radius: 16px; text-align: left; border: 1px solid var(--borda); border-top: 4px solid var(--c); opacity: .5; transition: opacity .2s, transform .2s, box-shadow .2s; }
+.rm-card.ativo { opacity: 1; box-shadow: 0 10px 26px -16px var(--c); }
+.rm-card:hover { transform: translateY(-2px); opacity: 1; }
+.rm-card-rot { display: flex; align-items: center; gap: .35rem; font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--texto-suave); }
+.rm-card-rot i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.rm-card strong { font-size: 1.7rem; line-height: 1.1; color: var(--texto-forte); }
+.rm-card small { font-size: .78rem; color: var(--texto-suave); }
+.rm-card em { margin-top: .15rem; font-style: normal; font-size: .62rem; font-weight: 800; color: var(--texto-suave); }
+.rm-card.pulsa { animation: rm-pulso 1.6s ease-in-out infinite; }
+@keyframes rm-pulso { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 35%, transparent); } }
+
+/* ---------- Programar agora ---------- */
+.rm-programar { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: .8rem; }
+.rm-prog { display: grid; gap: .4rem; padding: .9rem 1rem; border-radius: 16px; border-left: 4px solid var(--c); }
+.rm-prog header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem; }
+.rm-prog header b { font-size: 1rem; color: var(--texto-forte); }
+.rm-prog p { margin: 0; font-size: .86rem; line-height: 1.45; color: var(--texto); }
+.rm-prog p b { color: var(--texto-forte); }
+.rm-junto-txt { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .3rem; color: var(--texto-suave) !important; }
+.rm-junto-txt svg { width: 15px; height: 15px; color: var(--eucalipto-claro); }
+.rm-ir { justify-self: start; display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .6rem; border-radius: 999px; font-size: .74rem; font-weight: 800; color: var(--texto-forte); border: 1px solid var(--borda); }
+.rm-ir:hover { border-color: var(--eucalipto-claro); }
+.rm-ir svg { width: 14px; height: 14px; }
+.rm-vazio { display: flex; align-items: center; gap: .5rem; margin: 0; padding: .8rem; color: var(--texto-suave); }
+.rm-vazio svg { width: 18px; height: 18px; color: var(--eucalipto-claro); }
+
+/* ---------- Ferramentas da lista ---------- */
+.rm-ferramentas { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.rm-busca { min-width: 240px; }
+.rm-visao { display: inline-flex; padding: 3px; border-radius: 12px; border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .6); }
+.rm-visao button { display: inline-flex; align-items: center; gap: .35rem; padding: .4rem .75rem; border-radius: 9px; font-size: .8rem; font-weight: 800; color: var(--texto-suave); }
+.rm-visao button svg { width: 15px; height: 15px; }
+.rm-visao button[aria-pressed="true"] { color: #04201a; background: var(--eucalipto-claro); }
+
+/* ---------- Blocos por fazenda e tabela ---------- */
+#rm-lista { display: grid; gap: 1rem; }
+.rm-fazenda { padding: 1rem; border-top: 3px solid var(--c); scroll-margin-top: 90px; }
+.rm-faz-topo h3 { margin: 0; font-size: 1.1rem; }
+.rm-faz-topo small { color: var(--texto-suave); font-size: .78rem; }
+.rm-faz-prog { margin: .7rem 0; padding: .6rem .8rem; border-radius: 12px; background: color-mix(in srgb, var(--eucalipto) 12%, transparent); border: 1px solid color-mix(in srgb, var(--eucalipto) 40%, transparent); }
+.rm-faz-prog p { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .35rem; margin: 0; font-size: .86rem; }
+.rm-faz-prog p + p { margin-top: .3rem; }
+.rm-faz-prog svg { width: 16px; height: 16px; color: var(--eucalipto-claro); }
+.rm-faz-prog b { color: var(--texto-forte); }
+
+/* a tabela rola na horizontal dentro do próprio bloco (também no celular) */
+.rm-rolagem { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: .4rem; }
+.rm-tab { min-width: 920px; font-size: .84rem; }
+.rm-tab th.num, .rm-tab td.num { text-align: right; }
+.rm-tab tbody tr { box-shadow: inset 3px 0 0 var(--c); }
+.rm-tab td { vertical-align: middle; }
+.rm-faz-cel { font-weight: 700; max-width: 220px; }
+.rm-feita { color: var(--eucalipto-claro); font-weight: 700; white-space: nowrap; }
+.rm-proxima { display: inline-block; padding: .15rem .45rem; border-radius: 8px; font-weight: 800; color: var(--texto-forte); background: color-mix(in srgb, var(--c) 22%, transparent); border: 1px solid var(--c); white-space: nowrap; }
+.rm-prev { color: var(--texto-suave); font-size: .78rem; white-space: nowrap; }
+.rm-nada { color: var(--texto-suave); opacity: .6; }
+.rm-selo { display: inline-flex; align-items: center; padding: .15rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; color: var(--texto-forte); background: color-mix(in srgb, var(--c) 22%, transparent); border: 1px solid color-mix(in srgb, var(--c) 70%, transparent); }
+.rm-l-hoje .rm-selo { color: #fff; background: var(--c); box-shadow: 0 0 12px color-mix(in srgb, var(--c) 70%, transparent); animation: rm-pulso 1.6s ease-in-out infinite; }
+.rm-sit-txt { display: block; margin-top: .2rem; font-size: .74rem; color: var(--texto-suave); white-space: nowrap; }
+.rm-aviso { display: block; margin-top: .2rem; font-size: .72rem; font-weight: 700; color: var(--tom-aviso, #fbbf24); }
+.rm-junto { display: inline-block; margin-left: .4rem; padding: .05rem .4rem; border-radius: 6px; font-size: .64rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #04201a; background: var(--eucalipto-claro); vertical-align: middle; cursor: help; }
+
+/* Na tabela de remontas as linhas não viram cartões no celular: elas rolam na horizontal */
+@media (max-width: 760px) {
+  .rm-tab, .rm-tab thead, .rm-tab tbody, .rm-tab tr { display: revert !important; }
+  .rm-tab th, .rm-tab td { display: table-cell !important; }
+  .rm-tab td::before { content: none !important; }
+  .rm-tab thead { display: table-header-group !important; }
+}
+@media (max-width: 1100px) { .rm-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .rm-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rm-param { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rm-campo.destaque { grid-column: 1 / -1; }
+  .rm-busca { min-width: 0; flex: 1 1 100%; }
+}

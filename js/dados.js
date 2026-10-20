@@ -161,6 +161,14 @@ const PRODUCAO = {
     bd: { aba: 0, posicoes: { RF: 0, DATA: 6, FAZENDA: 7, UP: 8, ATIVIDADE: 12, AREA: 20 } }
   },
 
+  // Remonta de herbicida pré-emergente mecanizado (aba BASE; colunas achadas pelo nome do cabeçalho)
+  remonta: {
+    planilha: '1SIhbYLG8Qg6LXS4_APPul7Q9pzEtHshT',
+    aba: 1247467033,
+    // Valores padrão dos parâmetros (o usuário muda no topo da aba e fica salvo no navegador)
+    padrao: { r1: 20, r2: 20, r3: 20, alerta: 5, junto: 10, antiga: 30 }
+  },
+
   // Produção Realizada: aba de apontamentos da planilha do Faturamento (cabeçalho achado pelo nome, não pela linha)
   realizada: {
     planilha: '1gGcRAaVruH9wq3m531pEcA7iGSfpzJolqne5brBn8Ls',

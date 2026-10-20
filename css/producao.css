@@ -5,8 +5,8 @@
 
 .pagina-prod { --ader-cor: #3dffa8; --ader-cor-suave: rgba(61,255,168,.3); }
 /* Abas da Produção (3): o indicador anda conforme --i */
-.p-abas { --i: 0; max-width: 1200px; grid-template-columns: repeat(5, 1fr); }
-.p-abas .q-abas-ind { width: calc((100% - 10px) / 5); transform: translateX(calc(var(--i) * 100%)); }
+.p-abas { --i: 0; max-width: 1320px; grid-template-columns: repeat(6, 1fr); }
+.p-abas .q-abas-ind { width: calc((100% - 10px) / 6); transform: translateX(calc(var(--i) * 100%)); }
 .p-abas.sem .q-abas-ind { transform: translateX(calc(var(--i) * 100%)); }
 
 /* ---------- Plantio ---------- */
@@ -678,7 +678,8 @@ img[data-foto-sup] { transition: opacity .35s; }
   .m-quadro { min-height: 70vh; }
 }
 @media (max-width: 640px) {
-  .p-abas button span { font-size: .62rem; }
+  .p-abas button { min-width: 0; padding-inline: .15rem; }
+  .p-abas button span { font-size: .58rem; overflow-wrap: anywhere; hyphens: auto; }
   .m-visor-acoes { width: 100%; }
   .m-visor-acoes .fat-btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; padding-inline: .7rem; }
 }

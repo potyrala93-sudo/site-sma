@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="css/qualidade.css">
   <link rel="stylesheet" href="css/ars.css">
   <link rel="stylesheet" href="css/producao.css">
+  <link rel="stylesheet" href="css/remonta.css">
   <link rel="stylesheet" href="css/folhito.css">
   <script src="js/dados.js" defer></script>
   <script src="js/planilhas.js" defer></script>
@@ -27,6 +28,7 @@
   <script src="js/producao-realizada.js" defer></script>
   <script src="js/producao-rf.js" defer></script>
   <script src="js/producao-plantio.js" defer></script>
+  <script src="js/producao-remonta.js" defer></script>
   <script src="js/mapas-nomes.js" defer></script>
   <script src="js/producao-mapas.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
@@ -47,7 +49,7 @@
           <span class="pill reveal"><span class="tag">Painel</span><span>Produção · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
           <h1 class="fat-titulo reveal" id="p-titulo" style="--d:.08s">Painel de <span class="serif">Produção</span></h1>
           <p class="fat-sub reveal" style="--d:.16s">Programe a execução das atividades por fazenda e UP: o sistema distribui as áreas pelas equipes e monta o calendário.</p>
-          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="p-status">Carregando dados…</span><span id="r-status" hidden>Carregando apontamentos…</span><span id="f-status" hidden>Carregando base do RF…</span><span id="pl-status" hidden>Carregando plantio…</span><span id="m-status" hidden>Carregando mapas…</span></p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="p-status">Carregando dados…</span><span id="r-status" hidden>Carregando apontamentos…</span><span id="f-status" hidden>Carregando base do RF…</span><span id="pl-status" hidden>Carregando plantio…</span><span id="m-status" hidden>Carregando mapas…</span><span id="rm-status" hidden>Carregando remontas…</span></p>
         </div>
         <div class="fat-destaque reveal" id="p-destaque" style="--d:.2s">
           <div class="fat-destaque-foto"><img data-foto-sup alt="" id="p-destaque-foto"></div>
@@ -69,6 +71,7 @@
         <button type="button" role="tab" id="tab-rf" aria-selected="false" aria-controls="aba-rf" data-aba="rf"><i data-lucide="git-compare-arrows"></i><span>Produção por RF</span></button>
         <button type="button" role="tab" id="tab-plantio" aria-selected="false" aria-controls="aba-plantio" data-aba="plantio"><i data-lucide="trees"></i><span>Plantio</span></button>
         <button type="button" role="tab" id="tab-prog" aria-selected="false" aria-controls="aba-prog" data-aba="prog"><i data-lucide="calendar-days"></i><span>Programação de Atividades</span></button>
+        <button type="button" role="tab" id="tab-remonta" aria-selected="false" aria-controls="aba-remonta" data-aba="remonta"><i data-lucide="spray-can"></i><span>Remonta pré-emergente</span></button>
         <button type="button" role="tab" id="tab-mapas" aria-selected="false" aria-controls="aba-mapas" data-aba="mapas"><i data-lucide="map"></i><span>Mapas micro</span></button>
       </div>
     </div>
@@ -335,6 +338,56 @@
     </div>
 
     <!-- ===================== MAPAS MICRO ===================== -->
+    <!-- ===================== REMONTA PRÉ-EMERGENTE (js/producao-remonta.js) ===================== -->
+    <div id="aba-remonta" role="tabpanel" aria-labelledby="tab-remonta" hidden>
+      <section class="container fat-secao rm-topo" aria-labelledby="rm-titulo">
+        <div class="rm-cab glass">
+          <div>
+            <span class="eyebrow">Herbicida pré-emergente mecanizado</span>
+            <h2 class="fat-sec-titulo" id="rm-titulo">Controle de Remonta <span class="serif">Pré-Emergente</span></h2>
+            <p class="rm-cab-info">Data de referência: <b class="rm-mono" id="rm-ref-txt">—</b> · Última leitura: <b class="rm-mono" id="rm-lido">—</b></p>
+          </div>
+          <div class="rm-cab-acoes">
+            <button type="button" class="fat-btn fat-atualizar" id="rm-atualizar" title="Ler a planilha de novo"><i data-lucide="refresh-cw"></i><span>Atualizar</span></button>
+            <a class="fat-btn" id="rm-abrir" href="https://docs.google.com/spreadsheets/d/1SIhbYLG8Qg6LXS4_APPul7Q9pzEtHshT/edit?gid=1247467033" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i><span>Abrir planilha</span></a>
+          </div>
+        </div>
+        <form class="rm-param glass" id="rm-param" aria-label="Parâmetros das remontas" onsubmit="return false">
+          <label class="rm-campo destaque"><span>Dias da R1 após Pós + Pré</span><input type="number" min="0" max="365" name="r1" inputmode="numeric"></label>
+          <label class="rm-campo"><span>Dias da R2 após R1</span><input type="number" min="0" max="365" name="r2" inputmode="numeric"></label>
+          <label class="rm-campo"><span>Dias da R3 após R2</span><input type="number" min="0" max="365" name="r3" inputmode="numeric"></label>
+          <label class="rm-campo"><span>Alertar com X dias antes</span><input type="number" min="0" max="90" name="alerta" inputmode="numeric"></label>
+          <label class="rm-campo"><span>"Fazer junto" se vence em até X dias</span><input type="number" min="0" max="90" name="junto" inputmode="numeric"></label>
+          <label class="rm-campo"><span>Pendência antiga após X dias vencida</span><input type="number" min="1" max="365" name="antiga" inputmode="numeric"></label>
+          <label class="rm-campo rm-campo-data"><span>Data de referência</span><input type="date" name="ref"><button type="button" class="rm-hoje" id="rm-hoje">Hoje</button></label>
+          <button type="button" class="rm-restaurar" id="rm-restaurar"><i data-lucide="rotate-ccw"></i>Padrões</button>
+        </form>
+      </section>
+      <div class="container"><div class="fat-erros" id="rm-erros" role="alert" hidden></div></div>
+      <section class="container fat-secao" aria-label="Resumo por situação"><div class="rm-cards" id="rm-cards"></div></section>
+      <section class="container fat-secao" aria-labelledby="rm-prog-tit">
+        <div class="fat-sec-head"><div><span class="eyebrow">Prioridade</span><h2 class="fat-sec-titulo" id="rm-prog-tit">Programar <span class="serif">agora</span></h2></div></div>
+        <div class="rm-programar" id="rm-programar"></div>
+      </section>
+      <section class="container fat-secao" aria-labelledby="rm-graf-tit">
+        <div class="fat-sec-head"><div><span class="eyebrow">Carga de trabalho</span><h2 class="fat-sec-titulo" id="rm-graf-tit">Hectares a aplicar <span class="serif">por semana</span></h2></div><p class="fat-sec-sub" id="rm-graf-sub"></p></div>
+        <div class="fat-painel glass"><div class="fat-grafico"><canvas id="rm-graf" role="img" aria-label="Hectares a aplicar por semana nas próximas 6 semanas, por remonta"></canvas></div></div>
+      </section>
+      <section class="container fat-secao" aria-labelledby="rm-lista-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">UPs</span><h2 class="fat-sec-titulo" id="rm-lista-tit">Remontas <span class="serif">por UP</span></h2></div>
+          <div class="rm-ferramentas">
+            <label class="p-busca rm-busca"><i data-lucide="search"></i><input type="search" id="rm-busca" placeholder="Buscar fazenda ou UP" aria-label="Buscar fazenda ou UP"></label>
+            <div class="rm-visao" role="group" aria-label="Visão">
+              <button type="button" data-visao="fazenda" aria-pressed="true"><i data-lucide="tractor"></i>Por fazenda</button>
+              <button type="button" data-visao="lista" aria-pressed="false"><i data-lucide="list"></i>Lista por UP</button>
+            </div>
+          </div>
+        </div>
+        <div id="rm-lista"></div>
+      </section>
+    </div>
+
     <div id="aba-mapas" role="tabpanel" aria-labelledby="tab-mapas" hidden>
       <div class="fat-barra-wrap">
         <div class="container">

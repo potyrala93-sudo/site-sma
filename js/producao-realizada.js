@@ -379,16 +379,17 @@
   /* ======================================================================
      7. ABAS DA PÁGINA DE PRODUÇÃO
      ====================================================================== */
-  const ABAS = ['real', 'rf', 'plantio', 'prog', 'mapas'];
+  const ABAS = ['real', 'rf', 'plantio', 'prog', 'remonta', 'mapas'];
   const SUB = {
     real: 'Área realizada por grupo e por atividade, com dias trabalhados e rendimento, direto dos apontamentos.',
     rf: 'Conferência do RF (abre no RF atual): a base do RF × a minha produção (apontamentos), UP por UP, com a data fim de cada atividade.',
     plantio: 'Acompanhamento do plantio UP por UP, o plantio acumulado do ano contra a meta e o detalhe de cada RF.',
     prog: 'Programe a execução das atividades por fazenda e UP: o sistema distribui as áreas pelas equipes e monta o calendário.',
-    mapas: 'Mapas micro das fazendas, direto da pasta do Google Drive: busque pelo nome, código ou talhão e abra o PDF.'
+    mapas: 'Mapas micro das fazendas, direto da pasta do Google Drive: busque pelo nome, código ou talhão e abra o PDF.',
+    remonta: 'Prazos das remontas de herbicida pré-emergente (R1, R2 e R3) por UP, com o que programar agora em cada fazenda.'
   };
-  const HASH = { real: '', rf: '#rf', plantio: '#plantio', prog: '#programacao', mapas: '#mapas' };
-  const STATUS = { real: '#r-status', rf: '#f-status', plantio: '#pl-status', prog: '#p-status', mapas: '#m-status' };
+  const HASH = { real: '', rf: '#rf', plantio: '#plantio', prog: '#programacao', remonta: '#remonta', mapas: '#mapas' };
+  const STATUS = { real: '#r-status', rf: '#f-status', plantio: '#pl-status', prog: '#p-status', remonta: '#rm-status', mapas: '#m-status' };
   const sub = $('.fat-hero .fat-sub');
   function abrirAba(aba, trocarHash = true) {
     ABAS.forEach(a => { $(`#aba-${a}`).hidden = a !== aba; $(STATUS[a]).hidden = a !== aba; });
@@ -413,6 +414,7 @@
   if (location.hash === '#rf') abaInicial = 'rf';
   if (location.hash === '#plantio') abaInicial = 'plantio';
   if (location.hash === '#mapas') abaInicial = 'mapas';
+  if (location.hash === '#remonta') abaInicial = 'remonta';
   abrirAba(ABAS.includes(abaInicial) ? abaInicial : 'real', false);
 
   // A mesma leitura dos apontamentos (Minha Produção) é compartilhada com o painel Produção por RF
