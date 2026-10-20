@@ -640,16 +640,13 @@
     const l = clima.indice.porNome.get(chaveNome(nome)) || [];
     return l.length ? { f: l.find(f => clima.dados.pontos[f.ponto]) || l[0], varias: l.length } : null;
   }
-  // Avisos de um dia de previsão (limites em js/dados.js → CLIMA.alertas e CLIMA.programacao)
+  // Avisos do dia: só chuva e rajadas (limites em js/dados.js → CLIMA.alertas e CLIMA.programacao)
   function avisosDoDia(d) {
     const A = CL.alertas, P = CL.programacao || {}, alerta = [], atencao = [];
     if (d.chuva > A.chuvaDiaMm) alerta.push(`chuva forte (${fmt1(d.chuva)} mm)`);
     else if (d.chuva >= P.chuvaMm || d.prob >= P.probChuva) atencao.push(`chuva de ${fmt1(d.chuva)} mm (${Math.round(d.prob ?? 0)}%)`);
     if (d.rajada > A.rajadaKmh) alerta.push(`rajadas de ${Math.round(d.rajada)} km/h`);
     else if (d.rajada >= P.rajadaKmh) atencao.push(`rajadas de ${Math.round(d.rajada)} km/h`);
-    if (d.tmax > A.tempMax) alerta.push(`calor de ${Math.round(d.tmax)} °C`);
-    if (d.tmin != null && d.tmin < A.geadaMin) alerta.push(`risco de geada (mín. ${Math.round(d.tmin)} °C)`);
-    if (d.ideais != null && d.ideais < P.horasBoasMin) atencao.push(d.ideais ? `só ${d.ideais} h boas para aplicar` : 'nenhuma hora boa para aplicar');
     return { alerta, atencao, nivel: alerta.length ? 'alerta' : atencao.length ? 'atencao' : '' };
   }
   const tempoWMO = c => window.SMA_CLIMA_MOTOR?.tempo(c) || ['', ''];
