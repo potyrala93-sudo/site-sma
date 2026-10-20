@@ -44,6 +44,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--linhas", help="intervalo de linhas da planilha, ex.: 2-10 ou 5")
     p.add_argument("--modo", choices=["scripting", "imagem", "auto"], help="sobrepõe o modo do config")
     p.add_argument("--listar-ids", action="store_true", help="grava os IDs da tela atual do SAP e sai")
+    p.add_argument("--refazer", metavar="OS1,OS2",
+                   help="aponta de novo estas O.S. mesmo que já constem como apontadas (use só depois de "
+                        "estornar o apontamento no SAP)")
     p.add_argument("--ignorar-historico", action="store_true",
                    help="aponta mesmo O.S. que já constam em apontados.json (cuidado: duplica)")
     p.add_argument("--testar-imagens", action="store_true",
@@ -232,6 +235,10 @@ def main() -> int:
         return 1
 
     ignorar = [str(s).upper() for s in ex.get("ignorar_status", ["OK", "APONTADO", "VERIFICAR"])]
+    refazer = {texto_inteiro(x) for x in (args.refazer or "").split(",") if x.strip()}
+    if refazer:
+        log.warning("--refazer: as O.S. %s serão apontadas de novo (histórico e STATUS ignorados).",
+                    ", ".join(sorted(refazer)))
     tentativas_max = max(1, int(ex.get("tentativas", 2)))
     pausa = float(ex.get("pausa_entre_tentativas", 3))
     relatorio = Relatorio(BASE / cfg.get("relatorio", {}).get("pasta", "relatorios"), simulacao)
@@ -242,11 +249,12 @@ def main() -> int:
         for linha in linhas:
             if linha.vazia():
                 continue
-            if any(linha.status.upper().startswith(s) for s in ignorar):
+            liberada = texto_inteiro(linha.os) in refazer
+            if not liberada and any(linha.status.upper().startswith(s) for s in ignorar):
                 log.info("Linha %d já processada (%s) — ignorando.", linha.numero, linha.status)
                 continue
             ja = historico.get(texto_inteiro(linha.os), linha.servico)
-            if ja and not args.ignorar_historico:
+            if ja and not args.ignorar_historico and not liberada:
                 log.info("Linha %d: O.S. %s já foi apontada por este robô em %s — não aponta de novo.",
                          linha.numero, texto_inteiro(linha.os), ja["data_hora"])
                 if not simulacao:
