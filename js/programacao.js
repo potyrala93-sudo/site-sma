@@ -479,45 +479,73 @@
     icones();
   }
 
+  const SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  // Meses do período e, para cada dia, o que acontece (usado pelo calendário da tela e pelo do PDF)
+  function mesesDoPeriodo(r) {
+    const meses = [];
+    for (let m = new Date(r.entrada.getFullYear(), r.entrada.getMonth(), 1, 12); m <= r.termino; m = new Date(m.getFullYear(), m.getMonth() + 1, 1, 12)) meses.push(m);
+    return meses;
+  }
+  function diaDoCalendario(r, d) {
+    const k = paraISO(d), trab = r.porDia.get(k) || [];
+    const fds = d.getDay() === 0 || d.getDay() === 6;
+    const noPeriodo = d >= r.entrada && d <= r.termino;
+    const parado = noPeriodo && !diaTrabalhado(d);
+    const marca = paraISO(r.entrada) === k ? 'entrada' : paraISO(r.termino) === k ? 'termino' : '';
+    // agrupa por fazenda + atividade: "Fazenda · UP1, UP2 · atividade"; deslocamento aparece à parte
+    const grupos = [];
+    trab.forEach(t => {
+      const chave = t.desloc ? `desloc|${t.fazenda}` : `${t.fazenda}|${t.atividade}`;
+      let g = grupos.find(x => x.chave === chave);
+      if (!g) grupos.push(g = { chave, desloc: t.desloc, de: t.de, fazenda: t.fazenda, atividade: t.atividade, cor: t.cor, ups: [] });
+      if (t.up && !g.ups.includes(t.up)) g.ups.push(t.up);
+    });
+    return {
+      k, fds, noPeriodo, parado, marca, grupos, feriado: cfg.feriados.includes(k), trabalhoFds: fds && trab.length > 0,
+      primeira: grupos.find(g => !g.desloc) || grupos[0],
+      tempo: [...new Set(grupos.map(g => g.fazenda))].map(nome => climaNoDia(nome, k)).filter(Boolean)
+    };
+  }
   function renderCalendario(r) {
     if (!r.termino) { $('#p-meses').innerHTML = '<p class="vazio">Nada para programar.</p>'; return; }
-    const ini = r.entrada, fim = r.termino;
-    const meses = [];
-    for (let m = new Date(ini.getFullYear(), ini.getMonth(), 1, 12); m <= fim; m = new Date(m.getFullYear(), m.getMonth() + 1, 1, 12)) meses.push(m);
-    const SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    $('#p-meses').innerHTML = meses.map(m => {
+    $('#p-meses').innerHTML = mesesDoPeriodo(r).map(m => {
       const ultimo = new Date(m.getFullYear(), m.getMonth() + 1, 0, 12).getDate();
       let cel = '';
       for (let i = 0; i < m.getDay(); i++) cel += '<div class="p-dia vazio" aria-hidden="true"></div>';
       for (let dd = 1; dd <= ultimo; dd++) {
-        const d = new Date(m.getFullYear(), m.getMonth(), dd, 12), k = paraISO(d);
-        const noPeriodo = d >= ini && d <= fim;
-        const trab = r.porDia.get(k) || [];
-        const fds = d.getDay() === 0 || d.getDay() === 6;
-        const parado = noPeriodo && !diaTrabalhado(d);
-        const marca = paraISO(ini) === k ? 'entrada' : paraISO(fim) === k ? 'termino' : '';
-        // agrupa por fazenda + atividade: "Fazenda · UP1, UP2 · atividade"; deslocamento aparece à parte
-        const grupos = [];
-        trab.forEach(t => {
-          const chave = t.desloc ? `desloc|${t.fazenda}` : `${t.fazenda}|${t.atividade}`;
-          let g = grupos.find(x => x.chave === chave);
-          if (!g) grupos.push(g = { chave, desloc: t.desloc, de: t.de, fazenda: t.fazenda, atividade: t.atividade, cor: t.cor, ups: [] });
-          if (t.up && !g.ups.includes(t.up)) g.ups.push(t.up);
-        });
-        const trabalhoFds = fds && trab.length;
-        const primeira = grupos.find(g => !g.desloc) || grupos[0];
-        const tempoDia = [...new Set(grupos.map(g => g.fazenda))].map(nome => climaNoDia(nome, k)).filter(Boolean);
-        cel += `<div class="p-dia ${noPeriodo ? '' : 'fora'} ${parado ? 'parado' : ''} ${fds ? 'fds' : ''} ${trabalhoFds ? 'fds-trab' : ''} ${marca}" ${primeira ? `style="--c:${primeira.cor}"` : ''}>
-          <span class="p-dia-n">${dd}${marca ? `<em>${marca === 'entrada' ? 'Entrada' : 'Término'}</em>` : ''}${trabalhoFds ? '<i class="p-fds-tag" title="Fim de semana trabalhado">FDS</i>' : ''}${tempoDia.map(c => `<span class="p-dia-clima ${c.nivel} ${c.estendido ? 'estendido' : ''}" title="${escapar(c.titulo)}"><i>${c.ic}</i><b>${c.tmax}°</b><small>💧${c.chuva}</small>${c.nivel ? '<em>⚠</em>' : ''}</span>`).join('')}</span>
-          ${parado ? `<span class="p-dia-sem">${cfg.feriados.includes(k) ? 'Feriado' : 'Sem trabalho'}</span>` : ''}
-          ${grupos.map(g => g.desloc
+        const x = diaDoCalendario(r, new Date(m.getFullYear(), m.getMonth(), dd, 12));
+        cel += `<div class="p-dia ${x.noPeriodo ? '' : 'fora'} ${x.parado ? 'parado' : ''} ${x.fds ? 'fds' : ''} ${x.trabalhoFds ? 'fds-trab' : ''} ${x.marca}" ${x.primeira ? `style="--c:${x.primeira.cor}"` : ''}>
+          <span class="p-dia-n">${dd}${x.marca ? `<em>${x.marca === 'entrada' ? 'Entrada' : 'Término'}</em>` : ''}${x.trabalhoFds ? '<i class="p-fds-tag" title="Fim de semana trabalhado">FDS</i>' : ''}${x.tempo.map(c => `<span class="p-dia-clima ${c.nivel} ${c.estendido ? 'estendido' : ''}" title="${escapar(c.titulo)}"><i>${c.ic}</i><b>${c.tmax}°</b><small>💧${c.chuva}</small>${c.nivel ? '<em>⚠</em>' : ''}</span>`).join('')}</span>
+          ${x.parado ? `<span class="p-dia-sem">${x.feriado ? 'Feriado' : 'Sem trabalho'}</span>` : ''}
+          ${x.grupos.map(g => g.desloc
             ? `<span class="p-dia-desloc" title="Deslocamento ${escapar(g.de)} → ${escapar(g.fazenda)}">🚚 Deslocamento<small>→ ${escapar(g.fazenda)}</small></span>`
             : `<span class="p-dia-faz" style="--c:${g.cor}"><b>${escapar(g.fazenda)}</b>${g.ups.map(escapar).join(', ')}<em>${escapar(g.atividade)}</em></span>`).join('')}
         </div>`;
       }
       return `<article class="p-mes fat-painel glass"><h3>${MESES[m.getMonth()]} <span>${m.getFullYear()}</span></h3>
-        <div class="p-semana">${SEM.map(s => `<span>${s}</span>`).join('')}</div><div class="p-grade">${cel}</div></article>`;
+        <div class="p-semana">${SEMANA.map(x => `<span>${x}</span>`).join('')}</div><div class="p-grade">${cel}</div></article>`;
     }).join('');
+  }
+  // Calendário do PDF: tabela com blocos simples (o html2canvas desalinha flex e "pílulas" com texto)
+  function calendarioPDF(r, m) {
+    const ultimo = new Date(m.getFullYear(), m.getMonth() + 1, 0, 12).getDate();
+    const cels = Array.from({ length: m.getDay() }, () => '<td class="pc-vazio"></td>');
+    for (let dd = 1; dd <= ultimo; dd++) {
+      const x = diaDoCalendario(r, new Date(m.getFullYear(), m.getMonth(), dd, 12));
+      cels.push(`<td class="pc-dia ${x.noPeriodo ? '' : 'pc-fora'} ${x.parado ? 'pc-parado' : ''} ${x.marca ? `pc-${x.marca}` : ''}">
+        <div class="pc-topo"><b>${dd}</b>${x.marca ? `<span class="pc-marca">${x.marca === 'entrada' ? 'ENTRADA' : 'TÉRMINO'}</span>` : ''}${x.trabalhoFds ? '<span class="pc-fds">FDS</span>' : ''}</div>
+        ${x.tempo.map(c => `<div class="pc-clima ${c.nivel} ${c.estendido ? 'estendido' : ''}">${c.ic} ${c.tmax}° · 💧 ${c.chuva} mm${c.nivel ? ' <b>⚠</b>' : ''}</div>`).join('')}
+        ${x.parado ? `<div class="pc-sem">${x.feriado ? 'Feriado' : 'Sem trabalho'}</div>` : ''}
+        ${x.grupos.map(g => g.desloc
+          ? `<div class="pc-desloc">🚚 Deslocamento → ${escapar(g.fazenda)}</div>`
+          : `<div class="pc-faz" style="--c:${g.cor}"><b>${escapar(g.fazenda)}</b><div>${g.ups.map(escapar).join(', ')}</div><div class="pc-ativ">${escapar(g.atividade)}</div></div>`).join('')}
+      </td>`);
+    }
+    while (cels.length % 7) cels.push('<td class="pc-vazio"></td>');
+    const semanas = [];
+    for (let i = 0; i < cels.length; i += 7) semanas.push(`<tr>${cels.slice(i, i + 7).join('')}</tr>`);
+    return `<h2 class="pc-mes">${MESES[m.getMonth()]} ${m.getFullYear()}</h2>
+      <table class="pc-cal"><thead><tr>${SEMANA.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${semanas.join('')}</tbody></table>`;
   }
 
   function renderCabecalhoPDF(r, sup) {
@@ -739,23 +767,29 @@
     const un = unidadeDose(dose).replace(/\s*\/\s*ha$/i, '');
     return { texto: `${fmt2(n * area)}${un ? ` ${un}` : ''}`, valor: n * area, un };
   }
+  const peso = (p, html) => ({ p, html });
+  const doseHa = d => (!d ? '—' : /\/\s*ha/i.test(d) ? d : `${d} por ha`);
+  // Linha logo abaixo da UP: insumo · dose por ha · quantidade (dose × área da UP)
+  function linhaInsumos(i, variosRF) {
+    if (!i.insumos?.length) return '';
+    return `<tr class="t-ins" style="--c:${i.cor}"><td></td><td colspan="${variosRF ? 10 : 9}">${i.insumos.map(x => `<span class="t-ins-it">🧪 <b>${escapar(x.nome)}</b> · dose ${escapar(doseHa(x.dose))} · quantidade <b class="t-ins-qtd">${quantidade(x.dose, i.area).texto}</b></span>`).join('')}</td></tr>`;
+  }
   function linhasTabelaPDF(r) {
     const variosRF = new Set(r.itens.map(i => i.rf)).size > 1;
     const cab = `<thead><tr><th class="c-ord">Ordem</th>${variosRF ? '<th class="c-rf">RF</th>' : ''}<th class="c-faz">Fazenda</th><th class="c-up">UP</th><th class="c-ativ">Atividade</th><th class="c-num c-area">Área (ha)</th><th class="c-num c-tar">Tarifa (R$/ha)</th><th class="c-num c-fat">Faturamento</th><th class="c-data">Início</th><th class="c-data">Término</th><th class="c-num c-dias">Dias</th></tr></thead>`;
-    const vazio = variosRF ? '<td></td>' : '';
     const linhas = [];
     r.faz.forEach(f => {
       const desl = r.linhas.find(l => l.tipo === 'desloc' && l.para === f.nome);
-      if (desl) linhas.push(`<tr class="t-desloc" style="--c:${f.cor}"><td colspan="${variosRF ? 7 : 6}">🚚 Deslocamento: ${escapar(desl.de)} → ${escapar(desl.para)}</td><td class="c-data">${br(desl.inicio)}</td><td class="c-data">${br(desl.fim)}</td><td class="c-num">${fmt1(desl.dias)}</td></tr>`);
+      if (desl) linhas.push(peso(1, `<tr class="t-desloc" style="--c:${f.cor}"><td colspan="${variosRF ? 7 : 6}">🚚 Deslocamento: ${escapar(desl.de)} → ${escapar(desl.para)}</td><td class="c-data">${br(desl.inicio)}</td><td class="c-data">${br(desl.fim)}</td><td class="c-num">${fmt1(desl.dias)}</td></tr>`));
       const its = r.itens.filter(i => i.fazenda === f.nome);
-      its.forEach(i => linhas.push(`<tr style="--c:${i.cor}"><td class="c-ord"><b>${ord(i.ordem)}</b></td>${variosRF ? `<td>${escapar(i.rf)}</td>` : ''}<td>${escapar(i.fazenda)}</td><td><b>${escapar(i.up)}</b></td><td class="c-ativ">${escapar(i.atividade)}</td>
-        <td class="c-num">${fmtHa(i.area)}</td><td class="c-num">${brl(i.tarifa)}</td><td class="c-num"><b>${brl(i.fat)}</b></td><td class="c-data">${br(i.inicio)}</td><td class="c-data">${br(i.fim)}</td><td class="c-num">${fmt1(i.dias)}</td></tr>`));
-      linhas.push(`<tr class="t-sub" style="--c:${f.cor}"><td colspan="${variosRF ? 5 : 4}">Subtotal · ${escapar(f.nome)}</td><td class="c-num">${fmtHa(its.reduce((s, i) => s + i.area, 0))}</td><td></td><td class="c-num">${brl(its.reduce((s, i) => s + i.fat, 0))}</td><td class="c-data">${br(its[0].inicio)}</td><td class="c-data">${br(its.at(-1).fim)}</td><td class="c-num">${fmt1(its.reduce((s, i) => s + i.dias, 0))}</td></tr>`);
+      its.forEach(i => linhas.push(peso(1 + (i.insumos?.length ? 0.6 : 0), `<tr style="--c:${i.cor}"><td class="c-ord"><b>${ord(i.ordem)}</b></td>${variosRF ? `<td>${escapar(i.rf)}</td>` : ''}<td>${escapar(i.fazenda)}</td><td><b>${escapar(i.up)}</b></td><td class="c-ativ">${escapar(i.atividade)}</td>
+        <td class="c-num">${fmtHa(i.area)}</td><td class="c-num">${brl(i.tarifa)}</td><td class="c-num"><b>${brl(i.fat)}</b></td><td class="c-data">${br(i.inicio)}</td><td class="c-data">${br(i.fim)}</td><td class="c-num">${fmt1(i.dias)}</td></tr>${linhaInsumos(i, variosRF)}`)));
+      linhas.push(peso(1, `<tr class="t-sub" style="--c:${f.cor}"><td colspan="${variosRF ? 5 : 4}">Subtotal · ${escapar(f.nome)}</td><td class="c-num">${fmtHa(its.reduce((s, i) => s + i.area, 0))}</td><td></td><td class="c-num">${brl(its.reduce((s, i) => s + i.fat, 0))}</td><td class="c-data">${br(its[0].inicio)}</td><td class="c-data">${br(its.at(-1).fim)}</td><td class="c-num">${fmt1(its.reduce((s, i) => s + i.dias, 0))}</td></tr>`));
     });
-    linhas.push(`<tr class="t-total"><td colspan="${variosRF ? 5 : 4}">Total geral${r.diasDesloc ? ` (inclui ${r.diasDesloc} dia(s) de deslocamento)` : ''}</td><td class="c-num">${fmtHa(r.area)}</td><td></td><td class="c-num">${brl(r.faturamento)}</td><td class="c-data">${br(r.inicioReal)}</td><td class="c-data">${br(r.termino)}</td><td class="c-num">${fmt1(r.diasProducao + r.diasDesloc)}</td></tr>`);
-    return { cab, linhas, vazio };
+    linhas.push(peso(1, `<tr class="t-total"><td colspan="${variosRF ? 5 : 4}">Total geral${r.diasDesloc ? ` (inclui ${r.diasDesloc} dia(s) de deslocamento)` : ''}</td><td class="c-num">${fmtHa(r.area)}</td><td></td><td class="c-num">${brl(r.faturamento)}</td><td class="c-data">${br(r.inicioReal)}</td><td class="c-data">${br(r.termino)}</td><td class="c-num">${fmt1(r.diasProducao + r.diasDesloc)}</td></tr>`));
+    return { cab, linhas };
   }
-  // Insumos: resumo por produto (quantidade total) e detalhe por UP (dose × área)
+  // Insumos: resumo por produto (quantidade total); o detalhe de cada UP vai na própria tabela da programação
   function paginasInsumosPDF(r, cabCurto) {
     const comInsumo = r.itens.filter(i => i.insumos?.length);
     if (!comInsumo.length) return [];
@@ -768,16 +802,7 @@
     const resumo = `<table class="p-pdf-tab p-pdf-ins"><thead><tr><th>Insumo</th><th class="c-num">Dose (por ha)</th><th class="c-num">Área (ha)</th><th class="c-num">Quantidade total</th><th class="c-num">UPs</th><th>Período</th></tr></thead><tbody>${[...porProduto.values()].map(g => `
       <tr><td class="c-quebra"><b>${escapar(g.nome)}</b></td><td class="c-num">${escapar(g.dose || '—')}</td><td class="c-num">${fmtHa(g.area)}</td><td class="c-num c-qtd">${quantidade(g.dose, g.area).texto}</td><td class="c-num">${g.ups.length}</td><td>${br(g.ini)} a ${br(g.fim)}</td></tr>`).join('')}</tbody></table>
       <p class="p-pdf-nota">Quantidade total = dose por hectare × área das UPs. Unidade da dose como está na planilha.</p>`;
-    const linhas = comInsumo.map(i => i.insumos.map((x, k) => `<tr style="--c:${i.cor}">${k ? '' : `<td rowspan="${i.insumos.length}" class="c-ord"><b>${ord(i.ordem)}</b></td><td rowspan="${i.insumos.length}">${escapar(i.fazenda)}</td><td rowspan="${i.insumos.length}"><b>${escapar(i.up)}</b></td><td rowspan="${i.insumos.length}" class="c-num">${fmtHa(i.area)}</td>`}
-      <td class="c-quebra">${escapar(x.nome)}</td><td class="c-num">${escapar(x.dose || '—')}</td><td class="c-num c-qtd">${quantidade(x.dose, i.area).texto}</td>${k ? '' : `<td rowspan="${i.insumos.length}" class="c-data">${br(i.inicio)}</td>`}</tr>`).join(''));
-    const cab = '<thead><tr><th class="c-ord">Ordem</th><th class="c-faz">Fazenda</th><th class="c-up">UP</th><th class="c-num">Área (ha)</th><th class="c-ins">Insumo</th><th class="c-num">Dose (por ha)</th><th class="c-num">Quantidade</th><th class="c-data">Início</th></tr></thead>';
-    const pags = [], POR = 16, partes = Math.ceil(linhas.length / POR);
-    for (let p = 0; p < partes; p++) {
-      pags.push(`${cabCurto}${p ? '' : `<h2 class="p-pdf-tit">Insumos e doses · resumo por produto</h2>${resumo}`}
-        <h2 class="p-pdf-tit">Insumos e doses por UP${partes > 1 ? ` <small>(${p + 1}/${partes})</small>` : ''}</h2>
-        <table class="p-pdf-tab p-pdf-ins-up">${cab}<tbody>${linhas.slice(p * POR, (p + 1) * POR).join('')}</tbody></table>`);
-    }
-    return pags;
+    return [`${cabCurto}<h2 class="p-pdf-tit">Insumos e doses · resumo por produto</h2>${resumo}`];
   }
 
   function paginasPDF() {
@@ -788,14 +813,14 @@
       <div class="p-cards">${$('#p-cards').innerHTML}</div>
       <h2 class="p-pdf-tit">Equipes programadas</h2>${$('#p-tab-equipes').innerHTML}`];
     const { cab, linhas } = linhasTabelaPDF(r);
-    const POR_PAGINA = 18;
-    for (let i = 0; i < linhas.length; i += POR_PAGINA) {
-      pags.push(`${cabCurto}<h2 class="p-pdf-tit">Tabela da programação${linhas.length > POR_PAGINA ? ` <small>(${Math.floor(i / POR_PAGINA) + 1}/${Math.ceil(linhas.length / POR_PAGINA)})</small>` : ''}</h2>
-        <table class="p-pdf-tab">${cab}<tbody>${linhas.slice(i, i + POR_PAGINA).join('')}</tbody></table>`);
-    }
+    const CABE = 18, partes = [[]];   // cabem ~18 linhas de UP por página; a linha do insumo conta 0,6
+    let usado = 0;
+    linhas.forEach(l => { if (usado + l.p > CABE && partes.at(-1).length) { partes.push([]); usado = 0; } partes.at(-1).push(l.html); usado += l.p; });
+    partes.forEach((p, i) => pags.push(`${cabCurto}<h2 class="p-pdf-tit">Tabela da programação${partes.length > 1 ? ` <small>(${i + 1}/${partes.length})</small>` : ''}</h2>
+        <table class="p-pdf-tab">${cab}<tbody>${p.join('')}</tbody></table>`));
     pags.push(...paginasInsumosPDF(r, cabCurto));
     if ($('#p-clima .p-cl-faz')) pags.push(`${cabCurto}<div class="p-clima">${$('#p-clima').innerHTML}</div>`);
-    $$('#p-meses .p-mes').forEach(m => pags.push(`${cabCurto}<div class="p-legenda">${$('#p-legenda').innerHTML}</div><article class="p-mes">${m.innerHTML}</article>`));
+    if (r.termino) mesesDoPeriodo(r).forEach(m => pags.push(`${cabCurto}<div class="p-legenda">${$('#p-legenda').innerHTML}</div>${calendarioPDF(r, m)}`));
     return pags;
   }
   async function gerarPDF() {
