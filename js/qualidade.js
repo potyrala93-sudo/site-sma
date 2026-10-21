@@ -538,16 +538,24 @@
   function linhasProjecao() {
     const n120 = notas120();
     const doMes = estado.ups.filter(l => { const m = mesDaLinha(l); return m && m.mes === estado.mes && m.ano === estado.ano; });
+    // Projeção de cada UP sem 120 dias: a média das avaliações dela mesma (45, 60, 90 dias…; cada monitoramento
+    // pesa igual, com a média dos avaliadores). Só a UP sem nenhuma avaliação usa a média do mês (ou a geral).
+    const porUP = new Map();
+    estado.avaliacoes.filter(a => a.notaFinal != null && !/^120/.test(a.mon)).forEach(a => {
+      const m = porUP.get(a.up) || porUP.set(a.up, new Map()).get(a.up);
+      (m.get(a.mon) || m.set(a.mon, []).get(a.mon)).push(a.notaFinal);
+    });
+    const mediaDaUP = up => { const m = porUP.get(up); return m ? { nota: media([...m.values()].map(media)), mons: [...m.keys()] } : null; };
     const avaliadas = doMes.map(l => n120.get(l.UP)).filter(Boolean);
-    let mediaProj = media(avaliadas.map(a => a.notaFinal)), origemProj = 'Projetada – média';
-    if (mediaProj == null) { mediaProj = media([...n120.values()].map(a => a.notaFinal)); origemProj = 'Projetada – média geral'; }
+    let mediaMes = media(avaliadas.map(a => a.notaFinal)), origemMes = 'Projetada – média do mês';
+    if (mediaMes == null) { mediaMes = media([...n120.values()].map(a => a.notaFinal)); origemMes = 'Projetada – média geral'; }
     return doMes.map(l => {
-      const av = n120.get(l.UP), manual = lerManual(l.UP);
-      const auto = av ? av.notaFinal : mediaProj;
+      const av = n120.get(l.UP), manual = lerManual(l.UP), propria = av ? null : mediaDaUP(l.UP);
+      const auto = av ? av.notaFinal : propria?.nota ?? mediaMes;
       return {
         up: l.UP, idade: valor(l.IDADE), fazenda: limparNome(l.FAZENDA), plantio: l.PLANTIO, area: valor(l.AREA) ?? 0, material: l.MATERIAL,
         auto, avaliacao: av, nota: manual ?? auto,
-        origem: manual != null ? 'Manual' : av ? 'Avaliada' : origemProj
+        origem: manual != null ? 'Manual' : av ? 'Avaliada' : propria ? `Projetada – média da UP (${propria.mons.join(', ')})` : origemMes
       };
     });
   }
