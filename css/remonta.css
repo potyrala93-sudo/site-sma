@@ -144,3 +144,45 @@
 .rm-remontas button.ativo { color: #04201a; background: var(--eucalipto-claro); border-color: var(--eucalipto-claro); }
 .rm-remontas button[data-r="todas"] { border-style: dashed; }
 .rm-remontas small { flex-basis: 100%; font-size: .76rem; color: var(--texto-suave); }
+
+/* ---------- Ordenar pelo cabeçalho ---------- */
+.rm-ordenavel button { display: inline-flex; align-items: center; gap: .25rem; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; text-align: inherit; cursor: pointer; }
+.rm-ordenavel button i { font-style: normal; font-size: .62rem; opacity: .45; }
+.rm-ordenavel.ativo button { color: var(--texto-forte); }
+.rm-ordenavel.ativo button i { opacity: 1; color: var(--eucalipto-claro); }
+.rm-ordenavel button:hover { color: var(--texto-forte); }
+.rm-sel { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 12px; border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .6); }
+.rm-sel svg { width: 15px; height: 15px; color: var(--eucalipto-claro); }
+.rm-sel select { border: 0; outline: 0; background: none; color: var(--texto-forte); font: inherit; font-size: .82rem; font-weight: 700; }
+.rm-sel select option { background: var(--bg); color: var(--texto); }
+
+/* ---------- Quem faz: Barrão ou Drone ---------- */
+.rm-met { display: inline-flex; gap: 3px; padding: 2px; border-radius: 10px; border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .5); }
+.rm-met button { display: inline-flex; align-items: center; gap: .25rem; padding: .25rem .45rem; border-radius: 8px; font-size: .72rem; font-weight: 800; color: var(--texto-suave); }
+.rm-met button svg { width: 13px; height: 13px; }
+.rm-met button:hover { color: var(--texto-forte); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.rm-met button.ativo { color: #1a0d00; background: var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 55%, transparent); }
+
+/* ---------- Tabelas de Barrão e Drone ---------- */
+.rm-metodos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+.rm-met-painel { padding: 1rem; border-top: 4px solid var(--c); }
+.rm-met-topo { display: flex; align-items: center; gap: .7rem; margin-bottom: .6rem; }
+.rm-met-ic { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; color: #1a0d00; background: var(--c); box-shadow: 0 0 16px color-mix(in srgb, var(--c) 50%, transparent); }
+.rm-met-ic svg { width: 20px; height: 20px; }
+.rm-met-topo h3 { margin: 0; font-size: 1.15rem; }
+.rm-met-topo small { color: var(--texto-suave); font-size: .8rem; }
+.rm-met-topo small b { color: var(--tom-erro, #ff8a96); }
+.rm-met-faz + .rm-met-faz { margin-top: .8rem; }
+.rm-met-faz h4 { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; margin: 0 0 .35rem; font-size: .92rem; color: var(--texto-forte); }
+.rm-met-faz h4 small { font-weight: 600; font-size: .74rem; color: var(--texto-suave); }
+.rm-met-faz .rm-seq-n { width: 26px; height: 26px; font-size: .74rem; }
+.rm-tab-mini { font-size: .78rem; }
+.rm-tab-mini td { white-space: nowrap; }
+.rm-tirar { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; color: var(--texto-suave); }
+.rm-tirar:hover { color: var(--tom-erro, #ff8a96); background: rgba(255,77,94,.12); }
+.rm-tirar svg { width: 14px; height: 14px; }
+.rm-a-definir { grid-column: 1 / -1; display: flex; align-items: center; gap: .45rem; margin: 0; font-size: .84rem; color: var(--texto-suave); }
+.rm-a-definir svg { width: 16px; height: 16px; color: var(--tom-aviso, #fbbf24); }
+.rm-a-definir b { color: var(--texto-forte); }
+@media (max-width: 1100px) { .rm-metodos { grid-template-columns: 1fr; } }
+@media (max-width: 1280px) and (min-width: 761px) { .rm-tab .rm-met button span { display: none; } .rm-tab .rm-met button { padding: .3rem .4rem; } }

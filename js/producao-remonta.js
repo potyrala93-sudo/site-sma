@@ -51,7 +51,14 @@
   const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(par)); } catch { /* opcional */ } };
   const refData = () => deISO(par.ref) || dia0(new Date());
 
-  const estado = { linhas: [], calc: [], fazendas: [], visao: 'lista', busca: '', ativos: new Set(['vencida', 'hoje', 'atencao', 'prazo', 'semBase']), lido: null, carregando: false, iniciado: false };
+  // Quem faz a remonta de cada UP (Barrão ou Drone): escolhido na tabela e salvo neste navegador
+  const CHAVE_MET = 'remonta:metodo';
+  const METODOS = { barrao: { nome: 'Barrão', icone: 'tractor', cor: '#fb923c' }, drone: { nome: 'Drone', icone: 'plane', cor: '#38bdf8' } };
+  let metodos = {};
+  try { metodos = JSON.parse(localStorage.getItem(CHAVE_MET) || '{}') || {}; } catch { metodos = {}; }
+  const salvarMetodos = () => { try { localStorage.setItem(CHAVE_MET, JSON.stringify(metodos)); } catch { /* opcional */ } };
+
+  const estado = { ordem: { k: 'venc', dir: 1 }, linhas: [], calc: [], fazendas: [], visao: 'lista', busca: '', ativos: new Set(['vencida', 'hoje', 'atencao', 'prazo', 'semBase']), lido: null, carregando: false, iniciado: false };
 
   /* ---------- Leitura ---------- */
   // dd/mm/aaaa → Date; "-", vazio, "#VALUE!" e datas antes de 2000 (29/01/1900) = vazio
@@ -77,6 +84,8 @@
         id: i, fazenda: nomeFazenda(l[COL.faz]), up: String(l[COL.up] ?? '').trim().toUpperCase(), area: P.num(l[COL.area]),
         plantio: data(l[COL.plantio]), pp: data(l[COL.pp]), r: [data(l[COL.r1]), data(l[COL.r2]), data(l[COL.r3])]
       })).filter(x => x.fazenda && x.up && x.up !== '-');
+      const vistos = new Map();
+      estado.linhas.forEach(x => { const k = `${x.fazenda}|${x.up}`; const n = (vistos.get(k) || 0) + 1; vistos.set(k, n); x.chave = `${k}|${n}`; });
       estado.lido = new Date();
       $('#rm-erros').hidden = true;
       const cache = P.avisoCache?.();
@@ -141,15 +150,27 @@
 
   /* ---------- Tela ---------- */
   // Ordem cronológica: o vencimento mais próximo (ou mais atrasado) primeiro; sem vencimento vai para o fim
-  const ordenarUPs = (a, b) => (a.venc ? +a.venc : Infinity) - (b.venc ? +b.venc : Infinity) || SIT[a.sit].ordem - SIT[b.sit].ordem || a.fazenda.localeCompare(b.fazenda) || a.up.localeCompare(b.up);
+  const porVenc = (a, b) => (a.venc ? +a.venc : Infinity) - (b.venc ? +b.venc : Infinity) || SIT[a.sit].ordem - SIT[b.sit].ordem || a.fazenda.localeCompare(b.fazenda) || a.up.localeCompare(b.up);
+  const ORDENS = {
+    venc: porVenc,
+    sit: (a, b) => SIT[a.sit].ordem - SIT[b.sit].ordem || porVenc(a, b),
+    area: (a, b) => a.area - b.area || porVenc(a, b),
+    up: (a, b) => a.up.localeCompare(b.up) || porVenc(a, b),
+    fazenda: (a, b) => a.fazenda.localeCompare(b.fazenda, 'pt-BR') || porVenc(a, b),
+    remonta: (a, b) => (a.prox ?? 9) - (b.prox ?? 9) || porVenc(a, b),
+    met: (a, b) => (metodos[a.chave] || 'z').localeCompare(metodos[b.chave] || 'z') || porVenc(a, b)
+  };
+  const ordenarUPs = (a, b) => (ORDENS[estado.ordem.k] || porVenc)(a, b) * estado.ordem.dir;
   const passaBusca = u => { const t = semAcento(estado.busca).toUpperCase().trim(); return !t || semAcento(`${u.fazenda} ${u.up}`).toUpperCase().includes(t); };
-  const visivel = u => estado.ativos.has(u.sit) && passaBusca(u);
+  const visivelSemMetodo = u => estado.ativos.has(u.sit) && passaBusca(u);
+  const passaMetodo = u => !estado.metodo || (estado.metodo === 'nenhum' ? !metodos[u.chave] : metodos[u.chave] === estado.metodo);
+  const visivel = u => visivelSemMetodo(u) && passaMetodo(u);
 
   function render() {
     const ref = refData();
     $('#rm-ref-txt').textContent = dmy(ref) + (par.ref ? '' : ' (hoje)');
     $('#rm-lido').textContent = estado.lido ? estado.lido.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-    renderParam(); renderRemontas(); renderCards(); renderProgramar(); renderLista();
+    renderParam(); renderRemontas(); renderCards(); renderProgramar(); renderFiltroSit(); renderLista(); renderMetodos();
     icones();
   }
   function renderRemontas() {
@@ -209,9 +230,17 @@
       <td data-rotulo="Remonta 1">${celulaR(u, 0)}</td><td data-rotulo="Remonta 2">${celulaR(u, 1)}</td><td data-rotulo="Remonta 3">${celulaR(u, 2)}</td>
       <td data-rotulo="Próxima remonta">${u.venc ? `<b class="rm-prox-nome">${nomeRemonta(u.prox)}</b>` : '<span class="rm-nada">—</span>'}</td>
       <td data-rotulo="Situação" class="rm-sit-cel"><span class="rm-selo" style="--c:${s.cor}">${s.nome}</span> <small class="rm-sit-txt">${textoSituacao(u)}</small></td>
+      <td data-rotulo="Quem faz">${botoesMetodo(u)}</td>
     </tr>`;
   }
-  const cabecalho = comFazenda => `<thead><tr><th class="rm-n" title="Ordem de vencimento">Nº</th>${comFazenda ? '<th>Fazenda</th>' : ''}<th>UP</th><th class="num">Área (ha)</th><th>Pós + Pré emergente</th><th>Remonta 1</th><th>Remonta 2</th><th>Remonta 3</th><th>Próxima remonta</th><th>Situação</th></tr></thead>`;
+  // Cabeçalho: clicar ordena (de novo inverte); a seta mostra a coluna em uso
+  const th = (k, rot, cls = '') => { const at = estado.ordem.k === k; return `<th class="${cls} rm-ordenavel ${at ? 'ativo' : ''}" aria-sort="${at ? (estado.ordem.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-ordem="${k}" title="Ordenar por ${rot.replace(/<[^>]+>/g, '')}">${rot}<i>${at ? (estado.ordem.dir > 0 ? '▲' : '▼') : '↕'}</i></button></th>`; };
+  const cabecalho = comFazenda => `<thead><tr><th class="rm-n" title="Posição na ordem atual">Nº</th>${comFazenda ? th('fazenda', 'Fazenda') : ''}${th('up', 'UP')}${th('area', 'Área (ha)', 'num')}<th>Pós + Pré emergente</th><th>Remonta 1</th><th>Remonta 2</th><th>Remonta 3</th>${th('remonta', 'Próxima remonta')}${th('sit', 'Situação')}${th('met', 'Quem faz')}</tr></thead>`;
+  function botoesMetodo(u) {
+    const m = metodos[u.chave];
+    return `<div class="rm-met" role="group" aria-label="Quem faz a remonta da UP ${esc(u.up)}">${Object.entries(METODOS).map(([k, x]) => `<button type="button" data-met="${k}" data-chave="${esc(u.chave)}" aria-pressed="${m === k}" class="${m === k ? 'ativo' : ''}" style="--c:${x.cor}" title="${m === k ? 'Clique de novo para tirar' : `Marcar: ${x.nome}`}"><i data-lucide="${x.icone}"></i><span>${x.nome}</span></button>`).join('')}</div>`;
+  }
+
   const tabela = (ups, comFazenda) => `<table class="q-tab rm-tab ${comFazenda ? 'com-fazenda' : ''}">${cabecalho(comFazenda)}<tbody>${ups.map((u, i) => linhaUP(u, comFazenda, i + 1)).join('')}</tbody></table>`;
   const legenda = '<p class="rm-legenda"><span><span class="rm-feita">✓ 01/10/26</span> aplicada</span><span><span class="rm-proxima" style="--c:#fbbf24">01/10/26</span> próxima a vencer</span><span><span class="rm-prev">prev. 01/10/26</span> prevista</span><span><span class="rm-atencao">⚠</span> data a conferir na planilha (passe o mouse)</span></p>';
 
@@ -257,6 +286,36 @@
     }).join('');
   }
 
+  // Filtro de situação na própria tabela (anda junto com os cartões)
+  function renderFiltroSit() {
+    const sel = $('#rm-f-sit'), um = estado.ativos.size === 1 ? [...estado.ativos][0] : '';
+    sel.innerHTML = `<option value="">Todas as situações</option>${CARDS.map(k => `<option value="${k}" ${um === k ? 'selected' : ''}>${SIT[k].nome} (${estado.calc.filter(u => u.sit === k).length})</option>`).join('')}${!um && estado.ativos.size !== CARDS.length ? '<option value="mix" selected>Escolhidas nos cartões</option>' : ''}`;
+    $('#rm-f-met').value = estado.metodo || '';
+  }
+
+  // Tabelas de Barrão e de Drone: UPs marcadas, agrupadas por fazenda na ordem de prioridade
+  function renderMetodos() {
+    const el = $('#rm-metodos'); if (!el) return;
+    const semMarca = estado.calc.filter(u => visivelSemMetodo(u) && !metodos[u.chave]);
+    el.innerHTML = Object.entries(METODOS).map(([k, x]) => {
+      const ups = estado.calc.filter(u => metodos[u.chave] === k && visivelSemMetodo(u));
+      const porFaz = new Map(); ups.forEach(u => (porFaz.get(u.fazenda) || porFaz.set(u.fazenda, []).get(u.fazenda)).push(u));
+      const fazendas = ordemFazendas([...porFaz.entries()].map(([nome, l]) => ({ nome, vis: l.sort(ordenarUPs) })));
+      const total = ups.reduce((t, u) => t + u.area, 0), urg = ups.filter(u => URGENTES.has(u.sit));
+      return `<article class="rm-met-painel fat-painel glass" style="--c:${x.cor}">
+        <header class="rm-met-topo"><span class="rm-met-ic"><i data-lucide="${x.icone}"></i></span><div><h3>${x.nome}</h3><small>${ups.length} UP${ups.length === 1 ? '' : 's'} · ${mono(ha(total))} ha${urg.length ? ` · <b>${urg.length} urgente${urg.length > 1 ? 's' : ''}</b>` : ''}</small></div></header>
+        ${fazendas.length ? fazendas.map((f, i) => `<section class="rm-met-faz">
+          <h4><span class="rm-seq-n" style="background:${SIT[f.vis[0].sit].cor}">${i + 1}º</span>${esc(f.nome)}<small>${f.vis.length} UP${f.vis.length > 1 ? 's' : ''} · ${mono(ha(f.vis.reduce((t, u) => t + u.area, 0)))} ha</small></h4>
+          <table class="q-tab rm-tab rm-tab-mini"><thead><tr><th>UP</th><th class="num">Área (ha)</th><th>Remonta</th><th>Vencimento</th><th>Situação</th><th></th></tr></thead><tbody>${f.vis.map(u => `<tr style="--c:${SIT[u.sit].cor}">
+            <td data-rotulo="UP"><span class="q-up">${esc(u.up)}</span>${atencao(u)}</td><td data-rotulo="Área (ha)" class="num">${mono(ha(u.area))}</td>
+            <td data-rotulo="Remonta">${u.prox != null ? nomeRemonta(u.prox) : '—'}</td><td data-rotulo="Vencimento">${u.venc ? `<span class="rm-proxima" style="--c:${SIT[u.sit].cor}">${mono(dmy(u.venc))}</span>` : '—'}</td>
+            <td data-rotulo="Situação"><span class="rm-selo" style="--c:${SIT[u.sit].cor}">${SIT[u.sit].nome}</span> <small class="rm-sit-txt">${textoSituacao(u)}</small></td>
+            <td><button type="button" class="rm-tirar" data-met="${k}" data-chave="${esc(u.chave)}" title="Tirar desta tabela" aria-label="Tirar a UP ${esc(u.up)} da tabela ${x.nome}"><i data-lucide="x"></i></button></td></tr>`).join('')}</tbody></table>
+        </section>`).join('') : `<p class="rm-vazio">Nenhuma UP marcada para ${x.nome.toLowerCase()} com esses filtros. Marque na coluna "Quem faz".</p>`}
+      </article>`;
+    }).join('') + (semMarca.length ? `<p class="rm-a-definir"><i data-lucide="circle-help"></i><b>${semMarca.length}</b> UP${semMarca.length > 1 ? 's' : ''} ainda sem Barrão ou Drone (${mono(ha(semMarca.reduce((t, u) => t + u.area, 0)))} ha).</p>` : '');
+  }
+
   /* ---------- Eventos ---------- */
   $('#rm-param').addEventListener('input', e => {
     const k = e.target.name; if (!k) return;
@@ -278,10 +337,31 @@
   $('#rm-cards').addEventListener('click', e => {
     const b = e.target.closest('[data-sit]'); if (!b) return;
     const k = b.dataset.sit; estado.ativos.has(k) ? estado.ativos.delete(k) : estado.ativos.add(k);
-    renderCards(); renderLista(); icones();
+    renderCards(); renderFiltroSit(); renderLista(); renderMetodos(); icones();
   });
   let espera;
-  $('#rm-busca').addEventListener('input', e => { clearTimeout(espera); espera = setTimeout(() => { estado.busca = e.target.value; renderLista(); icones(); }, 150); });
+  // Quem faz: clicar marca; clicar de novo (ou no X das tabelas de Barrão/Drone) tira
+  aba.addEventListener('click', e => {
+    const b = e.target.closest('[data-met][data-chave]'); if (!b) return;
+    const { met, chave } = b.dataset;
+    if (metodos[chave] === met) delete metodos[chave]; else metodos[chave] = met;
+    salvarMetodos(); renderLista(); renderMetodos(); icones();
+  });
+  // Ordenar pelo cabeçalho (vale para todas as tabelas de UPs)
+  $('#rm-lista').addEventListener('click', e => {
+    const b = e.target.closest('[data-ordem]'); if (!b) return;
+    const k = b.dataset.ordem;
+    estado.ordem = estado.ordem.k === k ? { k, dir: -estado.ordem.dir } : { k, dir: 1 };
+    renderLista(); renderMetodos(); icones();
+  });
+  $('#rm-f-sit').addEventListener('change', e => {
+    const v = e.target.value; if (v === 'mix') return;
+    estado.ativos = v ? new Set([v]) : new Set(CARDS);
+    renderCards(); renderFiltroSit(); renderLista(); renderMetodos(); icones();
+  });
+  $('#rm-f-met').addEventListener('change', e => { estado.metodo = e.target.value; renderLista(); renderMetodos(); icones(); });
+
+  $('#rm-busca').addEventListener('input', e => { clearTimeout(espera); espera = setTimeout(() => { estado.busca = e.target.value; renderLista(); renderMetodos(); icones(); }, 150); });
   $('.rm-visao').addEventListener('click', e => {
     const b = e.target.closest('[data-visao]'); if (!b) return;
     estado.visao = b.dataset.visao;

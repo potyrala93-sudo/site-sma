@@ -384,6 +384,8 @@
           <div><span class="eyebrow">UPs</span><h2 class="fat-sec-titulo" id="rm-lista-tit">Remontas <span class="serif">por vencimento</span></h2></div>
           <div class="rm-ferramentas">
             <label class="p-busca rm-busca"><i data-lucide="search"></i><input type="search" id="rm-busca" placeholder="Buscar fazenda ou UP" aria-label="Buscar fazenda ou UP"></label>
+            <label class="rm-sel"><i data-lucide="filter"></i><select id="rm-f-sit" aria-label="Filtrar por situação"></select></label>
+            <label class="rm-sel"><i data-lucide="users"></i><select id="rm-f-met" aria-label="Filtrar por quem faz"><option value="">Barrão e Drone</option><option value="barrao">Só Barrão</option><option value="drone">Só Drone</option><option value="nenhum">A definir</option></select></label>
             <div class="rm-visao" role="group" aria-label="Visão">
               <button type="button" data-visao="lista" aria-pressed="true"><i data-lucide="calendar-arrow-up"></i>Ordem de vencimento</button>
               <button type="button" data-visao="fazenda" aria-pressed="false"><i data-lucide="tractor"></i>Agrupar por fazenda</button>
@@ -391,6 +393,10 @@
           </div>
         </div>
         <div id="rm-lista"></div>
+      </section>
+      <section class="container fat-secao" aria-labelledby="rm-met-tit">
+        <div class="fat-sec-head"><div><span class="eyebrow">Execução</span><h2 class="fat-sec-titulo" id="rm-met-tit">Barrão <span class="serif">e Drone</span></h2></div><p class="fat-sec-sub">Escolha na coluna "Quem faz" da tabela acima. Cada UP vai para a tabela da sua equipe, agrupada por fazenda e na ordem de prioridade. A escolha fica salva neste navegador.</p></div>
+        <div class="rm-metodos" id="rm-metodos"></div>
       </section>
     </div>
 
