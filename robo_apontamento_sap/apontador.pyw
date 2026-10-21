@@ -12,8 +12,18 @@ from __future__ import annotations
 
 import ctypes
 import os
+import subprocess
 import sys
 import threading
+from pathlib import Path
+
+# Duplo clique no .pyw abre com o Python do sistema (sem as bibliotecas do robô).
+# Nesse caso, reabre este mesmo arquivo com o Python do .venv e encerra.
+_VENV = Path(__file__).resolve().parent / ".venv"
+_PYW_VENV = _VENV / "Scripts" / "pythonw.exe"
+if _PYW_VENV.exists() and Path(sys.prefix).resolve() != _VENV.resolve():
+    subprocess.Popen([str(_PYW_VENV), str(Path(__file__).resolve())], cwd=str(_VENV.parent))
+    sys.exit(0)
 
 # Python 3.13 dentro de venv não acha o Tcl/Tk sozinho: aponta para a instalação base
 for _var, _pasta in (("TCL_LIBRARY", "tcl8.6"), ("TK_LIBRARY", "tk8.6")):
@@ -23,7 +33,6 @@ for _var, _pasta in (("TCL_LIBRARY", "tcl8.6"), ("TK_LIBRARY", "tk8.6")):
 
 import tkinter as tk
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from tkinter import messagebox, ttk
 
 BASE = Path(__file__).resolve().parent

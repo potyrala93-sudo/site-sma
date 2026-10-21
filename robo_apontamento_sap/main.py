@@ -289,11 +289,20 @@ def main(argv: list[str] | None = None) -> int:
             liberada = texto_inteiro(linha.os) in refazer
             if not liberada and any(linha.status.upper().startswith(s) for s in ignorar):
                 log.info("Linha %d já processada (%s) — ignorando.", linha.numero, linha.status)
+                relatorio.registrar(linha=linha.numero, os=texto_inteiro(linha.os),
+                                    servico=texto_inteiro(linha.servico), quantidade=linha.quantidade,
+                                    data_execucao=linha.data, status="PULADO",
+                                    mensagem=f"STATUS na planilha já é '{linha.status}'")
                 continue
             ja = historico.get(texto_inteiro(linha.os), linha.servico)
             if ja and not args.ignorar_historico and not liberada:
                 log.info("Linha %d: O.S. %s já foi apontada por este robô em %s — não aponta de novo.",
                          linha.numero, texto_inteiro(linha.os), ja["data_hora"])
+                relatorio.registrar(linha=linha.numero, os=texto_inteiro(linha.os),
+                                    servico=texto_inteiro(linha.servico), quantidade=linha.quantidade,
+                                    data_execucao=linha.data, status="PULADO",
+                                    mensagem=f"já apontada por este robô em {ja['data_hora']} "
+                                             "(se foi estornada, use 'Refazer O.S. estornadas')")
                 if not simulacao:
                     if linha.status.strip().upper() != texto_ok.upper():  # garante o "Apontado" na planilha
                         planilha.atualizar_status(linha.numero, texto_ok, texto_inteiro(linha.os), linha.servico)
