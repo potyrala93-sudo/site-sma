@@ -142,7 +142,34 @@ class SapImagem:
         return self.pasta / f"{nome}.png"
 
     def _achar(self, nome: str, timeout: float = 0, regiao=None):
-        return localizar_imagem(self._img(nome), self.conf, timeout, regiao)
+        """Procura a imagem `nome` na tela. Aceita variações: nome.png, nome__2.png,
+        nome__3.png... (o Citrix desenha ícones pequenos um pouco diferente de um dia
+        para outro). Confiança e área de busca podem ser ajustadas por imagem no config
+        (imagem.confianca e imagem.regiao_busca)."""
+        arquivos = [self._img(nome)] + sorted(self.pasta.glob(f"{nome}__*.png"))
+        conf = float((self.im.get("confianca") or {}).get(nome, self.conf))
+        if regiao is None and (self.im.get("regiao_busca") or {}).get(nome):
+            regiao = tuple(int(v) for v in self.im["regiao_busca"][nome])
+
+        def uma_vez():
+            for arq in arquivos:
+                pos = localizar_imagem(arq, conf, 0, regiao)
+                if pos:
+                    return pos
+            return None
+        if timeout <= 0:
+            return uma_vez()
+        try:
+            return esperar_ate(uma_vez, timeout, intervalo=0.3, descricao=f"imagem {nome}")
+        except TempoEsgotado:
+            return None
+
+    def _clicar(self, nome: str, cliques: int = 1, timeout: float = 10) -> tuple[int, int]:
+        pos = self._achar(nome, timeout)
+        if pos is None:
+            raise TempoEsgotado(f"imagem não encontrada na tela: {nome}")
+        self.pag.click(pos[0], pos[1], clicks=cliques, interval=0.15)
+        return pos
 
     def _esperar(self, nome: str, timeout: float | None = None, regiao=None) -> tuple[int, int]:
         pos = self._achar(nome, timeout or self.timeout, regiao)
@@ -165,6 +192,23 @@ class SapImagem:
     def checar_parada(self) -> None:
         if not self.ponto_sem_retorno:
             self.parada.verificar()
+
+    def _trazer_para_frente(self) -> None:
+        """Restaura (se minimizada), maximiza e coloca o SAP em primeiro plano."""
+        import win32con
+        import win32gui
+        h = self.janela.handle
+        if win32gui.IsIconic(h):
+            win32gui.ShowWindow(h, win32con.SW_RESTORE)
+            time.sleep(1)
+        if self.im.get("maximizar", True):
+            win32gui.ShowWindow(h, win32con.SW_MAXIMIZE)
+        try:
+            self.janela.set_focus()
+        except Exception:  # noqa: BLE001 — o Windows às vezes nega o foco; tenta pelo Alt
+            self.pag.press("alt")
+            win32gui.SetForegroundWindow(h)
+        time.sleep(0.8)
 
     def _focar(self) -> None:
         if self.janela is not None:
@@ -314,7 +358,20 @@ class SapImagem:
                 return w
         return candidatas[0] if candidatas else None
 
+    def _tirar_mouse_do_canto(self) -> None:
+        """Mouse num canto aciona o freio de emergência do pyautogui. Se ele já estiver
+        num canto ANTES de o robô começar, leva para o centro (o freio continua valendo)."""
+        x, y = self.pag.position()
+        larg, alt = self.pag.size()
+        if x <= 0 or y <= 0 or x >= larg - 1 or y >= alt - 1:
+            self.pag.FAILSAFE = False
+            try:
+                self.pag.moveTo(larg // 2, alt // 2)
+            finally:
+                self.pag.FAILSAFE = True
+
     def conectar(self) -> None:
+        self._tirar_mouse_do_canto()
         janela = self._achar_janela_sap()
         if janela is None:
             exe = self.cfg["sap"].get("saplogon_exe")
@@ -323,11 +380,11 @@ class SapImagem:
             log.warning(">>> Abra o SAP (Citrix), faça LOGIN e deixe na tela SAP Easy Access. Aguardando...")
             janela = esperar_ate(self._achar_janela_sap, float(self.cfg["sap"].get("timeout_login", 300)),
                                  intervalo=2, descricao="janela do SAP")
-        janela.set_focus()
-        if self.im.get("maximizar", True):
-            janela.maximize()
         self.janela = janela
-        self._esperar("icone_enter", 10)
+        self._trazer_para_frente()
+        # O Citrix leva alguns segundos para redesenhar uma janela que estava minimizada
+        if self._achar("icone_enter", float(self.im.get("timeout_abrir_janela", 30))) is None:
+            raise TempoEsgotado("o SAP não apareceu na tela (está aberto e logado? alguma janela por cima?)")
         log.info("SAP em foco: '%s' (modo imagem).", janela.window_text())
 
     def na_tela_selecao(self) -> bool:
@@ -343,7 +400,7 @@ class SapImagem:
             return
         log.warning("/n%s não abriu a tela; tentando o favorito.", self.transacao)
         self._comando("/n")
-        clicar_imagem(self._img("favorito_zflpp005"), self.conf, cliques=2, timeout=10)
+        self._clicar("favorito_zflpp005", cliques=2, timeout=10)
         self._esperar("tela_selecao", 15)
 
     def pesquisar_os(self, os_valor: str, data_ini: str, data_fim: str) -> None:
@@ -450,7 +507,7 @@ class SapImagem:
 
         self.checar_parada()
         self.ponto_sem_retorno = True
-        clicar_imagem(self._img("botao_check_verde"), self.conf, timeout=5)
+        self._clicar("botao_check_verde", timeout=5)
         if not self._esperar_sumir("popup_equipes_eventos"):
             raise ErroSAP("o popup não fechou após o check verde (o SAP recusou os dados?)")
         if self._erro_na_barra():
@@ -524,7 +581,7 @@ class SapImagem:
         return linha
 
     def salvar(self, linha: int, servico: Any) -> str:
-        clicar_imagem(self._img("botao_salvar_guia"), self.conf, timeout=5)
+        self._clicar("botao_salvar_guia", timeout=5)
         timeout = float(self.cfg["sap"].get("timeout_status_criado", 30))
         if not self._imagem_na_celula("status_criado", "status_reg", linha, timeout=timeout):
             extra = " (erro na barra de status)" if self._erro_na_barra() else ""

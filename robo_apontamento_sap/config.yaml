@@ -99,6 +99,11 @@ imagem:
   dx_campo_comando: 93         # do ícone verde de Enter até o campo de comando
   exigir_leitura_servico: true # false = não valida o Serviço se o Ctrl+C não funcionar
   limiar_checkbox: 12
+  timeout_abrir_janela: 30     # espera o Citrix redesenhar o SAP (ex.: estava minimizado)
+  confianca:                   # ícones pequenos variam no Citrix: exigência menor, área limitada
+    icone_enter: 0.7
+  regiao_busca:                # [esquerda, topo, largura, altura] em pixels
+    icone_enter: [0, 0, 400, 160]
   campos:
     ordem_servico:  {imagem: rotulo_ordem_servico,  dx: 192, dy: 0}
     nucleo:         {imagem: rotulo_nucleo,         dx: 192, dy: 0}
