@@ -157,7 +157,9 @@ def processar_linha(robo, linha: LinhaPlanilha, d: dict, cfg: dict, simulacao: b
     robo.pesquisar_os(d["os"], data_ini, data_fim)                       # 3.3
     idx = robo.localizar_servico(d["servico"])                            # 3.4
     if ex.get("pular_se_ja_criado", True) and robo.ja_criado(idx):
-        # Já está apontada no SAP: não aponta de novo, mas registra como apontada
+        # Já está apontada no SAP: não aponta de novo (no modo real, registra como apontada)
+        if simulacao:
+            return "PULADO", "já consta 'Criado' no SAP"
         return "OK", "já constava 'Criado' no SAP (não apontado de novo)"
     robo.apontar(idx, d["data_sap"], d["quantidade_sap"], simulacao)      # 3.5
     if d["insumos"]:                                                      # 3.5b insumos

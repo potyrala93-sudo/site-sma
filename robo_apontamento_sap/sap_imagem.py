@@ -132,6 +132,10 @@ class SapImagem:
         self.pag.PAUSE = float(self.im.get("pausa_entre_acoes", 0.15))
         self.janela = None
         self.evidencia = None  # função(etapa) que tira o print de registro (main.py liga por O.S.)
+        # Valores já digitados na tela de seleção desde que a transação foi aberta. Voltando
+        # com ESC o SAP mantém o que estava preenchido, então só redigitamos o que mudou
+        # (na prática, só a Ordem de Serviço). Zerado sempre que a transação é reaberta.
+        self._selecao: dict[str, str] = {}
 
     # ------------------------------------------------------------- utilitários
     def _img(self, nome: str) -> Path:
@@ -332,6 +336,7 @@ class SapImagem:
     def abrir_transacao(self) -> None:
         self.checar_parada()
         self._focar()
+        self._selecao = {}  # transação nova: preenche a seleção inteira na próxima O.S.
         self._comando(f"/n{self.transacao}")
         self._descartar_se_perguntar(2)
         if self._achar("tela_selecao", 10):
@@ -351,8 +356,12 @@ class SapImagem:
                    "fornecedor": s.get("fornecedor", ""), "lote_de": s.get("lote_de", "0"),
                    "lote_ate": s.get("lote_ate", "0"), "data_de": data_ini, "data_ate": data_fim,
                    "max_registros": s.get("max_registros", "1000")}
-        # Campos que já vêm preenchidos certos no SAP ficam como estão
-        campos = [c for c in valores if c in self.im["campos"] and c not in (s.get("nao_preencher") or [])]
+        # Campos que já vêm preenchidos certos no SAP ficam como estão; dos demais, só
+        # digita o que mudou desde a última O.S. (na 1ª O.S. digita todos)
+        campos = [c for c in valores if c in self.im["campos"] and c not in (s.get("nao_preencher") or [])
+                  and self._selecao.get(c) != str(valores[c])]
+        if len(campos) > 1:
+            log.info("Preenchendo a seleção: %s", ", ".join(campos))
         # Ao digitar, o SAP abre logo abaixo do campo uma lista com valores já usados,
         # que pode cobrir o rótulo do campo seguinte. Por isso localizamos todos os
         # rótulos ANTES de digitar e preenchemos de baixo para cima.
@@ -364,6 +373,7 @@ class SapImagem:
         for c in sorted(campos, key=lambda c: (-pontos[c][1], -pontos[c][0])):
             self.pag.click(*pontos[c])
             self._digitar(valores[c])
+            self._selecao[c] = str(valores[c])
         time.sleep(float(self.im.get("pausa_antes_f8", 0.8)))  # o Citrix termina de entregar as teclas
         self.pag.press("f8")
         # Resultado: aparece a grade (botão Salvar Guia) ou o ícone vermelho de erro na
