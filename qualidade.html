@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="css/qualidade.css">
   <link rel="stylesheet" href="css/ars.css">
   <link rel="stylesheet" href="css/prontuario.css">
+  <link rel="stylesheet" href="css/entrega-n1.css">
   <link rel="stylesheet" href="css/folhito.css">
   <script src="js/dados.js" defer></script>
   <script src="js/planilhas.js" defer></script>
@@ -27,6 +28,7 @@
   <script src="js/pdf.js" defer></script>
   <script src="js/clima-motor.js" defer></script>
   <script src="js/prontuario.js" defer></script>
+  <script src="js/entrega-n1.js" defer></script>
   <script src="js/ars.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
@@ -66,6 +68,7 @@
         <button type="button" role="tab" id="tab-120" aria-controls="aba-120" aria-selected="true" data-aba="120"><i data-lucide="clipboard-check"></i><span>Avaliação de 120 dias</span></button>
         <button type="button" role="tab" id="tab-ars" aria-controls="aba-ars" aria-selected="false" data-aba="ars"><i data-lucide="calendar-range"></i><span>Simulador de Janelas ARS</span></button>
         <button type="button" role="tab" id="tab-prontuario" aria-controls="aba-prontuario" aria-selected="false" data-aba="prontuario"><i data-lucide="folder-heart"></i><span>Prontuário da UP</span></button>
+        <button type="button" role="tab" id="tab-n1" aria-controls="aba-n1" aria-selected="false" data-aba="n1"><i data-lucide="list-checks"></i><span>Entrega N1</span></button>
       </div>
     </div>
 
@@ -295,6 +298,51 @@
       <div class="container"><div class="fat-erros" id="pr-avisos" role="status" hidden></div></div>
       <div id="pr-ficha" class="pr-ficha"></div>
       <div id="pr-comparacao" class="pr-comparacao" hidden></div>
+    </div>
+
+    <!-- ===== Análise de Qualidade de Entrega – N1 (js/entrega-n1.js) ===== -->
+    <div id="aba-n1" role="tabpanel" aria-labelledby="tab-n1" hidden>
+      <section class="container fat-secao n1-topo">
+        <div class="n1-envio glass" id="n1-envio">
+          <div class="n1-envio-txt">
+            <span class="eyebrow">Arquivos do RF e das bases de qualidade</span>
+            <h2 class="fat-sec-titulo">Análise de Qualidade de <span class="serif">Entrega – N1</span></h2>
+            <p>Envie a <b>Base do RF</b> e as bases de qualidade (Qualidade de Muda, Plantio, Preparo de Solo Conjugado, Convencional e Manual, Herbicida, Formiga e Seleção de Brotos). Os arquivos são lidos só neste navegador e não são enviados para nenhum servidor.</p>
+          </div>
+          <label class="n1-solta" id="n1-solta">
+            <input type="file" id="n1-arquivos" accept=".xlsx,.xls,.xlsm,.csv" multiple>
+            <i data-lucide="file-up"></i><b>Arraste os arquivos Excel aqui</b><small>ou clique para escolher (pode enviar todos de uma vez)</small>
+          </label>
+          <div class="n1-arquivos" id="n1-lista-arq"></div>
+          <div class="n1-envio-acoes">
+            <button type="button" class="fat-btn fat-atualizar" id="n1-analisar" disabled><i data-lucide="play"></i><span>Analisar</span></button>
+            <button type="button" class="fat-btn" id="n1-limpar-arq" hidden><i data-lucide="trash-2"></i><span>Limpar arquivos</span></button>
+            <small id="n1-envio-status" aria-live="polite"></small>
+          </div>
+        </div>
+      </section>
+      <div class="container"><div class="fat-erros" id="n1-erros" role="alert" hidden></div></div>
+      <div id="n1-resultado" hidden>
+        <section class="container fat-secao">
+          <div class="n1-cab glass" id="n1-cab"></div>
+        </section>
+        <section class="container fat-secao" aria-label="Resumo por tipo"><div class="n1-cards" id="n1-cards"></div></section>
+        <section class="container fat-secao">
+          <div class="n1-abas" id="n1-abas" role="tablist" aria-label="Tipos de qualidade"></div>
+          <div class="n1-barra" id="n1-barra">
+            <div class="n1-seg" role="group" aria-label="Quais linhas mostrar"><button type="button" data-ver="pend" aria-pressed="true">Só pendentes</button><button type="button" data-ver="todas" aria-pressed="false">Todas</button></div>
+            <label class="p-busca n1-busca"><i data-lucide="search"></i><input type="search" id="n1-busca" placeholder="Buscar UP" aria-label="Buscar UP"></label>
+            <div class="n1-barra-dir">
+              <button type="button" class="fat-btn" id="n1-imprimir"><i data-lucide="printer"></i><span>Imprimir / Salvar PDF</span></button>
+              <button type="button" class="fat-btn" id="n1-excel"><i data-lucide="sheet"></i><span>Exportar Excel</span></button>
+            </div>
+          </div>
+          <div class="fat-painel glass n1-painel" id="n1-painel"></div>
+          <p class="n1-conferencia" id="n1-conferencia"></p>
+        </section>
+      </div>
+      <datalist id="n1-equipes-sug"></datalist>
+      <div class="n1-impressao" id="n1-impressao" aria-hidden="true"></div>
     </div>
   </main>
 

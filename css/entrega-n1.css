@@ -1,0 +1,148 @@
+/* ==========================================================================
+   SMA · Silvicultura — Qualidade · Análise de Qualidade de Entrega – N1
+   Mesmo padrão dos outros painéis; status: verde = OK, vermelho = pendente, cinza = base não enviada.
+   ========================================================================== */
+
+/* ---------- Envio dos arquivos ---------- */
+.n1-envio { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1rem 1.4rem; padding: 1.2rem 1.3rem; border-radius: var(--raio-lg); }
+.n1-envio-txt .fat-sec-titulo { margin: .2rem 0 .4rem; }
+.n1-envio-txt p { margin: 0; font-size: .9rem; color: var(--texto-suave); line-height: 1.5; }
+.n1-envio-txt b { color: var(--texto-forte); }
+.n1-solta { position: relative; display: grid; place-items: center; align-content: center; gap: .25rem; min-height: 130px; padding: 1rem; border-radius: 16px; text-align: center; cursor: pointer; border: 2px dashed rgba(61,255,168,.45); background: rgba(61,255,168,.05); transition: background .2s, border-color .2s; }
+.n1-solta:hover, .n1-solta.sobre { background: rgba(61,255,168,.12); border-color: var(--neon); }
+.n1-solta input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.n1-solta svg { width: 30px; height: 30px; color: var(--neon); }
+.n1-solta b { color: var(--texto-forte); }
+.n1-solta small { color: var(--texto-suave); font-size: .78rem; }
+.n1-arquivos { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: .45rem; }
+.n1-arquivos:empty { display: none; }
+.n1-arq { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .55rem; padding: .5rem .6rem; border-radius: 12px; border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .5); }
+.n1-arq.sem-tipo { border-color: rgba(251,191,36,.6); }
+.n1-arq > svg { width: 18px; height: 18px; color: var(--neon); }
+.n1-arq.sem-tipo > svg { color: #fbbf24; }
+.n1-arq-nome { min-width: 0; display: grid; }
+.n1-arq-nome b { font-size: .82rem; color: var(--texto-forte); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.n1-arq-nome small { font-size: .7rem; color: var(--texto-suave); }
+.n1-arq select { max-width: 190px; padding: .3rem .4rem; border-radius: 8px; border: 1px solid var(--borda); background: var(--bg); color: var(--texto-forte); font: inherit; font-size: .76rem; }
+.n1-arq-tirar { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: var(--texto-suave); }
+.n1-arq-tirar:hover { color: var(--tom-erro, #ff8a96); background: rgba(255,77,94,.12); }
+.n1-arq-tirar svg { width: 15px; height: 15px; }
+.n1-envio-acoes { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; }
+.n1-envio-acoes small { font-size: .8rem; color: var(--texto-suave); }
+
+/* ---------- Cabeçalho do relatório ---------- */
+.n1-cab { padding: 1.1rem 1.3rem; border-radius: var(--raio-lg); }
+.n1-cab-topo { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .8rem 1.5rem; }
+.n1-cab-topo .fat-sec-titulo { margin: .2rem 0 0; }
+.n1-cab-dados { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; margin: 0; }
+.n1-cab-dados dt { font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-suave); }
+.n1-cab-dados dd { margin: .1rem 0 0; font-weight: 700; font-size: .86rem; color: var(--texto-forte); }
+.n1-det { margin-top: .8rem; font-size: .84rem; color: var(--texto-suave); }
+.n1-det summary { cursor: pointer; font-weight: 800; color: var(--texto); }
+.n1-det p, .n1-det ul { margin: .4rem 0 0; line-height: 1.5; }
+.n1-det b { color: var(--texto-forte); }
+.n1-falta { color: #94a3b8; font-style: italic; }
+
+/* ---------- Cartões por tipo ---------- */
+.n1-cards { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .6rem; }
+.n1-card { display: grid; gap: .25rem; padding: .8rem .85rem; border-radius: 16px; text-align: left; border: 1px solid var(--borda); border-top: 4px solid var(--c); transition: transform .2s, box-shadow .2s; }
+.n1-card:hover { transform: translateY(-2px); }
+.n1-card.ativo { box-shadow: 0 0 0 2px var(--c), 0 10px 26px -16px var(--c); }
+.n1-card-tit { font-size: .72rem; font-weight: 800; letter-spacing: .03em; color: var(--texto-suave); line-height: 1.2; min-height: 2.4em; }
+.n1-card strong { font-size: 1.6rem; line-height: 1.1; color: var(--texto-forte); font-variant-numeric: tabular-nums; }
+.n1-card .n1-card-sb { font-size: .9rem; color: #94a3b8; }
+.n1-card.sem-base { border-top-color: #94a3b8; opacity: .75; }
+.n1-barra-ader { height: 6px; border-radius: 999px; overflow: hidden; background: rgba(239,68,68,.35); }
+.n1-barra-ader i { display: block; height: 100%; background: #22c55e; }
+.n1-card small { font-size: .72rem; color: var(--texto-suave); }
+.n1-card small .ok { color: #22c55e; } .n1-card small .pend { color: #ef4444; }
+
+/* ---------- Abas, barra e tabelas ---------- */
+.n1-abas { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .6rem; }
+.n1-abas button { padding: .45rem .8rem; border-radius: 999px; font-size: .8rem; font-weight: 800; color: var(--texto-suave); border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .5); }
+.n1-abas button b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: .2rem; padding: 0 .3rem; border-radius: 999px; font-size: .7rem; color: #fff; background: #ef4444; }
+.n1-abas button.ativo { color: #04201a; background: var(--neon); border-color: var(--neon); }
+.n1-barra { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: .7rem; }
+.n1-barra.sem-filtro .n1-seg, .n1-barra.sem-filtro .n1-busca { display: none; }
+.n1-seg { display: inline-flex; padding: 3px; border-radius: 12px; border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .6); }
+.n1-seg button { padding: .4rem .8rem; border-radius: 9px; font-size: .8rem; font-weight: 800; color: var(--texto-suave); }
+.n1-seg button[aria-pressed="true"] { color: #04201a; background: var(--neon); }
+.n1-busca { min-width: 200px; }
+.n1-barra-dir { display: flex; flex-wrap: wrap; gap: .5rem; margin-left: auto; }
+.n1-painel { padding: .8rem; }
+.n1-tit-tipo { display: flex; align-items: baseline; gap: .6rem; margin: .2rem .2rem .7rem; padding-left: .6rem; border-left: 4px solid var(--c); font-size: 1.05rem; }
+.n1-tit-tipo small { font-size: .78rem; font-weight: 600; color: var(--texto-suave); }
+.n1-tab { width: 100%; font-size: .8rem; }
+.n1-tab td { white-space: normal; vertical-align: middle; }
+.n1-tab tbody tr.n1-l-pend { box-shadow: inset 4px 0 0 #ef4444; }
+.n1-tab tbody tr.n1-l-ok { box-shadow: inset 4px 0 0 #22c55e; }
+.n1-tab tbody tr.n1-l-semBase { box-shadow: inset 4px 0 0 #94a3b8; }
+.n1-faz { display: block; font-size: .68rem; color: var(--texto-suave); }
+.n1-selo { display: inline-block; padding: .15rem .55rem; border-radius: 999px; font-size: .7rem; font-weight: 800; white-space: nowrap; color: var(--texto-forte); background: color-mix(in srgb, var(--c) 20%, transparent); border: 1px solid color-mix(in srgb, var(--c) 70%, transparent); }
+.n1-onde { display: block; margin-top: .15rem; font-size: .68rem; color: var(--texto-suave); }
+.n1-chk { text-align: center; width: 1%; }
+th.n1-chk { white-space: normal; font-size: .64rem; min-width: 74px; }
+.n1-chk input { width: 18px; height: 18px; accent-color: #22c55e; cursor: pointer; }
+.n1-imp { display: none; }
+.n1-classe { font-weight: 700; color: var(--texto-forte); }
+.n1-eq { font-weight: 800; }
+.n1-eq-in { width: 110px; padding: .3rem .45rem; border-radius: 8px; border: 1px dashed rgba(251,191,36,.7); background: rgb(var(--fundo-rgb) / .6); color: var(--texto-forte); font: inherit; font-size: .78rem; }
+.n1-eq-in:focus { outline: 0; border-style: solid; border-color: var(--neon); }
+.n1-nota { margin: .2rem .2rem .7rem; font-size: .84rem; color: var(--texto-suave); }
+.n1-vazio { margin: 0; padding: 1rem; color: var(--texto-suave); }
+.n1-conferencia { display: flex; align-items: flex-start; gap: .45rem; margin: .7rem .2rem 0; font-size: .8rem; color: var(--texto-suave); }
+.n1-conferencia svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--neon); }
+
+/* Por equipe */
+.n1-eq-sel { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-bottom: .8rem; }
+.n1-eq-sel-rot { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-suave); margin-right: .2rem; }
+.n1-eq-op { display: inline-flex; align-items: center; gap: .3rem; padding: .3rem .6rem; border-radius: 999px; font-size: .8rem; font-weight: 800; cursor: pointer; color: var(--texto-suave); border: 1px solid var(--borda); }
+.n1-eq-op input { accent-color: #22c55e; }
+.n1-eq-op.ativo { color: var(--texto-forte); border-color: rgba(61,255,168,.6); background: rgba(61,255,168,.08); }
+.n1-eq-op b { min-width: 18px; padding: 0 .3rem; border-radius: 999px; font-size: .68rem; text-align: center; color: #fff; background: #ef4444; }
+.n1-link { padding: .25rem .5rem; font-size: .78rem; font-weight: 800; color: var(--neon); text-decoration: underline; }
+.n1-grupo-eq + .n1-grupo-eq { margin-top: 1rem; }
+.n1-grupo-eq h3 { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; margin: 0 0 .4rem; font-size: 1rem; }
+.n1-grupo-eq h3 svg { width: 17px; height: 17px; color: var(--neon); }
+.n1-grupo-eq h3 small { font-size: .76rem; font-weight: 600; color: var(--texto-suave); }
+.n1-grupo-eq h3 .pend { color: #ef4444; }
+
+@media (max-width: 1100px) { .n1-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .n1-envio { grid-template-columns: 1fr; }
+  .n1-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .n1-arq { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .n1-arq select { grid-column: 2 / -1; max-width: none; }
+  .n1-barra-dir { margin-left: 0; }
+  .n1-chk { text-align: left; width: auto; }
+}
+
+/* ---------- Impressão: só a aba atual, paisagem, cabeçalho da tabela em cada página ---------- */
+.n1-impressao { display: none; }
+@page n1 { size: A4 landscape; margin: 10mm; }
+@media print {
+  body.imprimindo-n1 > *:not(main), body.imprimindo-n1 main > *:not(#aba-n1), body.imprimindo-n1 #aba-n1 > *:not(.n1-impressao) { display: none !important; }
+  body.imprimindo-n1, body.imprimindo-n1 main { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+  body.imprimindo-n1 .n1-impressao { display: block !important; page: n1; color: #111 !important; font-family: Manrope, Arial, sans-serif; }
+  .n1-impressao * { color: #111 !important; background: none !important; box-shadow: none !important; text-shadow: none !important; }
+  .n1-imp-cab h1 { margin: 0 0 2mm; font-size: 15pt; }
+  .n1-imp-cab p { margin: 0 0 4mm; font-size: 8.5pt; }
+  .n1-impressao .n1-tit-tipo { font-size: 11pt; margin: 2mm 0; border-left: 3pt solid #111; }
+  .n1-impressao table { width: 100%; border-collapse: collapse; font-size: 8pt; display: table !important; }
+  .n1-impressao thead { display: table-header-group !important; }
+  .n1-impressao tbody { display: table-row-group !important; }
+  .n1-impressao tr { display: table-row !important; page-break-inside: avoid; break-inside: avoid; }
+  .n1-impressao th, .n1-impressao td { display: table-cell !important; padding: 1.5mm 2mm !important; border: .5pt solid #999 !important; text-align: left; vertical-align: top; }
+  .n1-impressao td::before { content: none !important; }
+  .n1-impressao th { background: #e5ece9 !important; font-size: 7.5pt; text-transform: uppercase; }
+  .n1-impressao .n1-imp { display: inline !important; font-size: 10pt; }
+  .n1-impressao .n1-selo { border: .5pt solid #555 !important; padding: 0 2mm; }
+  .n1-impressao .n1-l-pend .n1-selo { font-weight: 800; }
+  .n1-impressao .n1-grupo-eq h3 { font-size: 11pt; margin: 4mm 0 1mm; }
+  .n1-impressao svg { display: none; }
+}
+
+/* Busca (o mesmo desenho da busca da Produção; a página da Qualidade não carrega producao.css) */
+.n1-busca { display: flex; align-items: center; gap: .45rem; padding: .45rem .8rem; border-radius: 999px; background: rgb(var(--tinta-rgb) / .05); border: 1px solid var(--borda); }
+.n1-busca svg { width: 15px; height: 15px; color: var(--texto-fraco); }
+.n1-busca input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--texto-forte); font: inherit; font-size: .88rem; }

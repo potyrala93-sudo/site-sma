@@ -246,9 +246,10 @@
   const SUB = {
     '120': 'Notas das avaliações de campo, uniformidade das mudas em cada parcela e a nota projetada do mês, direto da planilha.',
     'ars': 'Informe a data de plantio e veja a data mínima e máxima de cada operação do ARS, com status e linha do tempo.',
-    'prontuario': 'A ficha completa de cada UP: tudo o que foi apontado, o plantio, as equipes, o clima de cada atividade e uma análise.'
+    'prontuario': 'A ficha completa de cada UP: tudo o que foi apontado, o plantio, as equipes, o clima de cada atividade e uma análise.',
+    'n1': 'Entrega de N1: confira se cada atividade realizada no RF tem a UP registrada na base de qualidade correspondente.'
   };
-  const ABAS = ['120', 'ars', 'prontuario'];
+  const ABAS = ['120', 'ars', 'prontuario', 'n1'];
   function pintarFundo(cor) { document.body.style.setProperty('--ader-cor', cor); document.body.style.setProperty('--ader-cor-suave', cor + '4d'); }
   function abrirAba(aba, trocarHash = true) {
     if (!ABAS.includes(aba)) aba = '120';
@@ -272,5 +273,6 @@
   });
   render();
   if (location.hash === '#ars') abrirAba('ars', false);
+  else if (location.hash === '#n1') abrirAba('n1', false);
   else if (location.hash === '#prontuario' || new URLSearchParams(location.search).has('up')) abrirAba('prontuario', false);
 })();
