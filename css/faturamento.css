@@ -654,8 +654,9 @@ body.pagina-fat {
 
 @media print {
   @page { size: A4; margin: 9mm; }
-  html, body.pagina-fat { background: #ffffff !important; }
-  body > *:not(.fat-relatorio) { display: none !important; }
+  /* só na página do Faturamento (a da Qualidade também carrega este CSS e tem impressões próprias) */
+  html:has(body[data-page="faturamento"]), body[data-page="faturamento"] { background: #ffffff !important; }
+  body[data-page="faturamento"] > *:not(.fat-relatorio) { display: none !important; }
   .fat-relatorio { display: block !important; }
 }
 

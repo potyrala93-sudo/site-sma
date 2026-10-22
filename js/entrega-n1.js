@@ -110,7 +110,7 @@
     data: Object.assign([/^DATA FIM$/, /^DATA REALIZACAO$/, /^DATA REALIZADA$/, /^DATA OPERACAO$/, /^DATA INICIO$/], { opcional: true }),
     fazenda: Object.assign([/^FAZENDA$/], { opcional: true })
   };
-  const COLS_QUAL = { up: [/^UP$/, /^COD\.? ?UP$/, /UNIDADE DE PRODUCAO/, /^CODIGO UP$/], ativ: Object.assign([/^APLICACAO$/, /^ATIVIDADE$/, /^OPERACAO$/], { opcional: true }) };
+  const COLS_QUAL = { up: [/^UP$/, /^COD\.? ?UP$/, /UNIDADE DE PRODUCAO/, /^CODIGO UP$/], data: Object.assign([/^DATA$/, /^DATA AVALIACAO$/, /^DATA DA AVALIACAO$/], { opcional: true }) };
   const ehRF = cab => cab && 'up' in cab.idx && 'desc' in cab.idx && 'sit' in cab.idx;
 
   // Lê um arquivo e devolve { tipo: 'rf' | id da base | null, linhas, cab, aba }
@@ -147,12 +147,16 @@
     if (!rf) throw new Error('envie a Base do RF (a planilha com UP, Descrição da Operação e Situação)');
     const { linhas, cab } = rf.leitura, ix = cab.idx;
     const colunasUsadas = Object.entries(ix).map(([k, j]) => `${({ up: 'UP', desc: 'Descrição da Operação', sit: 'Situação', grupo: 'Grupo de Operação', frente: 'Frente de Trabalho', semana: 'Semana Realizada', data: 'Data (semana calculada)', fazenda: 'Fazenda' })[k]}: "${String(linhas[cab.i][j]).replace(/\s+/g, ' ').trim()}"`);
-    // Bases de qualidade: conjunto de UPs (e as atividades, quando a base tiver a coluna)
+    // Bases de qualidade: avaliações de cada UP (datas distintas; sem coluna de data, cada linha conta uma)
     const bases = {};
     arquivos.filter(a => a.tipo && a.tipo !== 'rf' && a.leitura?.cab).forEach(a => {
-      const { linhas: L, cab: c } = a.leitura, b = bases[a.tipo] || (bases[a.tipo] = { ups: new Set(), arquivos: [] });
+      const { linhas: L, cab: c } = a.leitura, b = bases[a.tipo] || (bases[a.tipo] = { ups: new Map(), arquivos: [] });
       b.arquivos.push(a.arq.name);
-      L.slice(c.i + 1).forEach(l => { const up = normUP(l[c.idx.up]); if (up && up !== 'TOTAL' && !/^FILTROS/.test(up)) b.ups.add(up); });
+      L.slice(c.i + 1).forEach((l, k) => {
+        const up = normUP(l[c.idx.up]); if (!up || up === 'TOTAL' || /^FILTROS/.test(up)) return;
+        const d = 'data' in c.idx ? comoData(l[c.idx.data]) : null;
+        (b.ups.get(up) || b.ups.set(up, new Set()).get(up)).add(d ? d.toDateString() : `${a.arq.name}#${k}`);
+      });
     });
     // Linhas REALIZADAS do RF
     let totalRF = 0;
@@ -172,32 +176,106 @@
       if (!c.exato) corresp.set(desc, { rf: desc, lista: c.nome, grupo: c.grupo });
       linhasRF.push({ ...linha, grupo: c.grupo, nomeLista: c.nome });
     });
-    // Comparação: uma linha por tipo que o grupo de atividade exige
-    const itens = [];
-    linhasRF.forEach(l => TIPOS.filter(t => t.grupo === l.grupo).forEach(t => {
-      const enviadas = t.bases.filter(b => bases[b]);
-      let status, onde = '';
-      if (!enviadas.length) status = 'semBase';
-      else {
-        const achou = enviadas.filter(b => bases[b].ups.has(l.up));
-        status = achou.length ? 'ok' : 'pend';
-        onde = achou.map(b => BASES[b].nome.replace('Preparo de Solo ', '')).join(' e ');
-        if (!achou.length && enviadas.length < t.bases.length) onde = `${t.bases.filter(b => !bases[b]).map(b => BASES[b].nome).join(', ')} não enviada`;
-      }
-      itens.push({ ...l, tipo: t.id, status, onde, chave: `${t.id}|${l.up}|${l.desc}|${l.semana}` });
-    }));
     const semanas = [...new Set(linhasRF.map(l => l.semana).concat(naoClass.map(l => l.semana)))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
     const faltam = Object.keys(BASES).filter(b => !bases[b]);
     return {
-      quando: new Date(), rfNome: rf.arq.name, rfAba: rf.leitura.aba, colunasUsadas, semanas, itens, naoClass, corresp: [...corresp.values()],
-      totalRF, unicas: linhasRF.length + naoClass.length, bases: Object.fromEntries(Object.entries(bases).map(([k, b]) => [k, { ups: b.ups.size, arquivos: b.arquivos }])), faltam
+      quando: new Date(), rfNome: rf.arq.name, rfAba: rf.leitura.aba, colunasUsadas, semanas, linhasRF, naoClass, corresp: [...corresp.values()],
+      totalRF, unicas: linhasRF.length + naoClass.length, faltam,
+      bases: Object.fromEntries(Object.entries(bases).map(([k, b]) => [k, { qtd: b.ups.size, aval: Object.fromEntries([...b.ups].map(([up, s]) => [up, s.size])), arquivos: b.arquivos }]))
     };
   }
 
   /* ======================================================================
+     3b. COMPARAÇÃO (refeita quando as exceções por equipe mudam)
+     Uma UP com a mesma atividade (ou atividades do mesmo tipo) feita mais de uma vez no RF precisa de
+     uma avaliação para cada realização: conta as datas distintas da UP na base de qualidade.
+     ====================================================================== */
+  const CHAVE_ISEN = 'n1:isencoes';   // [{ equipe, atividade ('*' = todas) }]
+  let isencoes = [];
+  try { isencoes = JSON.parse(localStorage.getItem(CHAVE_ISEN) || '[]') || []; } catch { isencoes = []; }
+  const salvarIsencoes = () => { try { localStorage.setItem(CHAVE_ISEN, JSON.stringify(isencoes)); } catch { /* opcional */ } };
+  const isento = it => { const e = equipeDe(it); return !!e && isencoes.some(x => x.equipe === e && (x.atividade === '*' || x.atividade === it.desc)); };
+  const ordemSemana = s => +(String(s).match(/\d+/)?.[0] || 99);
+  function montarItens() {
+    const R = estado.res; if (!R) return;
+    const itens = [];
+    TIPOS.forEach(t => {
+      const enviadas = t.bases.filter(b => R.bases[b]);
+      const porUP = new Map();
+      R.linhasRF.filter(l => l.grupo === t.grupo).forEach(l => {
+        const it = { ...l, tipo: t.id, chave: `${t.id}|${l.up}|${l.desc}|${l.semana}`, onde: '', necessarias: null, avaliacoes: null };
+        if (isento(it)) { it.status = 'isento'; it.onde = 'equipe dispensada de N1'; itens.push(it); return; }
+        if (!enviadas.length) { it.status = 'semBase'; itens.push(it); return; }
+        (porUP.get(it.up) || porUP.set(it.up, []).get(it.up)).push(it);
+      });
+      porUP.forEach((l, up) => {
+        const aval = enviadas.reduce((s, b) => s + (R.bases[b].aval[up] || 0), 0);
+        const onde = enviadas.filter(b => R.bases[b].aval[up]).map(b => BASES[b].nome.replace('Preparo de Solo ', '')).join(' e ');
+        l.sort((a, b) => ordemSemana(a.semana) - ordemSemana(b.semana) || a.linhaPlanilha - b.linhaPlanilha);
+        l.forEach((it, i) => {
+          it.necessarias = l.length; it.avaliacoes = aval;
+          if (i < aval) { it.status = 'ok'; it.onde = `${onde}${l.length > 1 ? ` · avaliação ${i + 1} de ${l.length}` : ''}`; }
+          else {
+            it.status = 'pend';
+            it.onde = aval ? `${l.length} realizações e só ${aval} avaliação${aval > 1 ? 'ões' : ''}` : enviadas.length < t.bases.length ? `${t.bases.filter(b => !R.bases[b]).map(b => BASES[b].nome).join(', ')} não enviada` : '';
+          }
+          itens.push(it);
+        });
+      });
+    });
+    R.itens = itens;
+  }
+  // Aderência por semana, por atividade e por equipe (sem as linhas dispensadas e sem base)
+  function aderencias() {
+    const R = estado.res, agrupar = chave => {
+      const m = new Map();
+      R.itens.forEach(it => { const k = chave(it) || '—'; const x = m.get(k) || m.set(k, { nome: k, ok: 0, pend: 0, outros: 0 }).get(k); if (it.status === 'ok') x.ok++; else if (it.status === 'pend') x.pend++; else x.outros++; });
+      return [...m.values()].map(x => ({ ...x, ader: x.ok + x.pend ? x.ok / (x.ok + x.pend) : null }));
+    };
+    return {
+      'Por semana': agrupar(it => it.semana).sort((a, b) => ordemSemana(a.nome) - ordemSemana(b.nome)),
+      'Por atividade': agrupar(it => it.desc).sort((a, b) => (a.ader ?? 2) - (b.ader ?? 2) || b.pend - a.pend),
+      'Por equipe': agrupar(it => equipeDe(it) || 'Sem equipe').sort((a, b) => (a.ader ?? 2) - (b.ader ?? 2) || b.pend - a.pend)
+    };
+  }
+  function htmlAderencia() {
+    return `<p class="n1-nota">Aderência = encontradas ÷ (encontradas + pendentes). Linhas sem N1 (equipe dispensada) e de bases não enviadas não entram na conta.</p>
+      <div class="n1-ader-grade">${Object.entries(aderencias()).map(([nome, l]) => `<section class="n1-ader"><h3>${nome}</h3>
+        <table class="n1-tab n1-tab-ader"><thead><tr><th>${nome.replace('Por ', '').replace(/^./, c => c.toUpperCase())}</th><th class="num">Realiz.</th><th class="num">OK</th><th class="num">Pend.</th><th>Aderência</th></tr></thead><tbody>
+        ${l.map(x => `<tr><td>${esc(x.nome)}${x.outros ? `<small class="n1-onde">${x.outros} sem N1 / sem base</small>` : ''}</td><td class="num">${x.ok + x.pend + x.outros}</td><td class="num ok">${x.ok}</td><td class="num pend">${x.pend}</td>
+          <td>${x.ader == null ? '<span class="n1-mudo">—</span>' : `<div class="n1-ader-barra" style="--p:${(x.ader * 100).toFixed(1)}%"><i></i><b>${pct(x.ader)}</b></div>`}</td></tr>`).join('')}</tbody></table></section>`).join('')}</div>`;
+  }
+  // Equipes sem N1: retirar atividades por equipe (ex.: a BV não faz N1)
+  function renderIsencoes() {
+    const R = estado.res, el = $('#n1-isen'); if (!R || !el) return;
+    const equipes = [...new Set(R.linhasRF.map(l => l.frente).filter(Boolean))].sort();
+    const eqSel = el.dataset.eq && equipes.includes(el.dataset.eq) ? el.dataset.eq : equipes[0] || '';
+    const ativs = [...new Set(R.linhasRF.filter(l => l.frente === eqSel).map(l => l.desc))].sort();
+    el.innerHTML = `<div class="n1-isen-topo"><span class="n1-isen-rot"><i data-lucide="user-x"></i>Equipes sem N1</span>
+        <div class="n1-isen-lista">${isencoes.length ? isencoes.map((x, i) => `<span class="n1-isen-chip">${esc(x.equipe)} · ${x.atividade === '*' ? 'todas as atividades' : esc(x.atividade)}<button type="button" data-isen-tirar="${i}" aria-label="Voltar a exigir N1"><i data-lucide="x"></i></button></span>`).join('') : '<small>Nenhuma: todas as equipes precisam de N1.</small>'}</div></div>
+      <div class="n1-isen-form"><label><span>Equipe</span><select id="n1-isen-eq">${equipes.map(e => `<option ${e === eqSel ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select></label>
+        <label><span>Atividade</span><select id="n1-isen-at"><option value="*">Todas as atividades</option>${ativs.map(a => `<option>${esc(a)}</option>`).join('')}</select></label>
+        <button type="button" class="fat-btn" id="n1-isen-add"><i data-lucide="minus-circle"></i><span>Retirar do N1</span></button></div>`;
+    el.dataset.eq = eqSel;
+    icones();
+  }
+  $('#n1-isen').addEventListener('change', e => { if (e.target.id === 'n1-isen-eq') { $('#n1-isen').dataset.eq = e.target.value; renderIsencoes(); } });
+  $('#n1-isen').addEventListener('click', e => {
+    const tirar = e.target.closest('[data-isen-tirar]');
+    if (tirar) isencoes.splice(+tirar.dataset.isenTirar, 1);
+    else if (e.target.closest('#n1-isen-add')) {
+      const equipe = $('#n1-isen-eq').value, atividade = $('#n1-isen-at').value;
+      if (!equipe || isencoes.some(x => x.equipe === equipe && (x.atividade === atividade || x.atividade === '*'))) return;
+      if (atividade === '*') isencoes = isencoes.filter(x => x.equipe !== equipe);
+      isencoes.push({ equipe, atividade });
+    } else return;
+    salvarIsencoes(); montarItens(); render();
+  });
+
+  /* ======================================================================
      5. MARCAÇÕES (checks e equipe digitada) — salvas no navegador por RF
      ====================================================================== */
-  const MARCAS = [{ k: 'adiantada', nome: 'Adiantada' }, { k: 'negociacao', nome: 'Negociações' }, { k: 'rfAnterior', nome: 'Pendências RF anterior' }];
+  const MARCAS = [{ k: 'adiantada', nome: 'Adiantada', curto: 'Adiant.' }, { k: 'negociacao', nome: 'Negociações', curto: 'Negoc.' }, { k: 'rfAnterior', nome: 'Pendências RF anterior', curto: 'Pend. RF ant.' }];
   const chaveMarcas = () => `n1:marcas:${norm(estado.res?.rfNome || '')}`;
   let marcas = {};
   const lerMarcas = () => { try { marcas = JSON.parse(localStorage.getItem(chaveMarcas()) || '{}') || {}; } catch { marcas = {}; } };
@@ -209,7 +287,7 @@
   /* ======================================================================
      4. TELA
      ====================================================================== */
-  const STATUS = { ok: { nome: 'OK – Encontrada', cor: '#22c55e' }, pend: { nome: 'PENDENTE – Não encontrada', cor: '#ef4444' }, semBase: { nome: 'Base não enviada', cor: '#94a3b8' } };
+  const STATUS = { ok: { nome: 'OK – Encontrada', curto: 'OK', cor: '#22c55e' }, pend: { nome: 'PENDENTE – Não encontrada', curto: 'Pendente', cor: '#ef4444' }, semBase: { nome: 'Base não enviada', curto: 'Sem base', cor: '#94a3b8' }, isento: { nome: 'Sem N1 (equipe dispensada)', curto: 'Sem N1', cor: '#64748b' } };
   const tipoDe = id => TIPOS.find(t => t.id === id);
 
   function renderArquivos() {
@@ -246,7 +324,7 @@
   $('#n1-analisar').addEventListener('click', () => {
     const el = $('#n1-erros');
     try {
-      estado.res = analisar(); lerMarcas(); estado.equipesSel = null;
+      estado.res = analisar(); lerMarcas(); estado.equipesSel = null; montarItens();
       try { localStorage.setItem('n1:ultima', JSON.stringify(estado.res)); } catch { /* grande demais: segue sem guardar */ }
       el.hidden = true; render();
       $('#n1-resultado').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -256,8 +334,8 @@
   });
 
   function resumoTipo(t) {
-    const l = estado.res.itens.filter(i => i.tipo === t.id), ok = l.filter(i => i.status === 'ok').length, pend = l.filter(i => i.status === 'pend').length;
-    return { total: l.length, ok, pend, semBase: l.length && l.every(i => i.status === 'semBase'), ader: ok + pend ? ok / (ok + pend) : null };
+    const l = estado.res.itens.filter(i => i.tipo === t.id), ok = l.filter(i => i.status === 'ok').length, pend = l.filter(i => i.status === 'pend').length, isento = l.filter(i => i.status === 'isento').length;
+    return { total: l.length, ok, pend, isento, semBase: l.length && l.every(i => i.status === 'semBase' || i.status === 'isento') && l.some(i => i.status === 'semBase'), ader: ok + pend ? ok / (ok + pend) : null };
   }
   function render() {
     const R = estado.res; if (!R) return;
@@ -275,18 +353,19 @@
       return `<button type="button" class="n1-card glass ${estado.aba === t.id ? 'ativo' : ''} ${r.semBase ? 'sem-base' : ''}" data-aba="${t.id}" style="--c:${t.cor}">
         <span class="n1-card-tit">${esc(t.curto || t.nome)}</span>
         ${r.semBase ? '<strong class="n1-card-sb">Base não enviada</strong>' : `<strong>${r.ader == null ? '—' : pct(r.ader)}</strong><span class="n1-barra-ader"><i style="width:${(r.ader || 0) * 100}%"></i></span>`}
-        <small>${r.total} realizadas · <b class="ok">${r.ok} OK</b> · <b class="pend">${r.pend} pend.</b></small></button>`;
+        <small>${r.total} realizadas · <b class="ok">${r.ok} OK</b> · <b class="pend">${r.pend} pend.</b>${r.isento ? ` · ${r.isento} sem N1` : ''}</small></button>`;
     }).join('');
     renderAbas(); renderPainel();
-    const somaOk = TIPOS.every(t => { const r = resumoTipo(t); return r.ok + r.pend + estado.res.itens.filter(i => i.tipo === t.id && i.status === 'semBase').length === r.total; });
-    $('#n1-conferencia').innerHTML = `<i data-lucide="${somaOk ? 'check-circle-2' : 'alert-circle'}"></i>Conferência: ${R.totalRF} linhas REALIZADAS no RF (${R.unicas} sem duplicidade) = ${R.unicas - R.naoClass.length} classificadas + ${R.naoClass.length} não classificadas · ${R.itens.length} verificações (Muda e Plantio contam duas vezes) · encontradas + pendentes + sem base ${somaOk ? 'batem' : 'NÃO batem'} com o total de cada tipo.`;
+    const somaOk = TIPOS.every(t => { const r = resumoTipo(t); return r.ok + r.pend + r.isento + estado.res.itens.filter(i => i.tipo === t.id && i.status === 'semBase').length === r.total; });
+    $('#n1-conferencia').innerHTML = `<i data-lucide="${somaOk ? 'check-circle-2' : 'alert-circle'}"></i>Conferência: ${R.totalRF} linhas REALIZADAS no RF (${R.unicas} sem duplicidade) = ${R.unicas - R.naoClass.length} classificadas + ${R.naoClass.length} não classificadas · ${R.itens.length} verificações (Muda e Plantio contam duas vezes) · encontradas + pendentes + sem base + sem N1 ${somaOk ? 'batem' : 'NÃO batem'} com o total de cada tipo.`;
+    renderIsencoes();
     icones();
   }
   function renderAbas() {
     const R = estado.res;
-    const abas = [...TIPOS.map(t => [t.id, t.curto || t.nome, resumoTipo(t).pend]), ['equipe', 'Por equipe', null], ['naoClass', 'Não classificadas', R.naoClass.length], ['corresp', 'Correspondências de nomes', R.corresp.length]];
+    const abas = [...TIPOS.map(t => [t.id, t.curto || t.nome, resumoTipo(t).pend]), ['aderencia', 'Aderência', null], ['equipe', 'Por equipe', null], ['naoClass', 'Não classificadas', R.naoClass.length], ['corresp', 'Correspondências de nomes', R.corresp.length]];
     $('#n1-abas').innerHTML = abas.map(([id, nome, n]) => `<button type="button" role="tab" data-aba="${id}" aria-selected="${estado.aba === id}" class="${estado.aba === id ? 'ativo' : ''}">${esc(nome)}${n ? ` <b>${n}</b>` : ''}</button>`).join('');
-    $('#n1-barra').classList.toggle('sem-filtro', ['naoClass', 'corresp'].includes(estado.aba));
+    $('#n1-barra').classList.toggle('sem-filtro', ['naoClass', 'corresp', 'aderencia'].includes(estado.aba));
   }
   const passa = it => (estado.ver === 'todas' || it.status === 'pend') && (!estado.busca || it.up.includes(normUP(estado.busca)));
   function celulaChecks(it) {
@@ -298,7 +377,7 @@
     const v = marcaDe(it).equipe || '';
     return `<input type="text" class="n1-eq-in" list="n1-equipes-sug" data-equipe="${esc(it.chave)}" value="${esc(v)}" placeholder="digite a equipe" aria-label="Equipe da UP ${esc(it.up)}"><span class="n1-imp">${esc(v || '—')}</span>`;
   }
-  const selo = it => `<span class="n1-selo ${it.status}" style="--c:${STATUS[it.status].cor}">${STATUS[it.status].nome}</span>${it.onde ? `<small class="n1-onde">${it.status === 'ok' ? 'em ' : ''}${esc(it.onde)}</small>` : ''}`;
+  const selo = it => `<span class="n1-selo ${it.status}" style="--c:${STATUS[it.status].cor}" title="${STATUS[it.status].nome}">${STATUS[it.status].curto}</span>${it.onde ? `<small class="n1-onde">${it.status === 'ok' ? 'em ' : ''}${esc(it.onde)}</small>` : ''}`;
   function linhaItem(it, comTipo) {
     return `<tr class="n1-l-${it.status}">
       ${comTipo ? `<td data-rotulo="Tipo">${esc(tipoDe(it.tipo).curto || tipoDe(it.tipo).nome)}</td>` : ''}
@@ -308,7 +387,7 @@
       <td data-rotulo="Classificação" class="n1-classe" data-classe="${esc(it.chave)}">${classificacao(it)}</td>
       <td data-rotulo="Equipe">${celulaEquipe(it)}</td></tr>`;
   }
-  const cabItens = comTipo => `<thead><tr>${comTipo ? '<th>Tipo</th>' : ''}<th>UP</th><th>Atividade</th><th>Frente de Trabalho</th><th>Semana Realizada</th><th>Status</th>${MARCAS.map(x => `<th class="n1-chk">${x.nome}</th>`).join('')}<th>Classificação</th><th>Equipe</th></tr></thead>`;
+  const cabItens = comTipo => `<thead><tr>${comTipo ? '<th class="n1-c-tipo">Tipo</th>' : ''}<th class="n1-c-up">UP</th><th class="n1-c-ativ">Atividade</th><th class="n1-c-fr">Frente</th><th class="n1-c-sem">Semana</th><th class="n1-c-st">Status</th>${MARCAS.map(x => `<th class="n1-chk" title="${x.nome}">${x.curto}</th>`).join('')}<th class="n1-c-cl">Classificação</th><th class="n1-c-eq">Equipe</th></tr></thead>`;
   function renderPainel() {
     const R = estado.res, el = $('#n1-painel');
     $$('.n1-seg [data-ver]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ver === estado.ver)));
@@ -323,6 +402,7 @@
       return;
     }
     if (estado.aba === 'equipe') return renderPorEquipe();
+    if (estado.aba === 'aderencia') { el.innerHTML = htmlAderencia(); return; }
     const t = tipoDe(estado.aba), todos = R.itens.filter(i => i.tipo === t.id), l = todos.filter(passa);
     el.innerHTML = `<h3 class="n1-tit-tipo" style="--c:${t.cor}">${esc(t.nome)} <small>${l.length} de ${todos.length} linha(s)</small></h3>` + (l.length
       ? `<table class="q-tab n1-tab">${cabItens(false)}<tbody>${l.map(it => linhaItem(it, false)).join('')}</tbody></table>`
@@ -367,7 +447,7 @@
     const m = marcas[i.dataset.equipe] || (marcas[i.dataset.equipe] = {}); m.equipe = norm(i.value); salvarMarcas();
     i.nextElementSibling.textContent = i.value || '—';
   });
-  $('#n1-painel').addEventListener('focusout', e => { if (e.target.closest('[data-equipe]')) { atualizarSugestoes(); if (estado.equipesSel) equipesTodas().forEach(x => estado.equipesSel.add(x)); } });
+  $('#n1-painel').addEventListener('focusout', e => { if (e.target.closest('[data-equipe]')) { atualizarSugestoes(); if (estado.equipesSel) equipesTodas().forEach(x => estado.equipesSel.add(x)); if (isencoes.length) { montarItens(); render(); } } });
   $('#n1-painel').addEventListener('click', e => {
     if (e.target.closest('[data-eq-todas]')) { estado.equipesSel = new Set(equipesTodas()); renderPorEquipe(); }
     if (e.target.closest('[data-eq-limpar]')) { estado.equipesSel = new Set(); renderPorEquipe(); }
@@ -389,16 +469,43 @@
     window.addEventListener('afterprint', fim);
     setTimeout(() => window.print(), 50);
   });
+  // PDF gerado direto (A4 paisagem): a aba atual em páginas de até 16 linhas, cabeçalho em todas
+  $('#n1-pdf').addEventListener('click', async () => {
+    const R = estado.res; if (!R || !window.SMA_PDF) return;
+    const bt = $('#n1-pdf'), rot = $('span', bt), original = rot.textContent;
+    bt.disabled = true; rot.textContent = 'Preparando…';
+    try {
+      const t = tipoDe(estado.aba);
+      const titulo = t ? t.nome : ({ equipe: 'Por equipe', aderencia: 'Aderência', naoClass: 'Atividades não classificadas', corresp: 'Correspondências de nomes' })[estado.aba];
+      const cab = `<header class="n1-pdf-cab"><div><h1>Análise de Qualidade de Entrega – N1</h1><p>${esc(titulo)} · RF: ${esc(R.rfNome)} · Semanas: ${esc(R.semanas.join(', '))}${estado.aba === 'equipe' ? ` · Equipes: ${esc([...(estado.equipesSel || [])].join(', '))}` : ''} · ${['aderencia', 'naoClass', 'corresp'].includes(estado.aba) ? '' : estado.ver === 'pend' ? 'só pendentes · ' : 'todas as linhas · '}gerado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></div></header>`;
+      const marca = (it, k) => (marcaDe(it)[k] ? '☑' : '☐');
+      const linhaPDF = (it, comTipo) => `<tr class="st-${it.status}">${comTipo ? `<td>${esc(tipoDe(it.tipo).curto || tipoDe(it.tipo).nome)}</td>` : ''}<td><b>${esc(it.up)}</b></td><td>${esc(it.desc)}</td><td>${esc(it.frente || '—')}</td><td>${esc(it.semana)}</td><td><b>${STATUS[it.status].curto}</b>${it.onde ? `<br><small>${esc(it.onde)}</small>` : ''}</td>${MARCAS.map(x => `<td class="c">${marca(it, x.k)}</td>`).join('')}<td>${esc(classificacao(it))}</td><td>${esc(equipeDe(it) || '—')}</td></tr>`;
+      const cabTab = comTipo => `<thead><tr>${comTipo ? '<th style="width:9%">Tipo</th>' : ''}<th style="width:8%">UP</th><th>Atividade</th><th style="width:6%">Frente</th><th style="width:8%">Semana</th><th style="width:15%">Status</th>${MARCAS.map(x => `<th class="c" style="width:6%">${x.curto}</th>`).join('')}<th style="width:11%">Classificação</th><th style="width:7%">Equipe</th></tr></thead>`;
+      const pags = [];
+      const fatiar = (linhas, comTipo, sub = '') => { for (let i = 0; i < Math.max(1, linhas.length); i += 16) pags.push(`${cab}${sub}<table class="n1-pdf-tab">${cabTab(comTipo)}<tbody>${linhas.slice(i, i + 16).join('') || '<tr><td colspan="12">Nenhuma linha com esse filtro.</td></tr>'}</tbody></table>`); };
+      if (t) fatiar(R.itens.filter(i => i.tipo === t.id).filter(passa).map(it => linhaPDF(it, false)), false);
+      else if (estado.aba === 'equipe') {
+        const sel = estado.equipesSel || new Set(equipesTodas());
+        [...sel].sort().forEach(e => { const l = R.itens.filter(passa).filter(it => (equipeDe(it) || 'Sem equipe') === e); if (l.length) fatiar(l.map(it => linhaPDF(it, true)), true, `<h2 class="n1-pdf-sub">Equipe ${esc(e)} · ${l.filter(i => i.status === 'pend').length} pendente(s)</h2>`); });
+        if (!pags.length) fatiar([], true);
+      } else pags.push(`${cab}<div class="n1-pdf-livre">${$('#n1-painel').innerHTML}</div>`);
+      await window.SMA_PDF.gerar(pags, `Entrega_N1_${(titulo || '').replace(/[^\p{L}\p{N}]+/gu, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`, { progresso: (i, n) => { rot.textContent = `Gerando ${i}/${n}…`; } });
+      rot.textContent = 'PDF baixado ✓';
+    } catch (e) { console.error('N1: PDF', e); rot.textContent = 'Não consegui gerar o PDF'; }
+    finally { bt.disabled = false; setTimeout(() => { rot.textContent = original; }, 2500); }
+  });
+
   $('#n1-excel').addEventListener('click', async () => {
     const R = estado.res; if (!R) return;
     const bt = $('#n1-excel'); bt.disabled = true;
     try {
       const X = await xlsx();
-      const linhas = R.itens.map(it => ({ Tipo: tipoDe(it.tipo).nome, UP: it.up, Fazenda: it.fazenda, Atividade: it.desc, 'Nome na lista': it.nomeLista, 'Frente de Trabalho': it.frente, 'Semana Realizada': it.semana, Status: STATUS[it.status].nome, 'Encontrada em / obs.': it.onde, ...Object.fromEntries(MARCAS.map(x => [x.nome, marcaDe(it)[x.k] ? 'Sim' : 'Não'])), Classificação: classificacao(it), Equipe: equipeDe(it) }));
+      const linhas = R.itens.map(it => ({ Tipo: tipoDe(it.tipo).nome, UP: it.up, Fazenda: it.fazenda, Atividade: it.desc, 'Nome na lista': it.nomeLista, 'Frente de Trabalho': it.frente, 'Semana Realizada': it.semana, Status: STATUS[it.status].nome, 'Encontrada em / obs.': it.onde, 'Realizações da UP no tipo': it.necessarias ?? '', 'Avaliações na base': it.avaliacoes ?? '', ...Object.fromEntries(MARCAS.map(x => [x.nome, marcaDe(it)[x.k] ? 'Sim' : 'Não'])), Classificação: classificacao(it), Equipe: equipeDe(it) }));
       const resumo = TIPOS.map(t => { const r = resumoTipo(t); return { Tipo: t.nome, 'Realizadas no RF': r.total, Encontradas: r.ok, Pendentes: r.pend, 'Aderência': r.semBase ? 'Base não enviada' : r.ader == null ? '—' : +(r.ader * 100).toFixed(1) }; });
       const wb = X.utils.book_new();
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(resumo), 'Resumo');
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(linhas), 'Verificações');
+      Object.entries(aderencias()).forEach(([nome, l]) => X.utils.book_append_sheet(wb, X.utils.json_to_sheet(l.map(x => ({ [nome.replace('Por ', '')]: x.nome, Realizadas: x.ok + x.pend + x.outros, Encontradas: x.ok, Pendentes: x.pend, 'Sem N1 / sem base': x.outros, 'Aderência (%)': x.ader == null ? '—' : +(x.ader * 100).toFixed(1) }))), `Aderência ${nome.replace('Por ', '').slice(0, 18)}`));
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(R.naoClass.map(l => ({ UP: l.up, Atividade: l.desc, 'Grupo de Operação': l.grupoRF, Frente: l.frente, Semana: l.semana, 'Linha no RF': l.linhaPlanilha }))), 'Não classificadas');
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(R.corresp.map(c => ({ 'Nome no RF': c.rf, 'Nome da lista': c.lista, Tipo: TIPOS.filter(t => t.grupo === c.grupo).map(t => t.nome).join(' e ') }))), 'Correspondências');
       X.writeFile(wb, `Entrega_N1_${R.quando.toISOString().slice(0, 10)}.xlsx`);
@@ -409,7 +516,7 @@
   /* ---------- Início: reabre a última análise feita neste navegador ---------- */
   try {
     const u = JSON.parse(localStorage.getItem('n1:ultima') || 'null');
-    if (u?.itens) { u.quando = new Date(u.quando); estado.res = u; lerMarcas(); render(); atualizarSugestoes(); }
+    if (u?.linhasRF) { u.quando = new Date(u.quando); estado.res = u; lerMarcas(); montarItens(); render(); atualizarSugestoes(); }
   } catch { /* sem análise anterior */ }
   renderArquivos();
   document.addEventListener('qual:aba', e => { if (e.detail === 'n1') { icones(); if (estado.res) atualizarSugestoes(); } });
