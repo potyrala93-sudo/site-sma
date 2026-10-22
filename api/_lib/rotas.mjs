@@ -462,6 +462,22 @@ Responda SOMENTE com JSON:
   "proximos": "o que a previsão indica para esta UP nos próximos dias (janela de aplicação, chuva, necessidade de avaliar irrigação)",
   "atencao": ["pontos de atenção, um por item, a partir dos alertas recebidos"] }`;
 
+const SISTEMA_RELATORIO = `Você é engenheiro florestal e redige RELATÓRIOS TÉCNICOS DE QUALIDADE de operações de silvicultura (eucalipto) da SMA.
+Recebe o cabeçalho do relatório e os pontos registrados em campo: para cada ponto, o título que o técnico deu, a observação escrita e fotos.
+Escreva em português do Brasil, em linguagem técnica, objetiva e impessoal (terceira pessoa), como um relatório formal.
+Regras:
+- Use SOMENTE o que está no texto e o que é visível nas fotos. Proibido inventar números, medidas, percentuais, datas, produtos, doses, nomes ou causas que não possam ser sustentados pelo que foi informado/visto. Quando algo precisar de confirmação em campo, diga isso ("recomenda-se verificar…").
+- Descreva o que as fotos mostram de forma técnica (solo, mudas, plantas daninhas, sulcos, covas, falhas, danos, pragas, etc.), sem afirmar o que não dá para ver.
+- Possíveis causas e recomendações devem ser coerentes com boas práticas de silvicultura e com o problema descrito.
+- Criticidade: "Alta" (compromete o resultado da operação/plantio ou a segurança), "Média" (exige correção programada) ou "Baixa" (ajuste/observação).
+Responda SOMENTE com JSON:
+{ "introducao": "1 parágrafo: contexto e objetivo da vistoria, citando data, fazenda e UP quando informados",
+  "metodologia": "1 parágrafo curto: vistoria de campo com registro fotográfico e anotações por ponto",
+  "pontos": [ { "titulo": "título técnico do ponto (pode melhorar o do técnico)", "descricao": "constatação técnica (2 a 4 frases)", "causas": "possíveis causas (1 a 2 frases)", "recomendacoes": "ações recomendadas (1 a 3 frases)", "criticidade": "Alta|Média|Baixa", "legendas": ["legenda curta para cada foto, na ordem"] } ],
+  "conclusao": "1 parágrafo de conclusão geral",
+  "recomendacoes_gerais": ["lista curta de recomendações gerais / próximos passos"] }
+A lista "pontos" deve ter exatamente um item para cada ponto recebido, na mesma ordem.`;
+
 const extrairJSON = texto => {
   const ini = texto.indexOf('{'), fim = texto.lastIndexOf('}');
   if (ini < 0 || fim < ini) throw new Error('resposta sem JSON');
@@ -486,7 +502,7 @@ async function rotaExperimentoIA(req, res, acao) {
   if (!dentroDoLimite(ip)) return json(res, 429, { erro: 'Muitos pedidos em pouco tempo. Aguarde um minutinho.' });
   if (!cliente || !iaDisponivel) return json(res, 503, { erro: 'IA não configurada no servidor.' });
   let corpo;
-  try { corpo = JSON.parse(await lerCorpo(req, 400_000)); } catch { return json(res, 400, { erro: 'Requisição inválida.' }); }
+  try { corpo = JSON.parse(await lerCorpo(req, acao === 'relatorio' ? 4_000_000 : 400_000)); } catch { return json(res, 400, { erro: 'Requisição inválida (o relatório com as fotos passou de 4 MB?).' }); }
   const pedido = String(corpo.pedido || '').slice(0, 1500);
   if (!pedido.trim()) return json(res, 400, { erro: 'Pedido vazio.' });
   try {
@@ -494,6 +510,20 @@ async function rotaExperimentoIA(req, res, acao) {
       const conteudo = `CATÁLOGO DE DADOS:\n${JSON.stringify(corpo.catalogo)}\n\nPERÍODO GLOBAL DO PAINEL: ${JSON.stringify(corpo.global || {})}\n` +
         (corpo.atual ? `\nESPECIFICAÇÃO ATUAL (ajuste-a conforme o novo pedido, mantendo o que não foi pedido para mudar):\n${JSON.stringify(corpo.atual)}\n\nAJUSTE PEDIDO: ${pedido}` : `\nPEDIDO: ${pedido}`);
       return json(res, 200, { especificacao: await perguntarJSON(SISTEMA_ESPEC, conteudo, 'medium') });
+    }
+    if (acao === 'relatorio') {
+      // Texto do cabeçalho e dos pontos + até 16 fotos (já reduzidas no navegador), cada uma identificada pelo ponto
+      const cab = corpo.cabecalho || {}, pontos = Array.isArray(corpo.pontos) ? corpo.pontos.slice(0, 30) : [];
+      const conteudo = [{ type: 'text', text: `CABEÇALHO DO RELATÓRIO:\n${JSON.stringify(cab).slice(0, 4000)}\n\nPONTOS REGISTRADOS (${pontos.length}):\n${JSON.stringify(pontos.map((p, i) => ({ ponto: i + 1, titulo: String(p.titulo || '').slice(0, 300), observacao: String(p.observacao || '').slice(0, 3000), fotos: (p.fotos || []).length })))}` }];
+      let restantes = 16;
+      pontos.forEach((p, i) => {
+        const fotos = (p.fotos || []).filter(f => /^data:image\/(jpeg|png|webp);base64,/.test(f)).slice(0, restantes);
+        if (!fotos.length) return;
+        conteudo.push({ type: 'text', text: `Fotos do ponto ${i + 1} (${fotos.length}):` });
+        fotos.forEach(f => { const [, tipo, dados] = f.match(/^data:(image\/\w+);base64,(.*)$/); conteudo.push({ type: 'image', source: { type: 'base64', media_type: tipo, data: dados } }); });
+        restantes -= fotos.length;
+      });
+      return json(res, 200, { relatorio: await perguntarJSON(SISTEMA_RELATORIO, conteudo, 'low') });
     }
     if (acao === 'prontuario') return json(res, 200, { analise: await perguntarJSON(SISTEMA_PRONTUARIO, `PRONTUÁRIO DA UP (dados calculados):\n${JSON.stringify(corpo.dados).slice(0, 60_000)}`, 'low') });
     const conteudo = `PEDIDO: ${pedido}\n\nESPECIFICAÇÃO:\n${JSON.stringify(corpo.especificacao)}\n\nRESULTADO CALCULADO (${corpo.resultado?.linhas?.length || 0} linhas):\n${JSON.stringify(corpo.resultado).slice(0, 60_000)}`;
@@ -553,7 +583,7 @@ export function tratarApi(req, res) {
   const exp = rota.match(/^\/api\/experimentos(?:\/([^/]+))?$/);
   if (exp) return Promise.resolve(rotaExperimentos(req, res, exp[1]));
   if (rota === '/api/experimento/status' && req.method === 'GET') return Promise.resolve(json(res, 200, { ia: Boolean(cliente && iaDisponivel) }));
-  const expIA = rota.match(/^\/api\/experimento\/(especificar|analisar|prontuario)$/);
+  const expIA = rota.match(/^\/api\/experimento\/(especificar|analisar|prontuario|relatorio)$/);
   if (expIA && req.method === 'POST') return Promise.resolve(rotaExperimentoIA(req, res, expIA[1]));
   const fotos = rota.match(/^\/api\/fotos\/([a-z]+)$/);
   if (fotos && req.method === 'GET') return Promise.resolve(listarFotos(res, fotos[1]));
