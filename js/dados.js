@@ -237,7 +237,8 @@ const CLIMA = {
   chuvaHojeMm: 1,            // "chuva prevista hoje" a partir deste total no dia
   // Bases da unidade: ponto de partida para a distância até as fazendas (mapa da Home, tela cheia e detalhe)
   bases: [
-    { nome: 'Base São Miguel', lat: -23.882127, lon: -47.988015 }
+    { nome: 'Base São Miguel', lat: -23.882127, lon: -47.988015 },
+    { nome: 'Base Salto', lat: -23.643123, lon: -47.581202 }
   ],
   // Programação de Atividades: aviso de atenção no dia programado (além dos alertas acima)
   programacao: { chuvaMm: 5, probChuva: 60, rajadaKmh: 30 }
