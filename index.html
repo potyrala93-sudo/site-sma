@@ -253,6 +253,14 @@
           </aside>
         </div>
 
+        <div class="clima-dist glass" id="clima-dist" aria-label="Distância das bases até as fazendas">
+          <span class="clima-dist-rot"><i data-lucide="route"></i>Distância</span>
+          <label class="clima-campo"><span>De</span><select id="clima-dist-base" aria-label="Base"></select></label>
+          <label class="clima-campo clima-dist-faz"><span>até</span><select id="clima-dist-faz" aria-label="Fazenda"><option value="">escolha a fazenda</option></select></label>
+          <output class="clima-dist-res" id="clima-dist-res" aria-live="polite">Escolha uma fazenda (ou use "Distância" no detalhe dela) para ver a distância em linha reta e pela estrada.</output>
+          <button type="button" class="clima-tbtn" id="clima-dist-limpar" hidden><i data-lucide="x"></i><span>Limpar rota</span></button>
+        </div>
+
         <div class="clima-rodape">
           <span><i data-lucide="cloud-sun"></i> Previsão: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · <span id="clima-hora">—</span></span>
           <span class="clima-aviso" id="clima-aviso" hidden></span>

@@ -235,6 +235,10 @@ const CLIMA = {
   alertas: { chuvaDiaMm: 30, rajadaKmh: 40, tempMax: 35, geadaMin: 3 },
   plantio: { chuva7dMm: 20 },  // acumulado em 7 dias ≥ isto = "umidade favorável ao plantio"; senão "prever irrigação"
   chuvaHojeMm: 1,            // "chuva prevista hoje" a partir deste total no dia
+  // Bases da unidade: ponto de partida para a distância até as fazendas (mapa da Home, tela cheia e detalhe)
+  bases: [
+    { nome: 'Base São Miguel', lat: -23.882127, lon: -47.988015 }
+  ],
   // Programação de Atividades: aviso de atenção no dia programado (além dos alertas acima)
   programacao: { chuvaMm: 5, probChuva: 60, rajadaKmh: 30 }
 };

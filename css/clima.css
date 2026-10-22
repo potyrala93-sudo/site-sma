@@ -211,3 +211,21 @@ b.clima-h-chuva { color: #38bdf8; }
 .clima-tbtn svg { width: 16px; height: 16px; color: var(--neon); }
 .clima-fechar { border-color: rgba(255,77,94,.35); }
 .clima-fechar svg { color: var(--tom-erro, #ff6b7a); }
+
+/* ---------- Distância das bases até as fazendas ---------- */
+.clima-dist { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin-top: .9rem; padding: .75rem 1rem; border-radius: 18px; }
+.clima-dist-rot { display: inline-flex; align-items: center; gap: .4rem; font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--neon); }
+.clima-dist-rot svg { width: 17px; height: 17px; }
+.clima-dist .clima-campo span { font-size: .78rem; font-weight: 700; color: var(--texto-suave); }
+.clima-dist-faz select { max-width: 340px; }
+.clima-dist-res { flex: 1 1 320px; font-size: .9rem; color: var(--texto); line-height: 1.45; }
+.clima-dist-res b { color: var(--texto-forte); }
+.clima-dist-num { font-weight: 800; color: #ffd23f; font-variant-numeric: tabular-nums; }
+.clima-base span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; background: #fff; border: 2px solid #ffd23f; box-shadow: 0 0 0 3px rgba(4,18,15,.6), 0 0 16px rgba(255,210,63,.8); }
+.clima-d-dist { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .5rem; margin-bottom: .5rem; }
+.clima-d-dist > div { display: grid; gap: .1rem; padding: .6rem .75rem; border-radius: 14px; border: 1px solid var(--borda); background: rgba(255,210,63,.06); }
+.clima-d-dist span { font-size: .72rem; font-weight: 800; color: var(--texto-suave); }
+.clima-d-dist b { font-size: 1.3rem; color: var(--texto-forte); }
+.clima-d-dist small { font-size: .74rem; color: var(--texto-suave); }
+.clima-d-estrada { color: var(--texto) !important; font-weight: 700; }
+@media (max-width: 640px) { .clima-dist-faz select { max-width: 100%; } .clima-dist .clima-campo { flex: 1 1 100%; } }

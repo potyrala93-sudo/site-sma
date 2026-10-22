@@ -169,6 +169,88 @@
     av.title = inv ? d.invalidos.exemplos.map(x => `${x.fazenda}: ${x.latitude} / ${x.longitude}`).join('\n') : '';
   }
 
+  /* ---------- Distância das bases até as fazendas ----------
+     Linha reta: fórmula de Haversine (na hora). Estrada: rota de carro do OSRM (servidor público do
+     OpenStreetMap), do ponto da base ao ponto central da fazenda; guardada no navegador. */
+  const BASES_UNIDADE = CFG.bases || [];
+  let baseEscolhida = (() => { try { return localStorage.getItem('clima:base') || ''; } catch { return ''; } })();
+  const baseAtual = () => BASES_UNIDADE.find(b => b.nome === baseEscolhida) || BASES_UNIDADE[0] || null;
+  function distanciaReta(b, f) {
+    if (!b || !f) return null;
+    const rad = g => g * Math.PI / 180, R = 6371;
+    const dLa = rad(f.lat - b.lat), dLo = rad(f.lon - b.lon);
+    const h = Math.sin(dLa / 2) ** 2 + Math.cos(rad(b.lat)) * Math.cos(rad(f.lat)) * Math.sin(dLo / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  const tempoViagem = min => (min == null ? '' : min < 60 ? `≈ ${Math.round(min)} min` : `≈ ${Math.floor(min / 60)} h ${String(Math.round(min % 60)).padStart(2, '0')} min`);
+  const rotas = new Map();
+  function rotaEstrada(b, f) {
+    if (!b || !f) return Promise.resolve(null);
+    const k = `${b.lat},${b.lon}|${f.lat},${f.lon}`;
+    if (rotas.has(k)) return rotas.get(k);
+    const p = (async () => {
+      try { const c = JSON.parse(localStorage.getItem(`clima:rota:${k}`) || 'null'); if (c) return c; } catch { /* sem cache */ }
+      const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${b.lon},${b.lat};${f.lon},${f.lat}?overview=full&geometries=geojson`, { signal: AbortSignal.timeout(15_000) });
+      const j = await r.json();
+      if (j.code !== 'Ok' || !j.routes?.length) throw new Error(j.message || 'sem rota');
+      const rt = j.routes[0];
+      const res = { km: rt.distance / 1000, min: rt.duration / 60, linha: rt.geometry.coordinates.map(([lo, la]) => [+la.toFixed(5), +lo.toFixed(5)]) };
+      try { localStorage.setItem(`clima:rota:${k}`, JSON.stringify(res)); } catch { /* sem espaço */ }
+      return res;
+    })().catch(e => { rotas.delete(k); console.warn('Clima: rota indisponível', e.message); return null; });
+    rotas.set(k, p);
+    return p;
+  }
+  // Marcadores das bases (ficam por cima das fazendas nos dois mapas)
+  function camadaBases() {
+    const L = window.L, g = L.layerGroup();
+    BASES_UNIDADE.forEach(b => L.marker([b.lat, b.lon], { zIndexOffset: 1000, icon: L.divIcon({ className: 'clima-base', html: '<span title="">🏠</span>', iconSize: [30, 30], iconAnchor: [15, 15] }) })
+      .bindTooltip(`<div class="clima-dica"><b>${esc(b.nome)}</b><small>Base da unidade</small></div>`, { className: 'clima-tooltip', direction: 'top', offset: [0, -14] }).addTo(g));
+    return g;
+  }
+  // Barra "Distância" da Home
+  let rotaHome = null;
+  function renderDistBarra() {
+    const sb = $('#clima-dist-base'), sf = $('#clima-dist-faz'); if (!sb || !sf) return;
+    sb.innerHTML = BASES_UNIDADE.map(b => `<option ${b === baseAtual() ? 'selected' : ''}>${esc(b.nome)}</option>`).join('');
+    const atual = sf.value, b = baseAtual();
+    const fazs = itens().map(x => x.f).sort((a, c) => distanciaReta(b, a) - distanciaReta(b, c));
+    sf.innerHTML = `<option value="">escolha a fazenda (mais perto primeiro)</option>${fazs.map(f => `<option value="${esc(f.nome)}" ${f.nome === atual ? 'selected' : ''}>${esc(f.nome)} · ${n1(distanciaReta(b, f))} km</option>`).join('')}`;
+  }
+  async function mostrarDistancia(nome, rolar = false) {
+    const b = baseAtual(), f = estado.fazendas.find(x => x.nome === nome), out = $('#clima-dist-res');
+    if (!b || !f || !out) return;
+    $('#clima-dist-faz').value = nome;
+    const reta = distanciaReta(b, f);
+    out.innerHTML = `<b>${esc(f.nome)}</b> · <span class="clima-dist-num">${n1(reta)} km</span> em linha reta · <span class="clima-mudo">calculando a estrada…</span>`;
+    $('#clima-dist-limpar').hidden = false;
+    if (rolar) $('#clima-dist').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const r = await rotaEstrada(b, f);
+    if ($('#clima-dist-faz').value !== nome) return;
+    out.innerHTML = `<b>${esc(f.nome)}</b> · <span class="clima-dist-num">${n1(reta)} km</span> em linha reta · ${r ? `<span class="clima-dist-num">${n1(r.km)} km</span> pela estrada · ${tempoViagem(r.min)}` : '<span class="clima-mudo">estrada indisponível agora</span>'}`;
+    if (mapaHome && window.L) {
+      rotaHome?.remove();
+      const L = window.L, grupo = L.featureGroup();
+      if (r?.linha?.length) L.polyline(r.linha, { color: '#ffd23f', weight: 4, opacity: .95 }).addTo(grupo);
+      else L.polyline([[b.lat, b.lon], [f.lat, f.lon]], { color: '#ffd23f', weight: 3, dashArray: '6 6' }).addTo(grupo);
+      L.circleMarker([f.lat, f.lon], { radius: 8, color: '#fff', weight: 2, fillColor: '#ffd23f', fillOpacity: 1 }).bindTooltip(`${esc(f.nome)} · ${n1(r?.km ?? reta)} km`, { permanent: true, direction: 'top', className: 'clima-tooltip', offset: [0, -8] }).addTo(grupo);
+      grupo.addTo(mapaHome); rotaHome = grupo;
+      mapaHome.fitBounds(grupo.getBounds().extend([b.lat, b.lon]).pad(.15), { maxZoom: 12 });
+    }
+  }
+  function limparDistancia() {
+    rotaHome?.remove(); rotaHome = null;
+    $('#clima-dist-faz').value = ''; $('#clima-dist-limpar').hidden = true;
+    $('#clima-dist-res').textContent = 'Escolha uma fazenda para ver a distância em linha reta e pela estrada.';
+    enquadrarHome();
+  }
+  $('#clima-dist-faz')?.addEventListener('change', e => (e.target.value ? mostrarDistancia(e.target.value) : limparDistancia()));
+  $('#clima-dist-base')?.addEventListener('change', e => {
+    baseEscolhida = e.target.value; try { localStorage.setItem('clima:base', baseEscolhida); } catch { /* opcional */ }
+    const nome = $('#clima-dist-faz').value; renderDistBarra(); if (nome) mostrarDistancia(nome); if (tela.aberta) renderTela();
+  });
+  $('#clima-dist-limpar')?.addEventListener('click', limparDistancia);
+
   /* ---------- Mapas (compacto e tela cheia usam o mesmo desenho) ---------- */
   const BASES = {
     satelite: () => window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Imagens © Esri' }),
@@ -210,7 +292,8 @@
       [[contornos, z >= 9], [bolinhas, z < 10], [marcadores, z >= 10]].forEach(([g, ver]) => { if (ver && !mapa.hasLayer(g)) g.addTo(mapa); if (!ver && mapa.hasLayer(g)) mapa.removeLayer(g); });
     };
     mapa.on('zoomend', ajustar); ajustar();
-    return { remover: () => { mapa.off('zoomend', ajustar); [contornos, bolinhas, marcadores].forEach(g => mapa.removeLayer(g)); }, porNome };
+    const bases = camadaBases().addTo(mapa);
+    return { remover: () => { mapa.off('zoomend', ajustar); [contornos, bolinhas, marcadores, bases].forEach(g => mapa.removeLayer(g)); }, porNome };
   }
   function limites(filtro = () => true) {
     const xs = itens().filter(filtro);
@@ -244,7 +327,7 @@
   }
 
   function renderTudo() {
-    renderKPIs(); renderLista(); renderRodape();
+    renderKPIs(); renderLista(); renderRodape(); renderDistBarra();
     renderMapaHome().catch(e => mostrarEstado('erro', `mapa indisponível (${e.message})`));
     if (tela.aberta) renderTela();
     icones();
@@ -363,14 +446,14 @@
       ? Object.entries(cont).map(([t, q]) => `<span class="clima-alerta ${t}"><i data-lucide="${tipos[t][0]}"></i>${tipos[t][1]} · <b>${q}</b> ${q === 1 ? 'fazenda' : 'fazendas'}</span>`).join('')
       : '<span class="clima-alerta ok"><i data-lucide="shield-check"></i>Sem alertas nos próximos 7 dias</span>';
     $('#clima-tabela').innerHTML = `<table class="tabela clima-tab">
-      <thead><tr><th>Fazenda</th><th>Município</th><th>Agora</th><th>Janela agora</th><th>Próxima janela boa</th><th>Chuva hoje</th><th>Chuva 7 dias</th><th>Alerta</th></tr></thead>
+      <thead><tr><th>Fazenda</th><th>Município</th><th>Agora</th><th>Janela agora</th><th>Próxima janela boa</th><th>Chuva hoje</th><th>Chuva 7 dias</th><th title="Linha reta a partir da ${esc(baseAtual().nome)}">Distância (reta)</th><th>Alerta</th></tr></thead>
       <tbody>${xs.map(({ f, p }) => { const a = p.agora, s = st(a.status), [ic] = tempo(a.codigo); return `<tr data-faz="${esc(f.nome)}" style="--sc-linha:${s.cor}" title="Clique para centralizar no mapa">
         <th scope="row"><button type="button" class="clima-detalhe-btn" title="Ver detalhe">${esc(f.nome)}</button></th><td>${esc(f.municipio)}</td>
         <td>${ic} ${n1(a.t)} °C · ${n0(a.ur)}% · ${n0(a.vento)} km/h</td>
         <td><span class="clima-pill" style="--c:${s.cor}">${s.curto}</span></td>
         <td>${p.proximaJanela ? esc(p.proximaJanela.agora ? `Agora até ${p.proximaJanela.rotulo.split('–')[1]}` : p.proximaJanela.rotulo) : '<span class="clima-mudo">nenhuma em 7 dias</span>'}</td>
-        <td class="num">${n1(p.chuvaHoje)} mm</td><td class="num">${n1(p.chuva7d)} mm</td>
-        <td>${p.alertas.length ? `<span class="clima-alerta-mini" title="${esc(p.alertas.map(x => x.texto).join('\n'))}">⚠️ ${esc(p.alertas[0].texto)}${p.alertas.length > 1 ? ` +${p.alertas.length - 1}` : ''}</span>` : '—'}</td></tr>`; }).join('') || '<tr><td colspan="8" class="vazio">Nenhuma fazenda com esses filtros.</td></tr>'}</tbody></table>`;
+        <td class="num">${n1(p.chuvaHoje)} mm</td><td class="num">${n1(p.chuva7d)} mm</td><td class="num">${n1(distanciaReta(baseAtual(), f))} km</td>
+        <td>${p.alertas.length ? `<span class="clima-alerta-mini" title="${esc(p.alertas.map(x => x.texto).join('\n'))}">⚠️ ${esc(p.alertas[0].texto)}${p.alertas.length > 1 ? ` +${p.alertas.length - 1}` : ''}</span>` : '—'}</td></tr>`; }).join('') || '<tr><td colspan="9" class="vazio">Nenhuma fazenda com esses filtros.</td></tr>'}</tbody></table>`;
     $('#clima-t-hora').textContent = $('#clima-hora').textContent;
     icones();
   }
@@ -428,7 +511,7 @@
         <div id="clima-d-corpo"></div>
       </aside>`;
     document.body.appendChild(el);
-    el.addEventListener('click', e => { if (e.target.closest('[data-fechar]')) fecharDetalhe(); if (e.target.closest('#clima-d-ativ')) carregarAtividades(); const dia = e.target.closest('[data-dia]'); if (dia) mostrarHoras(dia.dataset.dia); });
+    el.addEventListener('click', e => { if (e.target.closest('[data-fechar]')) fecharDetalhe(); if (e.target.closest('#clima-d-ativ')) carregarAtividades(); if (e.target.closest('#clima-d-rota')) { const nome = $('#clima-detalhe').dataset.fazenda; fecharDetalhe(); mostrarDistancia(nome, true); } const dia = e.target.closest('[data-dia]'); if (dia) mostrarHoras(dia.dataset.dia); });
   }
   function fecharDetalhe() { $('#clima-detalhe').hidden = true; if (!tela.aberta) document.body.classList.remove('clima-sem-rolagem'); grafico?.destroy(); grafico = null; }
 
@@ -452,6 +535,7 @@
         <div class="clima-d-faixa-leg">${STATUS.map(x => `<span><i style="--c:${x.cor}"></i>${x.curto}</span>`).join('')}<span>faixa = janela de aplicação hora a hora</span></div></section>
       <section class="clima-d-bloco"><h4>7 dias <small class="clima-mudo">· toque num dia para ver hora a hora</small></h4><div class="clima-d-dias" role="tablist" aria-label="Dias da previsão">${p.dias.map(d => { const [di, dd] = tempo(d.codigo); return `<button type="button" class="clima-d-dia" role="tab" aria-selected="false" aria-controls="clima-d-horas" data-dia="${d.data}"><b>${esc(d.rotulo)}</b><span class="clima-d-ic" title="${dd}">${di}</span><span><b>${n0(d.tmax)}°</b> / ${n0(d.tmin)}°</span><small>💧 ${n1(d.chuva)} mm · ${n0(d.prob)}%</small><small>💨 até ${n0(d.vento)} km/h</small></button>`; }).join('')}</div>
         <div class="clima-d-horas" id="clima-d-horas" role="tabpanel" hidden></div></section>
+      <section class="clima-d-bloco"><h4>Distância da base</h4><div class="clima-d-dist" id="clima-d-dist">${(CFG.bases || []).map(b => `<div><span>${esc(b.nome)}</span><b>${n1(distanciaReta(b, f))} km</b><small>em linha reta</small><small class="clima-d-estrada" data-base="${esc(b.nome)}">calculando a estrada…</small></div>`).join('')}</div><button type="button" class="clima-tbtn" id="clima-d-rota"><i data-lucide="route"></i><span>Ver rota no mapa</span></button></section>
       <section class="clima-d-bloco clima-d-chuva">
         <div><span>Chuva nos últimos 7 dias</span><b>${n1(pass)} mm</b></div>
         <div><span>Prevista nos próximos 7 dias</span><b>${n1(p.chuva7d)} mm</b></div>
@@ -461,6 +545,7 @@
       <section class="clima-d-bloco"><h4>Atividades apontadas (últimos 7 dias)</h4><div id="clima-d-ativ-lista"><button type="button" class="clima-tbtn" id="clima-d-ativ"><i data-lucide="clipboard-list"></i><span>Ver atividades desta fazenda</span></button><small class="clima-mudo">carrega a planilha de produção (PGO), que é grande</small></div></section>`;
     icones();
     $('.clima-detalhe-fechar').focus();
+    (CFG.bases || []).forEach(b => rotaEstrada(b, f).then(r => { const el = $(`#clima-d-dist [data-base="${CSS.escape(b.nome)}"]`); if (el && el.isConnected) el.textContent = r ? `${n1(r.km)} km pela estrada · ${tempoViagem(r.min)}` : 'estrada indisponível'; }));
     try {
       const [r] = await Promise.all([detalheDoPonto(f.ponto), chartjs()]);
       if (el.dataset.fazenda !== nome || el.hidden) return;
