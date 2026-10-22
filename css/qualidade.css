@@ -213,9 +213,12 @@
 .q-origem.projetada, .origem-projetada .q-origem { color: var(--tom-aviso, #ffd23f); background: rgba(255,210,63,.1); border: 1px dashed rgba(255,210,63,.7); }
 .q-origem.manual, .origem-manual .q-origem { color: #fff; background: #8b5cf6; box-shadow: 0 0 14px -2px #8b5cf6; }
 .q-tab-proj tbody tr { cursor: default; }
-.q-tab-proj th:nth-child(1) { width: 8%; } .q-tab-proj th:nth-child(2) { width: 20%; } .q-tab-proj th:nth-child(3) { width: 10%; }
-.q-tab-proj th:nth-child(4) { width: 11%; } .q-tab-proj th:nth-child(5) { width: 9%; } .q-tab-proj th:nth-child(6) { width: 12%; }
-.q-tab-proj th:nth-child(7) { width: 14%; } .q-tab-proj th:nth-child(8) { width: 16%; }
+.q-tab-proj th:nth-child(1) { width: 7%; } .q-tab-proj th:nth-child(2) { width: 17%; } .q-tab-proj th:nth-child(3) { width: 10%; }
+.q-tab-proj th:nth-child(4) { width: 11%; } .q-tab-proj th:nth-child(5) { width: 9%; } .q-tab-proj th:nth-child(6) { width: 10%; }
+.q-tab-proj th:nth-child(7) { width: 13%; } .q-tab-proj th:nth-child(8) { width: 22%; }
+/* origem da nota: o texto (ex.: "Projetada – média da UP (45 Dias, 60 Dias, 90 Dias)") quebra linha em vez de ser cortado */
+.q-tab-proj td:last-child { white-space: normal; overflow: visible; }
+.q-tab-proj .q-origem { white-space: normal; line-height: 1.3; }
 .origem-projetada { background: repeating-linear-gradient(135deg, rgba(255,210,63,.03) 0 10px, transparent 10px 20px); }
 .origem-manual { box-shadow: inset 3px 0 0 #8b5cf6; }
 .q-col-edit input {
