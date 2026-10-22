@@ -204,3 +204,65 @@ th.n1-chk { white-space: normal; font-size: .64rem; min-width: 74px; }
 .n1-pdf-livre .n1-ader-barra { background: #fde2e2 !important; }
 .n1-pdf-livre .n1-ader-barra i { background: #22c55e !important; }
 .n1-pdf-livre .n1-ader-barra b { color: #0b2a23 !important; text-shadow: none !important; }
+
+/* ---------- Layout (ajustes) ---------- */
+/* Depois da análise, o bloco dos arquivos fica compacto ("Ver / trocar arquivos" abre de novo) */
+.n1-trocar { display: inline-flex; align-items: center; gap: .3rem; margin-left: auto; }
+.n1-trocar[hidden] { display: none; }
+.n1-trocar svg { width: 15px; height: 15px; }
+.n1-envio.compacto { grid-template-columns: 1fr; padding: .7rem 1rem; }
+.n1-envio.compacto .n1-envio-txt p, .n1-envio.compacto .n1-solta, .n1-envio.compacto .n1-arquivos { display: none; }
+.n1-envio.compacto .n1-envio-txt .fat-sec-titulo { font-size: 1.25rem; margin: .1rem 0 0; }
+
+.n1-ferr { padding: .7rem .8rem; border-radius: 18px; margin-bottom: .8rem; }
+.n1-ferr .n1-abas { padding-bottom: .6rem; margin-bottom: .6rem; border-bottom: 1px solid var(--borda); }
+.n1-ferr .n1-barra { margin: 0; }
+.n1-sem-sel { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 12px; border: 1px solid var(--borda); background: rgb(var(--fundo-rgb) / .6); }
+.n1-sem-sel svg { width: 15px; height: 15px; color: var(--neon); }
+.n1-sem-sel select { border: 0; outline: 0; background: none; color: var(--texto-forte); font: inherit; font-size: .82rem; font-weight: 800; }
+.n1-sem-sel select option { background: var(--bg); color: var(--texto); }
+.n1-barra.so-semana .n1-seg, .n1-barra.so-semana .n1-busca { display: none; }
+.n1-isen { padding: .7rem 1rem; }
+
+/* ---------- Classificação e Equipe: etiquetas pequenas, sem esticar ---------- */
+.n1-tab td.n1-classe { white-space: normal !important; line-height: 1.6; }
+.n1-cl { display: inline-block; margin: 1px 3px 1px 0; padding: .05rem .45rem; border-radius: 6px; font-size: .66rem; font-weight: 800; white-space: nowrap; color: #04201a; }
+.n1-cl.normal { color: var(--texto-suave); background: none; border: 1px solid var(--borda); font-weight: 700; }
+.n1-cl.adiantada { background: #7dd3fc; }
+.n1-cl.negociacao { background: #fbbf24; }
+.n1-cl.rfAnterior { background: #f9a8d4; }
+.n1-eq { display: inline-block; min-width: 2.2em; padding: .1rem .45rem; border-radius: 7px; font-size: .74rem; text-align: center; color: var(--texto-forte); background: rgb(var(--tinta-rgb) / .08); border: 1px solid var(--borda); white-space: nowrap; }
+.n1-tab .n1-c-cl { width: 10%; } .n1-tab .n1-c-eq { width: 7%; }
+.n1-eq-in { max-width: 80px; padding: .2rem .35rem; font-size: .72rem; }
+
+/* ---------- Aderência empilhada ---------- */
+.n1-ader-topo { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; margin-bottom: .9rem; }
+.n1-ader-geral { display: grid; gap: .1rem; padding: .7rem 1rem; border-radius: 14px; border: 1px solid var(--borda); background: rgba(61,255,168,.06); }
+.n1-ader-geral span { font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--texto-suave); }
+.n1-ader-geral strong { font-size: 1.9rem; line-height: 1.1; color: var(--texto-forte); }
+.n1-ader-geral small { font-size: .76rem; color: var(--texto-suave); }
+.n1-ader-geral .ok { color: #22c55e; } .n1-ader-geral .pend { color: #ef4444; }
+.n1-ader-topo .n1-nota { flex: 1 1 300px; margin: 0; }
+.n1-ader { padding: .8rem; border-radius: 14px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .02); }
+.n1-ader + .n1-ader { margin-top: .8rem; }
+.n1-ader h3 { display: flex; align-items: center; gap: .4rem; margin: 0 0 .5rem; font-size: .95rem; }
+.n1-ader h3 svg { width: 17px; height: 17px; color: var(--neon); }
+.n1-tab-ader th.num, .n1-tab-ader td.num { width: 11%; }
+.n1-tab-ader .n1-c-barra { width: 30%; }
+.n1-ader-barra { height: 22px; }
+.n1-ader-barra b { line-height: 22px; }
+.n1-ader-barra.media i { background: linear-gradient(90deg, #ca8a04, #fbbf24); }
+.n1-ader-barra.baixa i { background: linear-gradient(90deg, #b91c1c, #ef4444); }
+.n1-ader-grade { display: block; }
+/* cabeçalho sem quebrar palavra no meio ("ADIANT." inteiro) */
+.n1-tab thead th { overflow-wrap: normal !important; word-break: keep-all; hyphens: none; }
+.n1-tab th.n1-chk { width: 6.5%; letter-spacing: .02em; }
+.n1-tab .n1-c-up { width: 8%; } .n1-tab .n1-c-ativ { width: 24%; }
+/* larguras fixas por coluna (a atividade ganha mais espaço; checks e equipe estreitos) */
+.n1-tab:not(.n1-tab-ader) { table-layout: fixed; }
+.n1-tab .n1-c-up { width: 9%; } .n1-tab .n1-c-ativ { width: 23%; } .n1-tab .n1-c-fr { width: 6%; } .n1-tab .n1-c-sem { width: 8%; }
+.n1-tab .n1-c-st { width: 15%; } .n1-tab th.n1-chk { width: 6.5%; } .n1-tab .n1-c-cl { width: 11.5%; } .n1-tab .n1-c-eq { width: 7%; } .n1-tab .n1-c-tipo { width: 9%; }
+/* mais forte que ".q-tab th:nth-child(n)" da Qualidade */
+table.n1-tab th.n1-c-up { width: 9%; } table.n1-tab th.n1-c-ativ { width: 23%; } table.n1-tab th.n1-c-fr { width: 6%; } table.n1-tab th.n1-c-sem { width: 8%; }
+table.n1-tab th.n1-c-st { width: 15%; } table.n1-tab th.n1-chk { width: 6.5%; } table.n1-tab th.n1-c-cl { width: 11.5%; } table.n1-tab th.n1-c-eq { width: 7%; } table.n1-tab th.n1-c-tipo { width: 9%; }
+table.n1-tab-ader th { width: auto; } table.n1-tab-ader th:first-child { width: 30%; }

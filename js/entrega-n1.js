@@ -138,7 +138,8 @@
      2/3. ANÁLISE
      ====================================================================== */
   const arquivos = [];   // { arq, leitura, tipo (pode ser trocado pelo usuário) }
-  const estado = { res: null, aba: 'muda', ver: 'pend', busca: '', equipesSel: null };
+  const estado = { res: null, aba: 'muda', ver: 'pend', busca: '', semana: '', equipesSel: null };
+  const naSemana = it => !estado.semana || it.semana === estado.semana;
   const semanaISO = d => { const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const dia = x.getUTCDay() || 7; x.setUTCDate(x.getUTCDate() + 4 - dia); const ini = new Date(Date.UTC(x.getUTCFullYear(), 0, 1)); return Math.ceil(((x - ini) / 864e5 + 1) / 7); };
   const comoData = v => (v instanceof Date ? v : typeof v === 'number' && v > 20000 && v < 80000 ? new Date(Math.round((v - 25569) * 864e5) + new Date().getTimezoneOffset() * 6e4) : (() => { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(v || '')); return m ? new Date(+m[3], m[2] - 1, +m[1]) : null; })());
 
@@ -229,21 +230,28 @@
   function aderencias() {
     const R = estado.res, agrupar = chave => {
       const m = new Map();
-      R.itens.forEach(it => { const k = chave(it) || '—'; const x = m.get(k) || m.set(k, { nome: k, ok: 0, pend: 0, outros: 0 }).get(k); if (it.status === 'ok') x.ok++; else if (it.status === 'pend') x.pend++; else x.outros++; });
+      R.itens.filter(naSemana).forEach(it => { const k = chave(it) || '—'; const x = m.get(k) || m.set(k, { nome: k, ok: 0, pend: 0, outros: 0 }).get(k); if (it.status === 'ok') x.ok++; else if (it.status === 'pend') x.pend++; else x.outros++; });
       return [...m.values()].map(x => ({ ...x, ader: x.ok + x.pend ? x.ok / (x.ok + x.pend) : null }));
     };
     return {
       'Por semana': agrupar(it => it.semana).sort((a, b) => ordemSemana(a.nome) - ordemSemana(b.nome)),
       'Por atividade': agrupar(it => it.desc).sort((a, b) => (a.ader ?? 2) - (b.ader ?? 2) || b.pend - a.pend),
-      'Por equipe': agrupar(it => equipeDe(it) || 'Sem equipe').sort((a, b) => (a.ader ?? 2) - (b.ader ?? 2) || b.pend - a.pend)
+      'Por equipe': agrupar(it => equipeDe(it) || 'Sem equipe').sort((a, b) => (a.ader ?? 2) - (b.ader ?? 2) || b.pend - a.pend),
+      'Por base de qualidade': agrupar(it => tipoDe(it.tipo).nome).sort((a, b) => TIPOS.findIndex(t => t.nome === a.nome) - TIPOS.findIndex(t => t.nome === b.nome))
     };
   }
+  // Aderência: uma tabela embaixo da outra (semana, atividade, equipe e base de qualidade), seguindo o filtro de semana
   function htmlAderencia() {
-    return `<p class="n1-nota">Aderência = encontradas ÷ (encontradas + pendentes). Linhas sem N1 (equipe dispensada) e de bases não enviadas não entram na conta.</p>
-      <div class="n1-ader-grade">${Object.entries(aderencias()).map(([nome, l]) => `<section class="n1-ader"><h3>${nome}</h3>
-        <table class="n1-tab n1-tab-ader"><thead><tr><th>${nome.replace('Por ', '').replace(/^./, c => c.toUpperCase())}</th><th class="num">Realiz.</th><th class="num">OK</th><th class="num">Pend.</th><th>Aderência</th></tr></thead><tbody>
-        ${l.map(x => `<tr><td>${esc(x.nome)}${x.outros ? `<small class="n1-onde">${x.outros} sem N1 / sem base</small>` : ''}</td><td class="num">${x.ok + x.pend + x.outros}</td><td class="num ok">${x.ok}</td><td class="num pend">${x.pend}</td>
-          <td>${x.ader == null ? '<span class="n1-mudo">—</span>' : `<div class="n1-ader-barra" style="--p:${(x.ader * 100).toFixed(1)}%"><i></i><b>${pct(x.ader)}</b></div>`}</td></tr>`).join('')}</tbody></table></section>`).join('')}</div>`;
+    const grupos = aderencias(), geral = Object.values(grupos)[3].reduce((s, x) => ({ ok: s.ok + x.ok, pend: s.pend + x.pend, outros: s.outros + x.outros }), { ok: 0, pend: 0, outros: 0 });
+    const aderGeral = geral.ok + geral.pend ? geral.ok / (geral.ok + geral.pend) : null;
+    const barra = a => (a == null ? '<span class="n1-mudo">—</span>' : `<div class="n1-ader-barra ${a >= .9 ? 'boa' : a >= .7 ? 'media' : 'baixa'}" style="--p:${(a * 100).toFixed(1)}%"><i></i><b>${pct(a)}</b></div>`);
+    const icone = { 'Por semana': 'calendar-range', 'Por atividade': 'list-checks', 'Por equipe': 'users', 'Por base de qualidade': 'database' };
+    return `<div class="n1-ader-topo">
+        <div class="n1-ader-geral"><span>Aderência geral${estado.semana ? ` · ${esc(estado.semana)}` : ''}</span><strong>${aderGeral == null ? '—' : pct(aderGeral)}</strong><small><b class="ok">${geral.ok} encontradas</b> · <b class="pend">${geral.pend} pendentes</b>${geral.outros ? ` · ${geral.outros} sem N1 / sem base` : ''}</small></div>
+        <p class="n1-nota">Aderência = encontradas ÷ (encontradas + pendentes). Linhas sem N1 (equipe dispensada) e de bases não enviadas não entram na conta. Use o filtro de semana acima para ver uma semana só.</p></div>
+      ${Object.entries(grupos).map(([nome, l]) => `<section class="n1-ader"><h3><i data-lucide="${icone[nome]}"></i>${nome}</h3>
+        <table class="n1-tab n1-tab-ader"><thead><tr><th>${nome.replace('Por ', '').replace(/^./, c => c.toUpperCase())}</th><th class="num">Realizadas</th><th class="num">Encontradas</th><th class="num">Pendentes</th><th class="num">Sem N1 / sem base</th><th class="n1-c-barra">Aderência</th></tr></thead><tbody>
+        ${l.length ? l.map(x => `<tr><td><b>${esc(x.nome)}</b></td><td class="num">${x.ok + x.pend + x.outros}</td><td class="num ok">${x.ok}</td><td class="num pend">${x.pend}</td><td class="num n1-mudo">${x.outros || '—'}</td><td>${barra(x.ader)}</td></tr>`).join('') : '<tr><td colspan="6" class="n1-mudo">Nada nesta semana.</td></tr>'}</tbody></table></section>`).join('')}`;
   }
   // Equipes sem N1: retirar atividades por equipe (ex.: a BV não faz N1)
   function renderIsencoes() {
@@ -275,7 +283,7 @@
   /* ======================================================================
      5. MARCAÇÕES (checks e equipe digitada) — salvas no navegador por RF
      ====================================================================== */
-  const MARCAS = [{ k: 'adiantada', nome: 'Adiantada', curto: 'Adiant.' }, { k: 'negociacao', nome: 'Negociações', curto: 'Negoc.' }, { k: 'rfAnterior', nome: 'Pendências RF anterior', curto: 'Pend. RF ant.' }];
+  const MARCAS = [{ k: 'adiantada', nome: 'Adiantada', curto: 'Adiant.', rotulo: 'Adiantada' }, { k: 'negociacao', nome: 'Negociações', curto: 'Negoc.', rotulo: 'Negociação' }, { k: 'rfAnterior', nome: 'Pendências RF anterior', curto: 'Pend. RF ant.', rotulo: 'RF anterior' }];
   const chaveMarcas = () => `n1:marcas:${norm(estado.res?.rfNome || '')}`;
   let marcas = {};
   const lerMarcas = () => { try { marcas = JSON.parse(localStorage.getItem(chaveMarcas()) || '{}') || {}; } catch { marcas = {}; } };
@@ -334,7 +342,7 @@
   });
 
   function resumoTipo(t) {
-    const l = estado.res.itens.filter(i => i.tipo === t.id), ok = l.filter(i => i.status === 'ok').length, pend = l.filter(i => i.status === 'pend').length, isento = l.filter(i => i.status === 'isento').length;
+    const l = estado.res.itens.filter(i => i.tipo === t.id && naSemana(i)), ok = l.filter(i => i.status === 'ok').length, pend = l.filter(i => i.status === 'pend').length, isento = l.filter(i => i.status === 'isento').length;
     return { total: l.length, ok, pend, isento, semBase: l.length && l.every(i => i.status === 'semBase' || i.status === 'isento') && l.some(i => i.status === 'semBase'), ader: ok + pend ? ok / (ok + pend) : null };
   }
   function render() {
@@ -345,7 +353,7 @@
         <dl class="n1-cab-dados"><div><dt>Data da análise</dt><dd>${R.quando.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</dd></div><div><dt>Semanas</dt><dd>${esc(R.semanas.join(', ') || '—')}</dd></div><div><dt>Base do RF</dt><dd>${esc(R.rfNome)} · aba "${esc(R.rfAba)}"</dd></div></dl></div>
       <details class="n1-det"><summary>Colunas usadas e observações</summary>
         <p><b>Colunas do RF:</b> ${R.colunasUsadas.map(esc).join(' · ')}</p>
-        <p><b>Bases de qualidade:</b> ${Object.entries(BASES).map(([k, b]) => R.bases[k] ? `${b.nome} (${R.bases[k].ups} UPs)` : `<span class="n1-falta">${b.nome}: base não enviada</span>`).join(' · ')}</p>
+        <p><b>Bases de qualidade:</b> ${Object.entries(BASES).map(([k, b]) => R.bases[k] ? `${b.nome} (${R.bases[k].qtd} UPs)` : `<span class="n1-falta">${b.nome}: base não enviada</span>`).join(' · ')}</p>
         <ul><li>Só linhas com Situação = REALIZADO; duplicadas (mesma UP + atividade + semana) contam uma vez.</li><li>Qualidade de Muda e Plantio verificam as mesmas atividades, cada uma na sua base.</li><li>Preparo de Solo mecanizado: a UP precisa estar em pelo menos uma das bases (Conjugado ou Convencional); a coluna "Base" diz em qual.</li><li>As bases de qualidade são comparadas pela UP (a coluna de aplicação do Herbicida não identifica a atividade do RF).</li>${R.faltam.length ? `<li>Bases não enviadas aparecem como "Base não enviada" e não contam como pendência.</li>` : ''}</ul></details>`;
     // Cartões
     $('#n1-cards').innerHTML = TIPOS.map(t => {
@@ -355,6 +363,8 @@
         ${r.semBase ? '<strong class="n1-card-sb">Base não enviada</strong>' : `<strong>${r.ader == null ? '—' : pct(r.ader)}</strong><span class="n1-barra-ader"><i style="width:${(r.ader || 0) * 100}%"></i></span>`}
         <small>${r.total} realizadas · <b class="ok">${r.ok} OK</b> · <b class="pend">${r.pend} pend.</b>${r.isento ? ` · ${r.isento} sem N1` : ''}</small></button>`;
     }).join('');
+    $('#n1-semana').innerHTML = `<option value="">Todas as semanas</option>${R.semanas.map(s => `<option ${s === estado.semana ? 'selected' : ''}>${esc(s)}</option>`).join('')}`;
+    $('#n1-envio').classList.add('compacto'); $('#n1-trocar').hidden = false;
     renderAbas(); renderPainel();
     const somaOk = TIPOS.every(t => { const r = resumoTipo(t); return r.ok + r.pend + r.isento + estado.res.itens.filter(i => i.tipo === t.id && i.status === 'semBase').length === r.total; });
     $('#n1-conferencia').innerHTML = `<i data-lucide="${somaOk ? 'check-circle-2' : 'alert-circle'}"></i>Conferência: ${R.totalRF} linhas REALIZADAS no RF (${R.unicas} sem duplicidade) = ${R.unicas - R.naoClass.length} classificadas + ${R.naoClass.length} não classificadas · ${R.itens.length} verificações (Muda e Plantio contam duas vezes) · encontradas + pendentes + sem base + sem N1 ${somaOk ? 'batem' : 'NÃO batem'} com o total de cada tipo.`;
@@ -365,18 +375,21 @@
     const R = estado.res;
     const abas = [...TIPOS.map(t => [t.id, t.curto || t.nome, resumoTipo(t).pend]), ['aderencia', 'Aderência', null], ['equipe', 'Por equipe', null], ['naoClass', 'Não classificadas', R.naoClass.length], ['corresp', 'Correspondências de nomes', R.corresp.length]];
     $('#n1-abas').innerHTML = abas.map(([id, nome, n]) => `<button type="button" role="tab" data-aba="${id}" aria-selected="${estado.aba === id}" class="${estado.aba === id ? 'ativo' : ''}">${esc(nome)}${n ? ` <b>${n}</b>` : ''}</button>`).join('');
-    $('#n1-barra').classList.toggle('sem-filtro', ['naoClass', 'corresp', 'aderencia'].includes(estado.aba));
+    $('#n1-barra').classList.toggle('sem-filtro', ['naoClass', 'corresp'].includes(estado.aba));
+    $('#n1-barra').classList.toggle('so-semana', estado.aba === 'aderencia');
   }
-  const passa = it => (estado.ver === 'todas' || it.status === 'pend') && (!estado.busca || it.up.includes(normUP(estado.busca)));
+  const passa = it => naSemana(it) && (estado.ver === 'todas' || it.status === 'pend') && (!estado.busca || it.up.includes(normUP(estado.busca)));
   function celulaChecks(it) {
     const m = marcaDe(it);
     return MARCAS.map(x => `<td class="n1-chk" data-rotulo="${x.nome}"><label><input type="checkbox" data-marca="${x.k}" data-chave="${esc(it.chave)}" ${m[x.k] ? 'checked' : ''} aria-label="${x.nome} – UP ${esc(it.up)}"><span class="n1-imp">${m[x.k] ? '☑' : '☐'}</span></label></td>`).join('');
   }
   function celulaEquipe(it) {
-    if (it.frente) return `<span class="n1-eq">${esc(it.frente)}</span>`;
+    if (it.frente) return `<span class="n1-eq" title="Frente de trabalho do RF">${esc(it.frente)}</span>`;
     const v = marcaDe(it).equipe || '';
     return `<input type="text" class="n1-eq-in" list="n1-equipes-sug" data-equipe="${esc(it.chave)}" value="${esc(v)}" placeholder="digite a equipe" aria-label="Equipe da UP ${esc(it.up)}"><span class="n1-imp">${esc(v || '—')}</span>`;
   }
+  // Classificação: "Normal" discreto ou as marcações como etiquetas pequenas
+  const classeHtml = it => { const m = marcaDe(it), l = MARCAS.filter(x => m[x.k]); return l.length ? l.map(x => `<span class="n1-cl ${x.k}">${x.rotulo}</span>`).join('') : '<span class="n1-cl normal">Normal</span>'; };
   const selo = it => `<span class="n1-selo ${it.status}" style="--c:${STATUS[it.status].cor}" title="${STATUS[it.status].nome}">${STATUS[it.status].curto}</span>${it.onde ? `<small class="n1-onde">${it.status === 'ok' ? 'em ' : ''}${esc(it.onde)}</small>` : ''}`;
   function linhaItem(it, comTipo) {
     return `<tr class="n1-l-${it.status}">
@@ -384,7 +397,7 @@
       <td data-rotulo="UP"><span class="q-up">${esc(it.up)}</span>${it.fazenda ? `<small class="n1-faz">${esc(it.fazenda)}</small>` : ''}</td>
       <td data-rotulo="Atividade">${esc(it.desc)}</td><td data-rotulo="Frente de Trabalho">${esc(it.frente || '—')}</td><td data-rotulo="Semana Realizada">${esc(it.semana)}</td>
       <td data-rotulo="Status">${selo(it)}</td>${celulaChecks(it)}
-      <td data-rotulo="Classificação" class="n1-classe" data-classe="${esc(it.chave)}">${classificacao(it)}</td>
+      <td data-rotulo="Classificação" class="n1-classe" data-classe="${esc(it.chave)}">${classeHtml(it)}</td>
       <td data-rotulo="Equipe">${celulaEquipe(it)}</td></tr>`;
   }
   const cabItens = comTipo => `<thead><tr>${comTipo ? '<th class="n1-c-tipo">Tipo</th>' : ''}<th class="n1-c-up">UP</th><th class="n1-c-ativ">Atividade</th><th class="n1-c-fr">Frente</th><th class="n1-c-sem">Semana</th><th class="n1-c-st">Status</th>${MARCAS.map(x => `<th class="n1-chk" title="${x.nome}">${x.curto}</th>`).join('')}<th class="n1-c-cl">Classificação</th><th class="n1-c-eq">Equipe</th></tr></thead>`;
@@ -403,7 +416,7 @@
     }
     if (estado.aba === 'equipe') return renderPorEquipe();
     if (estado.aba === 'aderencia') { el.innerHTML = htmlAderencia(); return; }
-    const t = tipoDe(estado.aba), todos = R.itens.filter(i => i.tipo === t.id), l = todos.filter(passa);
+    const t = tipoDe(estado.aba), todos = R.itens.filter(i => i.tipo === t.id && naSemana(i)), l = todos.filter(passa);
     el.innerHTML = `<h3 class="n1-tit-tipo" style="--c:${t.cor}">${esc(t.nome)} <small>${l.length} de ${todos.length} linha(s)</small></h3>` + (l.length
       ? `<table class="q-tab n1-tab">${cabItens(false)}<tbody>${l.map(it => linhaItem(it, false)).join('')}</tbody></table>`
       : `<p class="n1-vazio">${todos.length ? (estado.ver === 'pend' ? 'Nenhuma pendência neste tipo. 🎉' : 'Nenhuma UP com essa busca.') : 'Nenhuma atividade deste tipo foi realizada no RF.'}</p>`);
@@ -415,7 +428,7 @@
     const sel = estado.equipesSel;
     const itens = estado.res.itens.filter(passa);
     const porEq = new Map(); itens.forEach(it => { const e = equipeDe(it) || 'Sem equipe'; if (sel.has(e)) (porEq.get(e) || porEq.set(e, []).get(e)).push(it); });
-    const pendDe = e => estado.res.itens.filter(i => (equipeDe(i) || 'Sem equipe') === e && i.status === 'pend').length;
+    const pendDe = e => estado.res.itens.filter(i => naSemana(i) && (equipeDe(i) || 'Sem equipe') === e && i.status === 'pend').length;
     $('#n1-painel').innerHTML = `<div class="n1-eq-sel"><span class="n1-eq-sel-rot">Equipes</span>${todas.map(e => `<label class="n1-eq-op ${sel.has(e) ? 'ativo' : ''}"><input type="checkbox" data-eq="${esc(e)}" ${sel.has(e) ? 'checked' : ''}>${esc(e)} <b>${pendDe(e)}</b></label>`).join('')}
         <button type="button" class="n1-link" data-eq-todas>Selecionar todas</button><button type="button" class="n1-link" data-eq-limpar>Limpar</button></div>
       ${porEq.size ? [...porEq.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR')).map(([e, l]) => `<section class="n1-grupo-eq"><h3><i data-lucide="users"></i>${esc(e)} <small>${l.length} linha(s) · <b class="pend">${l.filter(i => i.status === 'pend').length} pendente(s)</b></small></h3>
@@ -428,6 +441,8 @@
   const trocarAba = id => { estado.aba = id; renderAbas(); renderPainel(); $$('#n1-cards .n1-card').forEach(c => c.classList.toggle('ativo', c.dataset.aba === id)); icones(); };
   $('#n1-cards').addEventListener('click', e => { const b = e.target.closest('[data-aba]'); if (b) trocarAba(b.dataset.aba); });
   $('#n1-abas').addEventListener('click', e => { const b = e.target.closest('[data-aba]'); if (b) trocarAba(b.dataset.aba); });
+  $('#n1-semana').addEventListener('change', e => { estado.semana = e.target.value; render(); });
+  $('#n1-trocar').addEventListener('click', () => { $('#n1-envio').classList.toggle('compacto'); });
   $('.n1-seg').addEventListener('click', e => { const b = e.target.closest('[data-ver]'); if (b) { estado.ver = b.dataset.ver; renderPainel(); icones(); } });
   let espera; $('#n1-busca').addEventListener('input', e => { clearTimeout(espera); espera = setTimeout(() => { estado.busca = e.target.value; renderPainel(); icones(); }, 150); });
   $('#n1-painel').addEventListener('change', e => {
@@ -436,7 +451,7 @@
       const m = marcas[c.dataset.chave] || (marcas[c.dataset.chave] = {}); m[c.dataset.marca] = c.checked; salvarMarcas();
       c.nextElementSibling.textContent = c.checked ? '☑' : '☐';
       const it = estado.res.itens.find(i => i.chave === c.dataset.chave), cel = $(`[data-classe="${CSS.escape(c.dataset.chave)}"]`, $('#n1-painel'));
-      if (cel && it) cel.textContent = classificacao(it);
+      if (cel && it) cel.innerHTML = classeHtml(it);
       return;
     }
     const q = e.target.closest('[data-eq]');

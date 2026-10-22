@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="css/ars.css">
   <link rel="stylesheet" href="css/prontuario.css">
   <link rel="stylesheet" href="css/entrega-n1.css">
+  <link rel="stylesheet" href="css/relatorio-tecnico.css">
   <link rel="stylesheet" href="css/folhito.css">
   <script src="js/dados.js" defer></script>
   <script src="js/planilhas.js" defer></script>
@@ -29,6 +30,7 @@
   <script src="js/clima-motor.js" defer></script>
   <script src="js/prontuario.js" defer></script>
   <script src="js/entrega-n1.js" defer></script>
+  <script src="js/relatorio-tecnico.js" defer></script>
   <script src="js/ars.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
@@ -69,6 +71,7 @@
         <button type="button" role="tab" id="tab-ars" aria-controls="aba-ars" aria-selected="false" data-aba="ars"><i data-lucide="calendar-range"></i><span>Simulador de Janelas ARS</span></button>
         <button type="button" role="tab" id="tab-prontuario" aria-controls="aba-prontuario" aria-selected="false" data-aba="prontuario"><i data-lucide="folder-heart"></i><span>Prontuário da UP</span></button>
         <button type="button" role="tab" id="tab-n1" aria-controls="aba-n1" aria-selected="false" data-aba="n1"><i data-lucide="list-checks"></i><span>Entrega N1</span></button>
+        <button type="button" role="tab" id="tab-relatorio" aria-controls="aba-relatorio" aria-selected="false" data-aba="relatorio"><i data-lucide="file-pen-line"></i><span>Relatório técnico</span></button>
       </div>
     </div>
 
@@ -318,6 +321,7 @@
             <button type="button" class="fat-btn fat-atualizar" id="n1-analisar" disabled><i data-lucide="play"></i><span>Analisar</span></button>
             <button type="button" class="fat-btn" id="n1-limpar-arq" hidden><i data-lucide="trash-2"></i><span>Limpar arquivos</span></button>
             <small id="n1-envio-status" aria-live="polite"></small>
+            <button type="button" class="n1-link n1-trocar" id="n1-trocar" hidden><i data-lucide="folder-open"></i>Ver / trocar arquivos</button>
           </div>
         </div>
       </section>
@@ -329,8 +333,10 @@
         <section class="container fat-secao" aria-label="Equipes sem N1"><div class="n1-isen glass" id="n1-isen"></div></section>
         <section class="container fat-secao" aria-label="Resumo por tipo"><div class="n1-cards" id="n1-cards"></div></section>
         <section class="container fat-secao">
+          <div class="n1-ferr glass">
           <div class="n1-abas" id="n1-abas" role="tablist" aria-label="Tipos de qualidade"></div>
           <div class="n1-barra" id="n1-barra">
+            <label class="n1-sem-sel"><i data-lucide="calendar-range"></i><select id="n1-semana" aria-label="Filtrar por semana"></select></label>
             <div class="n1-seg" role="group" aria-label="Quais linhas mostrar"><button type="button" data-ver="pend" aria-pressed="true">Só pendentes</button><button type="button" data-ver="todas" aria-pressed="false">Todas</button></div>
             <label class="p-busca n1-busca"><i data-lucide="search"></i><input type="search" id="n1-busca" placeholder="Buscar UP" aria-label="Buscar UP"></label>
             <div class="n1-barra-dir">
@@ -339,12 +345,65 @@
               <button type="button" class="fat-btn" id="n1-excel"><i data-lucide="sheet"></i><span>Exportar Excel</span></button>
             </div>
           </div>
+          </div>
           <div class="fat-painel glass n1-painel" id="n1-painel"></div>
           <p class="n1-conferencia" id="n1-conferencia"></p>
         </section>
       </div>
       <datalist id="n1-equipes-sug"></datalist>
       <div class="n1-impressao" id="n1-impressao" aria-hidden="true"></div>
+    </div>
+
+    <!-- ===== Relatório técnico de qualidade com IA (js/relatorio-tecnico.js) ===== -->
+    <div id="aba-relatorio" role="tabpanel" aria-labelledby="tab-relatorio" hidden>
+      <section class="container fat-secao rt-topo">
+        <div class="rt-barra glass">
+          <div class="rt-barra-tit"><span class="eyebrow">Qualidade</span><h2 class="fat-sec-titulo">Relatório <span class="serif">técnico</span></h2></div>
+          <label class="rt-salvos"><i data-lucide="folder-open"></i><select id="rt-salvos" aria-label="Relatórios salvos"></select></label>
+          <div class="rt-barra-acoes">
+            <button type="button" class="fat-btn" id="rt-novo"><i data-lucide="file-plus-2"></i><span>Novo</span></button>
+            <button type="button" class="fat-btn" id="rt-salvar"><i data-lucide="save"></i><span>Salvar</span></button>
+            <button type="button" class="fat-btn" id="rt-imprimir"><i data-lucide="printer"></i><span>Imprimir / PDF</span></button>
+            <button type="button" class="fat-btn" id="rt-excluir" title="Excluir este relatório salvo"><i data-lucide="trash-2"></i></button>
+          </div>
+          <small class="rt-status" id="rt-status" aria-live="polite"></small>
+        </div>
+        <ol class="rt-passos" aria-label="Etapas">
+          <li><button type="button" data-etapa="campo" aria-current="step"><b>1</b>Registro de campo</button></li>
+          <li><button type="button" data-etapa="doc"><b>2</b>Relatório (editar e imprimir)</button></li>
+        </ol>
+      </section>
+
+      <!-- Etapa 1: cabeçalho e pontos -->
+      <div id="rt-campo">
+        <section class="container fat-secao">
+          <form class="rt-cab glass" id="rt-cab" onsubmit="return false" aria-label="Cabeçalho do relatório">
+            <label class="rt-c-titulo"><span>Título *</span><input name="titulo" required placeholder="Ex.: Vistoria de qualidade do plantio"></label>
+            <label><span>Data *</span><input name="data" type="date" required></label>
+            <label><span>Fazenda</span><input name="fazenda" placeholder="Ex.: SÃO MIGUEL (S-G12D)"></label>
+            <label><span>UP</span><input name="up" placeholder="Ex.: S7A417"></label>
+            <label class="rt-c-sub"><span>Subtítulo</span><input name="subtitulo" placeholder="Ex.: Avaliação pós-plantio – 30 dias"></label>
+            <label><span>Responsável técnico</span><input name="responsavel" placeholder="Nome e função"></label>
+          </form>
+        </section>
+        <section class="container fat-secao">
+          <div class="fat-sec-head"><div><span class="eyebrow">Campo</span><h2 class="fat-sec-titulo">Pontos <span class="serif">encontrados</span></h2></div>
+            <button type="button" class="fat-btn" id="rt-add-ponto"><i data-lucide="plus"></i><span>Adicionar ponto</span></button></div>
+          <div class="rt-pontos" id="rt-pontos"></div>
+          <div class="rt-gerar">
+            <button type="button" class="fat-btn fat-atualizar rt-gerar-bt" id="rt-gerar"><i data-lucide="sparkles"></i><span>Gerar relatório com IA</span></button>
+            <small>A IA usa só o que você escreveu e o que aparece nas fotos. Depois você pode apagar e mudar qualquer parte.</small>
+          </div>
+        </section>
+      </div>
+
+      <!-- Etapa 2: documento editável -->
+      <div id="rt-doc-wrap" hidden>
+        <section class="container fat-secao">
+          <p class="rt-dica"><i data-lucide="pencil"></i>Clique em qualquer texto para editar. Passe o mouse sobre um bloco para apagá-lo (<b>×</b>). As alterações valem para a impressão; clique em <b>Salvar</b> para guardar.</p>
+          <article class="rt-doc" id="rt-doc"></article>
+        </section>
+      </div>
     </div>
   </main>
 
