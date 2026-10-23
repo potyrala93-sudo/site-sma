@@ -228,11 +228,20 @@
     });
     R.itens = itens;
   }
-  // Aderência por semana, por atividade e por equipe (sem as linhas dispensadas e sem base)
+  // Aderência por semana, por atividade, por equipe e por base (sem as linhas dispensadas e sem base).
+  // Também conta as marcações (adiantada, negociação, RF anterior) para as colunas e a barra empilhada.
   function aderencias() {
     const R = estado.res, agrupar = chave => {
       const m = new Map();
-      R.itens.filter(naSemana).forEach(it => { const k = chave(it) || '—'; const x = m.get(k) || m.set(k, { nome: k, ok: 0, pend: 0, outros: 0 }).get(k); if (it.status === 'ok') x.ok++; else if (it.status === 'pend') x.pend++; else x.outros++; });
+      R.itens.filter(naSemana).forEach(it => {
+        const k = chave(it) || '—';
+        const x = m.get(k) || m.set(k, { nome: k, ok: 0, pend: 0, outros: 0, adiantada: 0, negociacao: 0, rfAnterior: 0, seg: { ok: 0, adiantada: 0, negociacao: 0, rfAnterior: 0, pend: 0 } }).get(k);
+        if (it.status !== 'ok' && it.status !== 'pend') { x.outros++; return; }
+        x[it.status]++;
+        const mk = marcaDe(it), dela = MARCAS.filter(c => mk[c.k]);
+        dela.forEach(c => x[c.k]++);
+        x.seg[dela[0]?.k || it.status]++;   // na barra cada linha entra uma vez: pela marcação, senão como encontrada/pendente
+      });
       return [...m.values()].map(x => ({ ...x, ader: x.ok + x.pend ? x.ok / (x.ok + x.pend) : null }));
     };
     return {
@@ -242,18 +251,48 @@
       'Por base de qualidade': agrupar(it => tipoDe(it.tipo).nome).sort((a, b) => TIPOS.findIndex(t => t.nome === a.nome) - TIPOS.findIndex(t => t.nome === b.nome))
     };
   }
+  // Partes da barra de aderência, na ordem em que aparecem
+  const SEGS = () => [{ k: 'ok', nome: 'Encontradas' }, ...MARCAS.map(m => ({ k: m.k, nome: m.rotulo })), { k: 'pend', nome: 'Pendentes' }];
+  const barraAder = x => {
+    const tot = x.ok + x.pend; if (!tot) return '<span class="n1-mudo">—</span>';
+    return `<div class="n1-ader-barra ${x.ader >= .9 ? 'boa' : x.ader >= .7 ? 'media' : 'baixa'}"><span class="n1-trilho n1-pilha">${SEGS().filter(g => x.seg[g.k]).map(g => `<i class="s-${g.k}" style="width:${(x.seg[g.k] / tot * 100).toFixed(2)}%" title="${g.nome}: ${x.seg[g.k]}"></i>`).join('')}</span><b>${pct(x.ader)}</b></div>`;
+  };
+  const qtAder = (n, k) => (n ? `<span class="n1-qt s-${k}">${n}</span>` : '<span class="n1-mudo">—</span>');
+  const ICONE_ADER = { 'Por semana': 'calendar-range', 'Por atividade': 'list-checks', 'Por equipe': 'users', 'Por base de qualidade': 'database' };
+  // Topo: aderência geral, marcações e legenda das cores da barra
+  function topoAderencia() {
+    const geral = Object.values(aderencias())[3].reduce((s, x) => { ['ok', 'pend', 'outros', ...MARCAS.map(m => m.k)].forEach(k => { s[k] += x[k]; }); return s; }, { ok: 0, pend: 0, outros: 0, adiantada: 0, negociacao: 0, rfAnterior: 0 });
+    const aderGeral = geral.ok + geral.pend ? geral.ok / (geral.ok + geral.pend) : null;
+    return `<div class="n1-ader-topo">
+        <div class="n1-ader-geral"><span>Aderência geral${estado.semana ? ` · ${esc(estado.semana)}` : ''}</span><strong>${aderGeral == null ? '—' : pct(aderGeral)}</strong><small><b class="ok">${geral.ok} encontradas</b> · <b class="pend">${geral.pend} pendentes</b>${geral.outros ? ` · ${geral.outros} sem N1 / sem base` : ''}</small>
+          <small class="n1-ader-marcas">${MARCAS.map(m => `<span class="n1-qt s-${m.k}">${geral[m.k]}</span> ${m.rotulo.replace(/^[AN]/, c => c.toLowerCase())}`).join(' · ')}</small></div>
+        <div class="n1-ader-expl"><p class="n1-nota">Aderência = encontradas ÷ (encontradas + pendentes). Linhas sem N1 (equipe dispensada) e de bases não enviadas não entram na conta. A barra mostra como as linhas se dividem; o número é a aderência.</p>
+          <div class="n1-legenda">${SEGS().map(g => `<span><i class="s-${g.k}"></i>${g.nome}</span>`).join('')}</div></div></div>`;
+  }
+  // Uma tabela de aderência (semana, atividade, equipe ou base); "continua" quando o PDF quebra a tabela em páginas
+  function secaoAderencia(nome, l, continua = false) {
+    const rot = nome.replace('Por ', '').replace(/^./, c => c.toUpperCase());
+    return `<section class="n1-ader"><h3><i data-lucide="${ICONE_ADER[nome]}"></i>${nome}${continua ? ' <small>(continuação)</small>' : ''}</h3>
+        <table class="n1-tab n1-tab-ader"><thead><tr><th class="n1-c-nome">${rot}</th><th class="num">Realizadas</th><th class="num">Encontradas</th><th class="num">Pendentes</th>${MARCAS.map(m => `<th class="num">${m.curto}</th>`).join('')}<th class="num">Sem N1 / sem base</th><th class="n1-c-barra">Aderência</th></tr></thead><tbody>
+        ${l.length ? l.map(x => `<tr><td><b>${esc(x.nome)}</b></td><td class="num">${x.ok + x.pend + x.outros}</td><td class="num ok">${x.ok}</td><td class="num pend">${x.pend}</td>${MARCAS.map(m => `<td class="num">${qtAder(x[m.k], m.k)}</td>`).join('')}<td class="num n1-mudo">${x.outros || '—'}</td><td>${barraAder(x)}</td></tr>`).join('') : `<tr><td colspan="${7 + MARCAS.length}" class="n1-mudo">Nada nesta semana.</td></tr>`}</tbody></table></section>`;
+  }
   // Aderência: uma tabela embaixo da outra (semana, atividade, equipe e base de qualidade), seguindo o filtro de semana
   function htmlAderencia() {
-    const grupos = aderencias(), geral = Object.values(grupos)[3].reduce((s, x) => ({ ok: s.ok + x.ok, pend: s.pend + x.pend, outros: s.outros + x.outros }), { ok: 0, pend: 0, outros: 0 });
-    const aderGeral = geral.ok + geral.pend ? geral.ok / (geral.ok + geral.pend) : null;
-    const barra = a => (a == null ? '<span class="n1-mudo">—</span>' : `<div class="n1-ader-barra ${a >= .9 ? 'boa' : a >= .7 ? 'media' : 'baixa'}" style="--p:${(a * 100).toFixed(1)}%"><span class="n1-trilho"><i></i></span><b>${pct(a)}</b></div>`);
-    const icone = { 'Por semana': 'calendar-range', 'Por atividade': 'list-checks', 'Por equipe': 'users', 'Por base de qualidade': 'database' };
-    return `<div class="n1-ader-topo">
-        <div class="n1-ader-geral"><span>Aderência geral${estado.semana ? ` · ${esc(estado.semana)}` : ''}</span><strong>${aderGeral == null ? '—' : pct(aderGeral)}</strong><small><b class="ok">${geral.ok} encontradas</b> · <b class="pend">${geral.pend} pendentes</b>${geral.outros ? ` · ${geral.outros} sem N1 / sem base` : ''}</small></div>
-        <p class="n1-nota">Aderência = encontradas ÷ (encontradas + pendentes). Linhas sem N1 (equipe dispensada) e de bases não enviadas não entram na conta. Use o filtro de semana acima para ver uma semana só.</p></div>
-      ${Object.entries(grupos).map(([nome, l]) => `<section class="n1-ader"><h3><i data-lucide="${icone[nome]}"></i>${nome}</h3>
-        <table class="n1-tab n1-tab-ader"><thead><tr><th>${nome.replace('Por ', '').replace(/^./, c => c.toUpperCase())}</th><th class="num">Realizadas</th><th class="num">Encontradas</th><th class="num">Pendentes</th><th class="num">Sem N1 / sem base</th><th class="n1-c-barra">Aderência</th></tr></thead><tbody>
-        ${l.length ? l.map(x => `<tr><td><b>${esc(x.nome)}</b></td><td class="num">${x.ok + x.pend + x.outros}</td><td class="num ok">${x.ok}</td><td class="num pend">${x.pend}</td><td class="num n1-mudo">${x.outros || '—'}</td><td>${barra(x.ader)}</td></tr>`).join('') : '<tr><td colspan="6" class="n1-mudo">Nada nesta semana.</td></tr>'}</tbody></table></section>`).join('')}`;
+    return topoAderencia() + Object.entries(aderencias()).map(([nome, l]) => secaoAderencia(nome, l)).join('');
+  }
+  // PDF da aderência: as tabelas em páginas de A4 sem encolher (quebra a tabela e repete o cabeçalho quando não cabe)
+  function paginasAderencia() {
+    const LIM = 17, pags = []; let atual = topoAderencia(), usadas = 5;   // "linhas" por página; o topo ocupa umas 5
+    Object.entries(aderencias()).forEach(([nome, l]) => {
+      let i = 0;
+      do {
+        if (LIM - usadas < 6) { pags.push(atual); atual = ''; usadas = 0; }
+        const n = Math.max(1, Math.min(l.length - i, LIM - usadas - 3));
+        atual += secaoAderencia(nome, l.slice(i, i + n), i > 0); usadas += n + 3; i += n;
+      } while (i < l.length);
+    });
+    if (atual) pags.push(atual);
+    return pags;
   }
   // Equipes sem N1: retirar atividades por equipe (ex.: a BV não faz N1)
   function renderIsencoes() {
@@ -526,7 +565,7 @@
     try {
       const t = tipoDe(estado.aba);
       const titulo = t ? t.nome : ({ equipe: 'Por equipe', aderencia: 'Aderência', naoClass: 'Atividades não classificadas', corresp: 'Correspondências de nomes' })[estado.aba];
-      const cab = `<header class="n1-pdf-cab"><div><h1>Análise de Qualidade de Entrega – N1</h1><p>${esc(titulo)} · RF: ${esc(R.rfNome)} · Semanas: ${esc(R.semanas.join(', '))}${estado.aba === 'equipe' ? ` · Equipes: ${esc([...(estado.equipesSel || [])].join(', '))}` : ''} · ${['aderencia', 'naoClass', 'corresp'].includes(estado.aba) ? '' : estado.ver === 'pend' ? 'só pendentes · ' : 'todas as linhas · '}gerado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></div></header>`;
+      const cab = `<header class="n1-pdf-cab"><div><h1>Análise de Qualidade de Entrega – N1</h1><p>${esc(titulo)} · RF: ${esc(R.rfNome)} · ${estado.semana ? `Semana: ${esc(estado.semana)}` : `Semanas: ${esc(R.semanas.join(', '))}`}${estado.aba === 'equipe' ? ` · Equipes: ${esc([...(estado.equipesSel || [])].join(', '))}` : ''} · ${['aderencia', 'naoClass', 'corresp'].includes(estado.aba) ? '' : estado.ver === 'pend' ? 'só pendentes · ' : 'todas as linhas · '}gerado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></div></header>`;
       const pags = [];
       const fatiar = (linhas, comTipo, sub = '') => { for (let i = 0; i < Math.max(1, linhas.length); i += 16) pags.push(`${cab}${sub}<table class="n1-pdf-tab">${cabTab(comTipo)}<tbody>${linhas.slice(i, i + 16).join('') || '<tr><td colspan="12">Nenhuma linha com esse filtro.</td></tr>'}</tbody></table>`); };
       if (t) fatiar(R.itens.filter(i => i.tipo === t.id).filter(passa).map(it => linhaPDF(it, false)), false);
@@ -534,7 +573,8 @@
         const sel = estado.equipesSel || new Set(equipesTodas());
         [...sel].sort().forEach(e => { const l = R.itens.filter(passa).filter(it => (equipeDe(it) || 'Sem equipe') === e); if (l.length) fatiar(l.map(it => linhaPDF(it, true)), true, `<h2 class="n1-pdf-sub">Equipe ${esc(e)} · ${l.filter(i => i.status === 'pend').length} pendente(s)</h2>`); });
         if (!pags.length) fatiar([], true);
-      } else pags.push(`${cab}<div class="n1-pdf-livre">${$('#n1-painel').innerHTML}</div>`);
+      } else if (estado.aba === 'aderencia') paginasAderencia().forEach(p => pags.push(`${cab}<div class="n1-pdf-livre">${p}</div>`));
+      else pags.push(`${cab}<div class="n1-pdf-livre">${$('#n1-painel').innerHTML}</div>`);
       await window.SMA_PDF.gerar(pags, `Entrega_N1_${(titulo || '').replace(/[^\p{L}\p{N}]+/gu, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`, { progresso: (i, n) => { rot.textContent = `Gerando ${i}/${n}…`; } });
       rot.textContent = 'PDF baixado ✓';
     } catch (e) { console.error('N1: PDF', e); rot.textContent = 'Não consegui gerar o PDF'; }
@@ -551,7 +591,7 @@
       const wb = X.utils.book_new();
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(resumo), 'Resumo');
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(linhas), 'Verificações');
-      Object.entries(aderencias()).forEach(([nome, l]) => X.utils.book_append_sheet(wb, X.utils.json_to_sheet(l.map(x => ({ [nome.replace('Por ', '')]: x.nome, Realizadas: x.ok + x.pend + x.outros, Encontradas: x.ok, Pendentes: x.pend, 'Sem N1 / sem base': x.outros, 'Aderência (%)': x.ader == null ? '—' : +(x.ader * 100).toFixed(1) }))), `Aderência ${nome.replace('Por ', '').slice(0, 18)}`));
+      Object.entries(aderencias()).forEach(([nome, l]) => X.utils.book_append_sheet(wb, X.utils.json_to_sheet(l.map(x => ({ [nome.replace('Por ', '')]: x.nome, Realizadas: x.ok + x.pend + x.outros, Encontradas: x.ok, Pendentes: x.pend, ...Object.fromEntries(MARCAS.map(m => [m.rotulo, x[m.k]])), 'Sem N1 / sem base': x.outros, 'Aderência (%)': x.ader == null ? '—' : +(x.ader * 100).toFixed(1) }))), `Aderência ${nome.replace('Por ', '').slice(0, 18)}`));
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(R.naoClass.map(l => ({ UP: l.up, Atividade: l.desc, 'Grupo de Operação': l.grupoRF, Frente: l.frente, Semana: l.semana, 'Linha no RF': l.linhaPlanilha }))), 'Não classificadas');
       X.utils.book_append_sheet(wb, X.utils.json_to_sheet(R.corresp.map(c => ({ 'Nome no RF': c.rf, 'Nome da lista': c.lista, Tipo: TIPOS.filter(t => t.grupo === c.grupo).map(t => t.nome).join(' e ') }))), 'Correspondências');
       X.writeFile(wb, `Entrega_N1_${R.quando.toISOString().slice(0, 10)}.xlsx`);

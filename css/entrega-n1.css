@@ -294,3 +294,43 @@ table.n1-tab-ader th { width: auto; } table.n1-tab-ader th:first-child { width: 
 .n1-ader-barra b, .n1-img .n1-pdf-livre .n1-ader-barra b, .n1-pdf-livre .n1-ader-barra b { flex: 0 0 3.6em; position: static; padding: 0 !important; font-size: .78rem; line-height: 1.4 !important; text-align: right; white-space: nowrap; color: var(--texto-forte); text-shadow: none; }
 .n1-pdf-livre .n1-ader-barra b { font-size: 12px; font-weight: 800; color: #0b2a23 !important; }
 .n1-pdf-livre td, .n1-pdf-tab td { line-height: 1.4; }
+
+/* ---------- Aderência: barra empilhada com adiantada, negociação e RF anterior ---------- */
+.s-ok { --s: #22c55e; } .s-adiantada { --s: #0ea5e9; } .s-negociacao { --s: #f59e0b; } .s-rfAnterior { --s: #ec4899; } .s-pend { --s: #ef4444; }
+.n1-ader-barra .n1-pilha, .n1-pdf-livre .n1-ader-barra .n1-pilha { display: flex; height: 14px; background: rgb(var(--tinta-rgb) / .1); }
+.n1-ader-barra .n1-pilha i, .n1-img .n1-pdf-livre .n1-ader-barra .n1-pilha i, .n1-pdf-livre .n1-ader-barra .n1-pilha i { position: static !important; flex: none; height: 100%; border-radius: 0; background: var(--s) !important; }
+.n1-ader-barra .n1-pilha i + i { box-shadow: inset 1px 0 0 rgba(255,255,255,.7); }
+.n1-ader-barra.boa b { color: #16a34a; } .n1-ader-barra.media b { color: #d97706; } .n1-ader-barra.baixa b { color: #dc2626; }
+/* contagem das marcações: número colorido (sem etiqueta, que o html2canvas desalinha) */
+.n1-qt { font-weight: 800; color: var(--s); }
+.s-adiantada { --t: #0284c7; } .s-negociacao { --t: #d97706; } .s-rfAnterior { --t: #db2777; }
+
+.n1-ader-marcas { display: block; margin-top: .25rem; }
+.n1-ader-expl { flex: 1 1 340px; display: grid; gap: .45rem; }
+.n1-ader-expl .n1-nota { margin: 0; }
+.n1-legenda { display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: .78rem; font-weight: 700; color: var(--texto); }
+.n1-legenda span { display: inline-flex; align-items: center; gap: .35rem; }
+.n1-legenda i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; background: var(--s); }
+table.n1-tab-ader { table-layout: fixed; }
+table.n1-tab-ader th.n1-c-nome { width: 23%; } table.n1-tab-ader th.num { width: 7.6%; } table.n1-tab-ader th.n1-c-barra { width: 23.8%; }
+.n1-tab-ader td:first-child b { overflow-wrap: anywhere; }
+.n1-tab-ader th.num, .n1-tab-ader td.num { text-align: center; }
+.n1-ader h3 small { font-weight: 600; font-size: .78rem; color: var(--texto-suave); }
+
+/* PDF e imagem: letras maiores e cores fixas no branco */
+.n1-pdf-livre table { font-size: 12.5px; }
+.n1-pdf-livre th { font-size: 10.5px; padding: 6px; }
+.n1-pdf-livre td { padding: 6px; }
+.n1-pdf-livre .n1-ader { padding: 8px 10px; margin-bottom: 10px; border: 1px solid #d5e5df; border-radius: 8px; background: #fff; }
+.n1-pdf-livre .n1-ader h3 { margin: 0 0 6px; font-size: 15px; }
+.n1-pdf-livre .n1-ader h3 svg { color: #1f6f54 !important; }
+.n1-pdf-livre .n1-ader-topo { display: flex; gap: 16px; align-items: stretch; margin-bottom: 10px; }
+.n1-pdf-livre .n1-ader-geral { padding: 10px 14px; border: 1px solid #d5e5df; border-radius: 10px; background: #f3faf6; }
+.n1-pdf-livre .n1-ader-geral strong { font-size: 30px; }
+.n1-pdf-livre .n1-ader-geral small, .n1-pdf-livre .n1-nota { font-size: 12px; }
+.n1-pdf-livre .n1-legenda { font-size: 12px; }
+.n1-pdf-livre .n1-ader-barra .n1-pilha { height: 16px; background: #e5ece9; }
+.n1-pdf-livre .n1-qt, .n1-img .n1-qt, .p-pdf-pag .n1-qt { color: var(--t) !important; font-size: 13px; }
+.n1-pdf-livre .n1-ader-geral .ok { color: #15803d !important; } .n1-pdf-livre .n1-ader-geral .pend { color: #dc2626 !important; }
+.n1-pdf-livre .n1-ader-barra.boa b { color: #15803d !important; } .n1-pdf-livre .n1-ader-barra.media b { color: #b45309 !important; } .n1-pdf-livre .n1-ader-barra.baixa b { color: #dc2626 !important; }
+.n1-pdf-livre .n1-tab-ader td.ok { color: #15803d !important; font-weight: 800; } .n1-pdf-livre .n1-tab-ader td.pend { color: #dc2626 !important; font-weight: 800; }
