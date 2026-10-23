@@ -463,7 +463,7 @@
         const p = a.pct, larg = p == null ? 0 : Math.min(p, 1) * 100, passou = p != null && p > 1.001;
         return `<tr style="--c:${a.cor}"><td data-rotulo="Grupo"><span class="pr-grupo" style="--c:${a.cor}"><i data-lucide="${ICONE_GRUPO[a.grupo] || 'circle-dot'}"></i>${esc(a.grupo)}</span></td><td data-rotulo="Atividade"><b>${esc(a.ativ)}</b></td>
           <td data-rotulo="Primeira">${br(a.ini)}</td><td data-rotulo="Última">${br(a.fim)}</td><td data-rotulo="Área" class="num">${a.apoio ? `<span class="pr-mudo">${fmtHa(a.area)} (horas)</span>` : fmtHa(a.area)}</td>
-          <td data-rotulo="% da área">${a.apoio || p == null ? '<span class="pr-mudo">—</span>' : `<div class="pr-barra ${passou ? 'passou' : ''}"><i style="width:${larg}%"></i><b>${pct(p)}</b></div>`}</td>
+          <td data-rotulo="% da área">${a.apoio || p == null ? '<span class="pr-mudo">—</span>' : `<div class="pr-barra ${passou ? 'passou' : ''}"><span class="pr-trilho"><i style="width:${larg}%"></i></span><b>${pct(p)}</b></div>`}</td>
           <td data-rotulo="Dias" class="num">${a.dias}</td><td data-rotulo="ha/dia" class="num">${a.apoio ? '—' : fmtHa(a.rend)}</td><td data-rotulo="Faturamento" class="num">${brl(a.total)}</td><td data-rotulo="Equipes">${esc([...a.equipes].join(', ') || '—')}</td></tr>`;
       }).join('')}</tbody></table>`;
   }
@@ -777,7 +777,7 @@
         <dl class="pr-cmp-dl"><div><dt>Área da UP</dt><dd>${fmtHa(I.area)} ha</dd></div><div><dt>Material genético</dt><dd>${esc(I.material || '—')}</dd></div><div><dt>Plantio</dt><dd>${br(I.fim)}${I.idade != null ? ` · ${I.idade} dias` : ''}</dd></div><div><dt>Município</dt><dd>${esc(I.municipio)}</dd></div>
           <div><dt>Área apontada</dt><dd>${fmtHa(K.area)} ha</dd></div><div><dt>Faturamento</dt><dd>${brl(K.faturamento)}</dd></div><div><dt>Dias trabalhados</dt><dd>${K.dias}</dd></div><div><dt>Último apontamento</dt><dd>${br(K.ultimo)}</dd></div>
           <div><dt>Chuva desde o plantio</dt><dd>${ch?.plantio != null ? `${fmt1(ch.plantio)} mm` : '—'}</dd></div><div><dt>Chuva 30 dias</dt><dd>${ch ? `${fmt1(ch.d30)} mm` : '—'}</dd></div><div><dt>Eventos sensíveis</dt><dd>${F.clima ? F.sensiveis.length : '—'}</dd></div></dl>
-        <h4>Atividades por grupo (% da área)</h4>${F.porGrupo.map(g => `<div class="pr-cmp-g"><span>${esc(g.grupo)}</span><div class="pr-barra ${g.pct > 1.001 ? 'passou' : ''}" style="--c:${g.cor}"><i style="width:${Math.min(g.pct || 0, 1) * 100}%"></i><b>${g.pct ? pct(g.pct) : `${fmtHa(g.area)} ha`}</b></div></div>`).join('') || '<p class="pr-vazio">Sem atividades.</p>'}</article>`;
+        <h4>Atividades por grupo (% da área)</h4>${F.porGrupo.map(g => `<div class="pr-cmp-g"><span>${esc(g.grupo)}</span><div class="pr-barra ${g.pct > 1.001 ? 'passou' : ''}" style="--c:${g.cor}"><span class="pr-trilho"><i style="width:${Math.min(g.pct || 0, 1) * 100}%"></i></span><b>${g.pct ? pct(g.pct) : `${fmtHa(g.area)} ha`}</b></div></div>`).join('') || '<p class="pr-vazio">Sem atividades.</p>'}</article>`;
     };
     grade.innerHTML = coluna(A) + coluna(B); icones();
     // clima da segunda UP (o da primeira já está na ficha)

@@ -18,6 +18,7 @@
   const norm = t => semAcento(t).toUpperCase().replace(/[‐-―−]/g, '-').replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim();
   // UP: sem espaços e sem o prefixo "UP"; código só com números perde os zeros à esquerda ("UP 0123" = "123")
   const normUP = t => { let s = norm(t).replace(/^UP\s*[-:]?\s*/, '').replace(/\s+/g, ''); if (/^\d+$/.test(s)) s = String(+s); return s; };
+  const ehIrrigacao = desc => /IRRIG/.test(norm(desc));
   const pct = v => `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 
   /* ======================================================================
@@ -162,10 +163,10 @@
     // Linhas REALIZADAS do RF
     let totalRF = 0;
     const vistos = new Set(), linhasRF = [], naoClass = [], corresp = new Map();
-    let irrigacoes = 0;
     linhas.slice(cab.i + 1).forEach((l, k) => {
       if (norm(l[ix.sit]) !== 'REALIZADO') return;
       const up = normUP(l[ix.up]), desc = norm(l[ix.desc]); if (!up || !desc) return;
+      if (ehIrrigacao(desc)) return;   // irrigação (de plantio, de replantio…) não faz parte do N1: nem conta
       totalRF++;
       const data = 'data' in ix ? comoData(l[ix.data]) : null;
       const semana = ('semana' in ix && String(l[ix.semana]).trim()) || (data ? `Semana ${semanaISO(data)}` : '—');
@@ -173,7 +174,6 @@
       if (vistos.has(chave)) return; vistos.add(chave);
       const grupoRF = 'grupo' in ix ? l[ix.grupo] : '';
       const linha = { up, upOriginal: String(l[ix.up]).trim(), desc, grupoRF: norm(grupoRF), frente: 'frente' in ix ? norm(l[ix.frente]) : '', semana, fazenda: 'fazenda' in ix ? String(l[ix.fazenda]).replace(/\s+/g, ' ').trim() : '', linhaPlanilha: cab.i + 2 + k };
-      if (/IRRIGACAO/.test(desc)) { irrigacoes++; return; }   // irrigação nunca entra na análise de N1
       const c = classificar(desc, grupoRF);
       if (!c) { naoClass.push(linha); return; }
       if (!c.exato) corresp.set(desc, { rf: desc, lista: c.nome, grupo: c.grupo });
@@ -183,7 +183,7 @@
     const faltam = Object.keys(BASES).filter(b => !bases[b]);
     return {
       quando: new Date(), rfNome: rf.arq.name, rfAba: rf.leitura.aba, colunasUsadas, semanas, linhasRF, naoClass, corresp: [...corresp.values()],
-      totalRF, unicas: linhasRF.length + naoClass.length + irrigacoes, irrigacoes, faltam,
+      totalRF, unicas: linhasRF.length + naoClass.length, faltam,
       bases: Object.fromEntries(Object.entries(bases).map(([k, b]) => [k, { qtd: b.ups.size, aval: Object.fromEntries([...b.ups].map(([up, s]) => [up, s.size])), arquivos: b.arquivos }]))
     };
   }
@@ -246,7 +246,7 @@
   function htmlAderencia() {
     const grupos = aderencias(), geral = Object.values(grupos)[3].reduce((s, x) => ({ ok: s.ok + x.ok, pend: s.pend + x.pend, outros: s.outros + x.outros }), { ok: 0, pend: 0, outros: 0 });
     const aderGeral = geral.ok + geral.pend ? geral.ok / (geral.ok + geral.pend) : null;
-    const barra = a => (a == null ? '<span class="n1-mudo">—</span>' : `<div class="n1-ader-barra ${a >= .9 ? 'boa' : a >= .7 ? 'media' : 'baixa'}" style="--p:${(a * 100).toFixed(1)}%"><i></i><b>${pct(a)}</b></div>`);
+    const barra = a => (a == null ? '<span class="n1-mudo">—</span>' : `<div class="n1-ader-barra ${a >= .9 ? 'boa' : a >= .7 ? 'media' : 'baixa'}" style="--p:${(a * 100).toFixed(1)}%"><span class="n1-trilho"><i></i></span><b>${pct(a)}</b></div>`);
     const icone = { 'Por semana': 'calendar-range', 'Por atividade': 'list-checks', 'Por equipe': 'users', 'Por base de qualidade': 'database' };
     return `<div class="n1-ader-topo">
         <div class="n1-ader-geral"><span>Aderência geral${estado.semana ? ` · ${esc(estado.semana)}` : ''}</span><strong>${aderGeral == null ? '—' : pct(aderGeral)}</strong><small><b class="ok">${geral.ok} encontradas</b> · <b class="pend">${geral.pend} pendentes</b>${geral.outros ? ` · ${geral.outros} sem N1 / sem base` : ''}</small></div>
@@ -356,7 +356,7 @@
       <details class="n1-det"><summary>Colunas usadas e observações</summary>
         <p><b>Colunas do RF:</b> ${R.colunasUsadas.map(esc).join(' · ')}</p>
         <p><b>Bases de qualidade:</b> ${Object.entries(BASES).map(([k, b]) => R.bases[k] ? `${b.nome} (${R.bases[k].qtd} UPs)` : `<span class="n1-falta">${b.nome}: base não enviada</span>`).join(' · ')}</p>
-        <ul><li>Irrigações ficam sempre fora da análise de N1${R.irrigacoes ? ` (${R.irrigacoes} no RF)` : ''}.</li><li>Só linhas com Situação = REALIZADO; duplicadas (mesma UP + atividade + semana) contam uma vez.</li><li>Qualidade de Muda e Plantio verificam as mesmas atividades, cada uma na sua base.</li><li>Preparo de Solo mecanizado: a UP precisa estar em pelo menos uma das bases (Conjugado ou Convencional); a coluna "Base" diz em qual.</li><li>As bases de qualidade são comparadas pela UP (a coluna de aplicação do Herbicida não identifica a atividade do RF).</li>${R.faltam.length ? `<li>Bases não enviadas aparecem como "Base não enviada" e não contam como pendência.</li>` : ''}</ul></details>`;
+        <ul><li>Só linhas com Situação = REALIZADO; duplicadas (mesma UP + atividade + semana) contam uma vez.</li><li>Qualidade de Muda e Plantio verificam as mesmas atividades, cada uma na sua base.</li><li>Preparo de Solo mecanizado: a UP precisa estar em pelo menos uma das bases (Conjugado ou Convencional); a coluna "Base" diz em qual.</li><li>As bases de qualidade são comparadas pela UP (a coluna de aplicação do Herbicida não identifica a atividade do RF).</li>${R.faltam.length ? `<li>Bases não enviadas aparecem como "Base não enviada" e não contam como pendência.</li>` : ''}</ul></details>`;
     // Cartões
     $('#n1-cards').innerHTML = TIPOS.map(t => {
       const r = resumoTipo(t);
@@ -369,7 +369,7 @@
     $('#n1-envio').classList.add('compacto'); $('#n1-trocar').hidden = false;
     renderAbas(); renderPainel();
     const somaOk = TIPOS.every(t => { const r = resumoTipo(t); return r.ok + r.pend + r.isento + estado.res.itens.filter(i => i.tipo === t.id && i.status === 'semBase').length === r.total; });
-    $('#n1-conferencia').innerHTML = `<i data-lucide="${somaOk ? 'check-circle-2' : 'alert-circle'}"></i>Conferência: ${R.totalRF} linhas REALIZADAS no RF (${R.unicas} sem duplicidade) = ${R.unicas - R.naoClass.length - (R.irrigacoes || 0)} classificadas + ${R.naoClass.length} não classificadas + ${R.irrigacoes || 0} irrigações (fora da análise) · ${R.itens.length} verificações (Muda e Plantio contam duas vezes) · encontradas + pendentes + sem base + sem N1 ${somaOk ? 'batem' : 'NÃO batem'} com o total de cada tipo.`;
+    $('#n1-conferencia').innerHTML = `<i data-lucide="${somaOk ? 'check-circle-2' : 'alert-circle'}"></i>Conferência: ${R.totalRF} linhas REALIZADAS no RF (${R.unicas} sem duplicidade) = ${R.unicas - R.naoClass.length} classificadas + ${R.naoClass.length} não classificadas · ${R.itens.length} verificações (Muda e Plantio contam duas vezes) · encontradas + pendentes + sem base + sem N1 ${somaOk ? 'batem' : 'NÃO batem'} com o total de cada tipo.`;
     renderIsencoes();
     icones();
   }
@@ -562,7 +562,11 @@
   /* ---------- Início: reabre a última análise feita neste navegador ---------- */
   try {
     const u = JSON.parse(localStorage.getItem('n1:ultima') || 'null');
-    if (u?.linhasRF) { u.quando = new Date(u.quando); estado.res = u; lerMarcas(); montarItens(); render(); atualizarSugestoes(); }
+    if (u?.linhasRF) {
+      const antes = u.linhasRF.length + u.naoClass.length;
+      u.linhasRF = u.linhasRF.filter(l => !ehIrrigacao(l.desc)); u.naoClass = u.naoClass.filter(l => !ehIrrigacao(l.desc));
+      const tirou = antes - u.linhasRF.length - u.naoClass.length; u.totalRF -= tirou; u.unicas = u.linhasRF.length + u.naoClass.length; delete u.irrigacoes;
+      u.quando = new Date(u.quando); estado.res = u; lerMarcas(); montarItens(); render(); atualizarSugestoes(); }
   } catch { /* sem análise anterior */ }
   // Contexto para o Folhito: o que está na tela da Entrega N1
   (window.SMA_CONTEXTO ||= {}).n1 = () => {
@@ -573,7 +577,7 @@
 Por base de qualidade:
 ${linhas.join('\n')}
 Pendências por equipe: ${eq || 'nenhuma'}.
-Equipes sem N1: ${isencoes.map(x => `${x.equipe} (${x.atividade === '*' ? 'todas' : x.atividade})`).join(', ') || 'nenhuma'}. Irrigações ficam fora da análise. Não classificadas: ${R.naoClass.length}.`;
+Equipes sem N1: ${isencoes.map(x => `${x.equipe} (${x.atividade === '*' ? 'todas' : x.atividade})`).join(', ') || 'nenhuma'}. Não classificadas: ${R.naoClass.length}.`;
   };
   renderArquivos();
   document.addEventListener('qual:aba', e => { if (e.detail === 'n1') { icones(); if (estado.res) atualizarSugestoes(); } });

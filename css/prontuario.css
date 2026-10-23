@@ -124,10 +124,12 @@
 /* Tabelas */
 .pr-tab td.num, .pr-tab th.num { text-align: right; }
 .pr-tab tbody tr { box-shadow: inset 3px 0 0 var(--c, transparent); }
-.pr-barra { position: relative; min-width: 110px; height: 20px; border-radius: 999px; overflow: hidden; background: rgb(var(--tinta-rgb) / .08); }
+/* número ao lado da barra: dentro dela o html2canvas desenhava o texto mais baixo e cortava no PDF */
+.pr-barra { display: flex; align-items: center; gap: 6px; min-width: 110px; }
+.pr-trilho { position: relative; flex: 1 1 auto; height: 10px; border-radius: 999px; overflow: hidden; background: rgb(var(--tinta-rgb) / .1); }
 .pr-barra i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, #16a34a, #22e07a); }
 .pr-barra.passou i { width: 100% !important; background: linear-gradient(90deg, #e11d48, #ff4d5e); }
-.pr-barra b { position: relative; display: block; padding: 0 .55rem; font-size: .72rem; line-height: 20px; color: var(--texto-forte); text-align: right; }
+.pr-barra b { flex: 0 0 auto; min-width: 3.4em; font-size: .72rem; line-height: 1.4; color: var(--texto-forte); text-align: right; white-space: nowrap; }
 .pr-equipe { display: inline-block; padding: .15rem .55rem; border-radius: 8px; font-weight: 800; color: #04201a; background: var(--grad-destaque); }
 .pr-ativ-mini { display: inline-block; margin: 1px 3px 1px 0; padding: .05rem .4rem; border-radius: 6px; font-size: .7rem; background: rgb(var(--tinta-rgb) / .07); }
 
@@ -233,3 +235,4 @@
 .pr-pdf-tab tbody tr td:first-child { border-left: 4px solid var(--c, #cbd5e1); }
 .pr-pdf-tab .n { text-align: right; white-space: nowrap; }
 .pr-pdf-graf { display: block; width: 100%; border: 1px solid #d5e5df; border-radius: 8px; }
+.p-pdf-pag .pr-trilho { background: #e3eeea; }
