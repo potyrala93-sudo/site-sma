@@ -47,7 +47,8 @@
     c.getContext('2d').drawImage(fonte, 0, 0, c.width, c.height);
     return c.toDataURL('image/jpeg', q);
   }
-  const paraIA = dataUrl => new Promise(ok => { const img = new Image(); img.onload = () => ok(reduzir(img, 768, .62)); img.onerror = () => ok(null); img.src = dataUrl; });
+  const MAX_FOTOS_IA = 10;   // fotos menores e em menor número: a resposta vem antes do limite de tempo do servidor
+  const paraIA = dataUrl => new Promise(ok => { const img = new Image(); img.onload = () => ok(reduzir(img, 640, .6)); img.onerror = () => ok(null); img.src = dataUrl; });
 
   /* ======================================================================
      ETAPA 1: REGISTRO DE CAMPO
@@ -100,7 +101,7 @@
     return {
       introducao: `Este relatório registra a vistoria de qualidade realizada em ${dataBR(c.data) || '___'}${c.fazenda ? ` na fazenda ${c.fazenda}` : ''}${c.up ? `, UP ${c.up}` : ''}${c.subtitulo ? ` (${c.subtitulo})` : ''}, com o objetivo de verificar a conformidade da operação e apontar as correções necessárias.`,
       metodologia: 'Vistoria de campo com percurso na área, registro fotográfico e anotação das constatações por ponto.',
-      pontos: rel.pontos.map(p => ({ titulo: p.titulo || 'Ponto observado', descricao: p.observacao || '', causas: '', recomendacoes: '', criticidade: '', legendas: p.fotos.map(() => '') })),
+      pontos: rel.pontos.map(p => ({ titulo: p.titulo || 'Ponto observado', descricao: p.observacao || '', causas: '[completar: possíveis causas]', recomendacoes: '[completar: recomendações]', criticidade: '', legendas: p.fotos.map(() => '') })),
       conclusao: 'Os pontos acima devem ser tratados conforme as recomendações, com nova verificação após a correção.',
       recomendacoes_gerais: []
     };
@@ -118,16 +119,28 @@
         const pontos = [];
         for (const p of rel.pontos) {
           const fotos = [];
-          for (const f of p.fotos) { if (total >= 16) break; const x = await paraIA(f); if (x) { fotos.push(x); total++; } }
+          for (const f of p.fotos) { if (total >= MAX_FOTOS_IA) break; const x = await paraIA(f); if (x) { fotos.push(x); total++; } }
           pontos.push({ titulo: p.titulo, observacao: p.observacao, fotos });
         }
-        rot.textContent = 'A IA está escrevendo…';
-        const r = await fetch('api/experimento/relatorio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedido: 'relatorio', cabecalho: rel.cab, pontos }) });
-        const j = await r.json().catch(() => ({}));
-        if (r.ok && j.relatorio?.pontos) ia = j.relatorio; else aviso = j.erro || `erro ${r.status}`;
-        if (rel.pontos.reduce((s, p) => s + p.fotos.length, 0) > 16) aviso = 'A IA analisou as primeiras 16 fotos; as demais entram no relatório normalmente.';
+        const pedir = async comFotos => {
+          const r = await fetch('api/experimento/relatorio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(70_000),
+            body: JSON.stringify({ pedido: 'relatorio', cabecalho: rel.cab, pontos: comFotos ? pontos : pontos.map(p => ({ ...p, fotos: [] })) }) });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok && j.relatorio?.pontos) return j.relatorio;
+          throw new Error(j.erro || `erro ${r.status}`);
+        };
+        rot.textContent = total ? 'A IA está analisando as fotos e escrevendo…' : 'A IA está escrevendo…';
+        try { ia = await pedir(true); }
+        catch (erro) {
+          if (!total) throw erro;
+          console.warn('Relatório: IA com fotos falhou, tentando só com o texto', erro);
+          rot.textContent = 'Tentando de novo só com o texto…';
+          ia = await pedir(false);
+          aviso = `A IA não conseguiu analisar as fotos (${erro.message}); o texto foi escrito com as suas observações. As fotos entram no relatório normalmente.`;
+        }
+        if (!aviso && rel.pontos.reduce((s, p) => s + p.fotos.length, 0) > MAX_FOTOS_IA) aviso = `A IA analisou as primeiras ${MAX_FOTOS_IA} fotos; as demais entram no relatório normalmente.`;
       } else aviso = 'IA indisponível: o relatório foi montado com o que você escreveu (complete as causas e recomendações).';
-    } catch (erro) { aviso = `IA indisponível (${erro.message}): o relatório foi montado com o que você escreveu.`; }
+    } catch (erro) { aviso = `A IA não respondeu (${erro.message}): o relatório foi montado com o que você escreveu; complete as causas e recomendações ou tente gerar de novo.`; }
     rel.ia = ia || semIA(); rel.origem = ia ? 'ia' : 'regras';
     rel.doc = montarDoc(); alterado = true;
     bt.disabled = false; bt.classList.remove('girando'); rot.textContent = 'Gerar relatório com IA';

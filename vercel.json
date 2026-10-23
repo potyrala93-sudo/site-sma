@@ -1,11 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
+    "api/roteador.js": {
+      "maxDuration": 60,
+      "includeFiles": "{js/dados.js,js/planilhas.js,js/experimento-motor.js,js/clima-motor.js,js/mapas-nomes.js,assets/img/fotos/**,assets/img/colaboradores/**,assets/img/avatares/**}"
+    },
     "api/[...rota].js": {
       "maxDuration": 60,
       "includeFiles": "{js/dados.js,js/planilhas.js,js/experimento-motor.js,js/clima-motor.js,js/mapas-nomes.js,assets/img/fotos/**,assets/img/colaboradores/**,assets/img/avatares/**}"
     }
   },
+  "rewrites": [
+    { "source": "/api/:caminho*", "destination": "/api/roteador?__api=:caminho*" }
+  ],
   "headers": [
     {
       "source": "/(.*)\\.(html|js|css)",
