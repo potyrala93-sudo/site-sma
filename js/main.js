@@ -450,7 +450,10 @@ function renderOrganograma() {
     const cor = p.tom || tom;
     const atraso = [0, .5, 1.1][nivel - 1];
     const filhos = p.filhos?.length
-      ? `<ul>${p.filhos.map(f => no(f, nivel + 1, cor, p.nome)).join('')}</ul>` : '';
+      ? `<ul>${p.filhos.map(f => (f.linhaEncarregados && nivel === 1
+          // responde direto ao coordenador, mas aparece na linha dos encarregados: um espaço vazio ocupa a linha dos supervisores
+          ? `<li class="nivel-2 org-vazio"><span class="org-oco" aria-hidden="true"></span><ul>${no(f, nivel + 2, cor, p.nome)}</ul></li>`
+          : no(f, nivel + 1, cor, p.nome))).join('')}</ul>` : '';
     return `
       <li class="nivel-${nivel}">
         <button class="org-node" type="button" style="--c:${cor};--d:${atraso}s" aria-expanded="false"
@@ -519,20 +522,26 @@ function desenharLinhasOrganograma() {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   let html = '';
 
+  // o espaço vazio tem a altura de um card de supervisor, para o encarregado cair na linha dos encarregados
+  const sup = $('.org-tree .nivel-2:not(.org-vazio) > .org-node', wrap);
+  $$('.org-oco', wrap).forEach(o => { o.style.height = sup ? `${sup.offsetHeight}px` : ''; });
+
   $$('.org-tree li', wrap).forEach(li => {
     const pai = li.querySelector(':scope > .org-node');
-    const filhos = $$(':scope > ul > li > .org-node', li);
+    if (!pai) return;
+    const filhos = $$(':scope > ul > li', li).flatMap(c => (c.classList.contains('org-vazio') ? $$(':scope > ul > li > .org-node', c) : $$(':scope > .org-node', c)));
     if (!filhos.length) return;
     const pp = posicao(pai, wrap);
     const x0 = pp.x + pp.w / 2;
     const y0 = pp.y + pp.h + 4;
     const atraso = li.classList.contains('nivel-1') ? .3 : .9;
+    // a linha horizontal fica na metade até o filho mais próximo (quem está na linha de baixo só desce mais)
+    const ym = y0 + (Math.min(...filhos.map(f => posicao(f, wrap).y + 4)) - y0) / 2;
 
     filhos.forEach(f => {
       const fp = posicao(f, wrap);
       const x1 = fp.x + fp.w / 2;
       const y1 = fp.y + 4;
-      const ym = y0 + (y1 - y0) / 2;
       const cor = f.style.getPropertyValue('--c');
       const d = `M${x0},${y0} V${ym} H${x1} V${y1}`;
       html += `

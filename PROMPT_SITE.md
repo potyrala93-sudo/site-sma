@@ -101,15 +101,13 @@ Hierarquia:
 
 **Nível 2 — Supervisão (abaixo de Anderson)**
 - Carina Pereira — Supervisora Operacional — `assets/img/equipe/Carina.jpg`
-- Juliano Almeida — Supervisor Operacional — `assets/img/equipe/juliano.png`
 - Joyce Pontes — Supervisora Operacional — `assets/img/equipe/Joyce.png`
 
 **Nível 3 — Encarregados**
 - Abaixo de Carina Pereira:
   - Jefferson Becker — Encarregado de Mecanizado — `assets/img/equipe/jeferson.png` — Equipes BN / BV
-- Abaixo de Juliano Almeida: nenhum encarregado no momento
-- Direto abaixo de Anderson Ramos (sem supervisor):
-  - Jefferson Becker — Encarregado de Mecanizado — `assets/img/equipe/jeferson.png` — Equipes BT / BU
+- Direto abaixo de Anderson Ramos (sem supervisor; no desenho fica na linha dos encarregados):
+  - Juliano Almeida — Encarregado de Mecanizado — `assets/img/equipe/juliano.png` — Equipes BT / BU
 - Abaixo de Joyce Pontes:
   - Sidnei Oliveira — Encarregado Manual — `assets/img/equipe/Sidnei.jpg` — Equipe BD
   - Fernando Rodrigues — Encarregado Manual — `assets/img/equipe/Fernando.jpg` — Equipe BM

@@ -46,7 +46,7 @@ ${frota.map(e => `- ${e.nome}: ${e.qtd ?? 'quantidade a confirmar'}`).join('\n')
 
 Organograma operacional:
 ${linhasPessoas.join('\n')}
-Observação: Jefferson Becker é a mesma pessoa e aparece duas vezes: nas equipes BN/BV responde à supervisora Carina; nas equipes BT/BU responde direto ao coordenador Anderson (sem supervisor). O Juliano está sem encarregado no momento.
+Observação: Jefferson Becker é encarregado das equipes BN/BV e responde à supervisora Carina. Juliano Almeida não é mais supervisor: é encarregado das equipes BT/BU e responde direto ao coordenador Anderson.
 
 Etapas do ciclo florestal (seção "O que é Silvicultura"):
 ${D.CICLO.map((e, i) => `${i + 1}. ${e.titulo}: ${e.texto}`).join('\n')}

@@ -1099,3 +1099,11 @@ html[data-tema="claro"] { --lima-fundo: #a9d93c; --neon-fundo: #34d399; }
 /* Códigos de UP em qualquer painel abrem o Prontuário da UP (Qualidade) */
 .q-up { cursor: pointer; }
 .q-up:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Organograma: quem responde direto ao coordenador mas aparece na linha dos encarregados */
+.org-oco { display: block; width: 1px; }
+@media (max-width: 860px) {
+  .org-oco { display: none; }
+  .org-tree li.org-vazio::before { display: none; }
+  .org-tree li.org-vazio > ul { margin: 0; padding: 0; border: 0; }
+}
