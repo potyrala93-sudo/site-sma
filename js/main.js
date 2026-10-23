@@ -471,7 +471,7 @@ function renderOrganograma() {
               <span class="k">Cargo</span><span>${p.cargo}</span>
               ${p.equipe ? `<span class="k">Equipe</span><span>${p.equipe}</span>` : ''}
               ${chefe ? `<span class="k">Responde a</span><span>${chefe}</span>` : '<span class="k">Nível</span><span>Coordenação da unidade</span>'}
-              ${p.filhos ? `<span class="k">Lidera</span><span>${p.filhos.map(f => f.nome.split(' ')[0]).join(', ')}</span>` : ''}
+              ${p.filhos?.length ? `<span class="k">Lidera</span><span>${p.filhos.map(f => f.nome.split(' ')[0]).join(', ')}</span>` : ''}
             </span>
           </span>
         </button>
@@ -483,7 +483,7 @@ function renderOrganograma() {
   const legenda = $('#org-legenda');
   if (legenda) {
     legenda.innerHTML = `<span style="--c:${ORGANOGRAMA.tom}"><i></i>Coordenação</span>` +
-      ORGANOGRAMA.filhos.map(s => `<span style="--c:${s.tom}"><i></i>Equipe de ${s.nome.split(' ')[0]}</span>`).join('');
+      ORGANOGRAMA.filhos.filter(s => s.tom).map(s => `<span style="--c:${s.tom}"><i></i>Equipe de ${s.nome.split(' ')[0]}</span>`).join('');
   }
 
   // Clique/toque abre o painel de detalhes

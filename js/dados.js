@@ -78,12 +78,7 @@ const ORGANOGRAMA = {
         { nome: 'Jefferson Becker', cargo: 'Encarregado de Mecanizado', foto: 'jeferson.png', equipe: 'Equipes BN / BV' }
       ]
     },
-    {
-      nome: 'Juliano Almeida', cargo: 'Supervisor Operacional', foto: 'juliano.png', tom: 'var(--tom-3)',
-      filhos: [
-        { nome: 'Jefferson Becker', cargo: 'Encarregado de Mecanizado', foto: 'jeferson.png', equipe: 'Equipes BT / BU' }
-      ]
-    },
+    { nome: 'Juliano Almeida', cargo: 'Supervisor Operacional', foto: 'juliano.png', tom: 'var(--tom-3)' },
     {
       nome: 'Joyce Pontes', cargo: 'Supervisora Operacional', foto: 'Joyce.png', tom: 'var(--tom-4)',
       filhos: [
@@ -91,7 +86,9 @@ const ORGANOGRAMA = {
         { nome: 'Fernando Rodrigues', cargo: 'Encarregado Manual', foto: 'Fernando.jpg', equipe: 'Equipe BM' },
         { nome: 'Lauro Batista',      cargo: 'Encarregado Manual', foto: 'Lauro.png',    equipe: 'Equipe BP' }
       ]
-    }
+    },
+    // BT / BU: o Jefferson responde direto ao Anderson (sem supervisor no meio)
+    { nome: 'Jefferson Becker', cargo: 'Encarregado de Mecanizado', foto: 'jeferson.png', equipe: 'Equipes BT / BU' }
   ]
 };
 

@@ -215,17 +215,18 @@
     }
     if (tem(t, 'coordenador', 'coordena', 'chefe', 'gerente', 'lider')) {
       const c = D.ORGANOGRAMA;
-      return f(`O coordenador da unidade é **${c.nome}**. Abaixo dele estão os supervisores ${c.filhos.map(f => `**${f.nome}**`).join(', ')}.`, [{ destino: '#organograma' }]);
+      const sup = c.filhos.filter(x => /supervis/i.test(x.cargo)), diretos = c.filhos.filter(x => !/supervis/i.test(x.cargo));
+      return f(`O coordenador da unidade é **${c.nome}**. Abaixo dele estão os supervisores ${sup.map(f => `**${f.nome}**`).join(', ')}${diretos.length ? `, e respondem direto a ele ${diretos.map(f => `**${f.nome}**${f.equipe ? ` (${f.equipe})` : ''}`).join(', ')}` : ''}.`, [{ destino: '#organograma' }]);
     }
     if (tem(t, 'supervisor', 'supervisora', 'supervisao')) {
-      return f(`Os supervisores operacionais são:\n\n${D.ORGANOGRAMA.filhos.map(s => `- **${s.nome}**: ${s.filhos.map(f => `${f.nome} (${f.equipe})`).join(', ')}`).join('\n')}`, [{ destino: '#organograma' }]);
+      return f(`Os supervisores operacionais são:\n\n${D.ORGANOGRAMA.filhos.filter(s => /supervis/i.test(s.cargo)).map(s => `- **${s.nome}**: ${s.filhos?.length ? s.filhos.map(f => `${f.nome} (${f.equipe})`).join(', ') : 'sem encarregado no momento'}`).join('\n')}`, [{ destino: '#organograma' }]);
     }
     if (tem(t, 'encarregad')) {
       const enc = pessoas.filter(p => p.equipe);
       return f(`Os encarregados são:\n\n${enc.map(p => `- **${p.nome}**: ${p.cargo}, ${p.equipe}`).join('\n')}`, [{ destino: '#organograma' }]);
     }
     if (tem(t, 'organograma', 'hierarquia', 'quem e quem', 'lideranca'))
-      return f(`O organograma tem três níveis: a **coordenação** com ${D.ORGANOGRAMA.nome}, **${D.ORGANOGRAMA.filhos.length} supervisores** operacionais e os **encarregados** de cada equipe. Toque nos cards para ver os detalhes!`, [{ destino: '#organograma' }]);
+      return f(`O organograma tem três níveis: a **coordenação** com ${D.ORGANOGRAMA.nome}, **${D.ORGANOGRAMA.filhos.filter(s => /supervis/i.test(s.cargo)).length} supervisores** operacionais e os **encarregados** de cada equipe. Toque nos cards para ver os detalhes!`, [{ destino: '#organograma' }]);
 
     // Silvicultura e ciclo
     const etapa = D.CICLO.find(e => {

@@ -107,7 +107,8 @@ Hierarquia:
 **Nível 3 — Encarregados**
 - Abaixo de Carina Pereira:
   - Jefferson Becker — Encarregado de Mecanizado — `assets/img/equipe/jeferson.png` — Equipes BN / BV
-- Abaixo de Juliano Almeida:
+- Abaixo de Juliano Almeida: nenhum encarregado no momento
+- Direto abaixo de Anderson Ramos (sem supervisor):
   - Jefferson Becker — Encarregado de Mecanizado — `assets/img/equipe/jeferson.png` — Equipes BT / BU
 - Abaixo de Joyce Pontes:
   - Sidnei Oliveira — Encarregado Manual — `assets/img/equipe/Sidnei.jpg` — Equipe BD
