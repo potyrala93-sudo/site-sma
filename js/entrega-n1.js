@@ -162,6 +162,7 @@
     // Linhas REALIZADAS do RF
     let totalRF = 0;
     const vistos = new Set(), linhasRF = [], naoClass = [], corresp = new Map();
+    let irrigacoes = 0;
     linhas.slice(cab.i + 1).forEach((l, k) => {
       if (norm(l[ix.sit]) !== 'REALIZADO') return;
       const up = normUP(l[ix.up]), desc = norm(l[ix.desc]); if (!up || !desc) return;
@@ -172,6 +173,7 @@
       if (vistos.has(chave)) return; vistos.add(chave);
       const grupoRF = 'grupo' in ix ? l[ix.grupo] : '';
       const linha = { up, upOriginal: String(l[ix.up]).trim(), desc, grupoRF: norm(grupoRF), frente: 'frente' in ix ? norm(l[ix.frente]) : '', semana, fazenda: 'fazenda' in ix ? String(l[ix.fazenda]).replace(/\s+/g, ' ').trim() : '', linhaPlanilha: cab.i + 2 + k };
+      if (/IRRIGACAO/.test(desc)) { irrigacoes++; return; }   // irrigação nunca entra na análise de N1
       const c = classificar(desc, grupoRF);
       if (!c) { naoClass.push(linha); return; }
       if (!c.exato) corresp.set(desc, { rf: desc, lista: c.nome, grupo: c.grupo });
@@ -181,7 +183,7 @@
     const faltam = Object.keys(BASES).filter(b => !bases[b]);
     return {
       quando: new Date(), rfNome: rf.arq.name, rfAba: rf.leitura.aba, colunasUsadas, semanas, linhasRF, naoClass, corresp: [...corresp.values()],
-      totalRF, unicas: linhasRF.length + naoClass.length, faltam,
+      totalRF, unicas: linhasRF.length + naoClass.length + irrigacoes, irrigacoes, faltam,
       bases: Object.fromEntries(Object.entries(bases).map(([k, b]) => [k, { qtd: b.ups.size, aval: Object.fromEntries([...b.ups].map(([up, s]) => [up, s.size])), arquivos: b.arquivos }]))
     };
   }
@@ -354,7 +356,7 @@
       <details class="n1-det"><summary>Colunas usadas e observações</summary>
         <p><b>Colunas do RF:</b> ${R.colunasUsadas.map(esc).join(' · ')}</p>
         <p><b>Bases de qualidade:</b> ${Object.entries(BASES).map(([k, b]) => R.bases[k] ? `${b.nome} (${R.bases[k].qtd} UPs)` : `<span class="n1-falta">${b.nome}: base não enviada</span>`).join(' · ')}</p>
-        <ul><li>Só linhas com Situação = REALIZADO; duplicadas (mesma UP + atividade + semana) contam uma vez.</li><li>Qualidade de Muda e Plantio verificam as mesmas atividades, cada uma na sua base.</li><li>Preparo de Solo mecanizado: a UP precisa estar em pelo menos uma das bases (Conjugado ou Convencional); a coluna "Base" diz em qual.</li><li>As bases de qualidade são comparadas pela UP (a coluna de aplicação do Herbicida não identifica a atividade do RF).</li>${R.faltam.length ? `<li>Bases não enviadas aparecem como "Base não enviada" e não contam como pendência.</li>` : ''}</ul></details>`;
+        <ul><li>Irrigações ficam sempre fora da análise de N1${R.irrigacoes ? ` (${R.irrigacoes} no RF)` : ''}.</li><li>Só linhas com Situação = REALIZADO; duplicadas (mesma UP + atividade + semana) contam uma vez.</li><li>Qualidade de Muda e Plantio verificam as mesmas atividades, cada uma na sua base.</li><li>Preparo de Solo mecanizado: a UP precisa estar em pelo menos uma das bases (Conjugado ou Convencional); a coluna "Base" diz em qual.</li><li>As bases de qualidade são comparadas pela UP (a coluna de aplicação do Herbicida não identifica a atividade do RF).</li>${R.faltam.length ? `<li>Bases não enviadas aparecem como "Base não enviada" e não contam como pendência.</li>` : ''}</ul></details>`;
     // Cartões
     $('#n1-cards').innerHTML = TIPOS.map(t => {
       const r = resumoTipo(t);
@@ -367,7 +369,7 @@
     $('#n1-envio').classList.add('compacto'); $('#n1-trocar').hidden = false;
     renderAbas(); renderPainel();
     const somaOk = TIPOS.every(t => { const r = resumoTipo(t); return r.ok + r.pend + r.isento + estado.res.itens.filter(i => i.tipo === t.id && i.status === 'semBase').length === r.total; });
-    $('#n1-conferencia').innerHTML = `<i data-lucide="${somaOk ? 'check-circle-2' : 'alert-circle'}"></i>Conferência: ${R.totalRF} linhas REALIZADAS no RF (${R.unicas} sem duplicidade) = ${R.unicas - R.naoClass.length} classificadas + ${R.naoClass.length} não classificadas · ${R.itens.length} verificações (Muda e Plantio contam duas vezes) · encontradas + pendentes + sem base + sem N1 ${somaOk ? 'batem' : 'NÃO batem'} com o total de cada tipo.`;
+    $('#n1-conferencia').innerHTML = `<i data-lucide="${somaOk ? 'check-circle-2' : 'alert-circle'}"></i>Conferência: ${R.totalRF} linhas REALIZADAS no RF (${R.unicas} sem duplicidade) = ${R.unicas - R.naoClass.length - (R.irrigacoes || 0)} classificadas + ${R.naoClass.length} não classificadas + ${R.irrigacoes || 0} irrigações (fora da análise) · ${R.itens.length} verificações (Muda e Plantio contam duas vezes) · encontradas + pendentes + sem base + sem N1 ${somaOk ? 'batem' : 'NÃO batem'} com o total de cada tipo.`;
     renderIsencoes();
     icones();
   }
@@ -484,6 +486,38 @@
     window.addEventListener('afterprint', fim);
     setTimeout(() => window.print(), 50);
   });
+  const marca = (it, k) => (marcaDe(it)[k] ? '☑' : '☐');
+  const linhaPDF = (it, comTipo) => `<tr class="st-${it.status}">${comTipo ? `<td>${esc(tipoDe(it.tipo).curto || tipoDe(it.tipo).nome)}</td>` : ''}<td><b>${esc(it.up)}</b></td><td>${esc(it.desc)}</td><td>${esc(it.frente || '—')}</td><td>${esc(it.semana)}</td><td><b>${STATUS[it.status].curto}</b>${it.onde ? `<br><small>${esc(it.onde)}</small>` : ''}</td>${MARCAS.map(x => `<td class="c">${marca(it, x.k)}</td>`).join('')}<td>${esc(classificacao(it))}</td><td>${esc(equipeDe(it) || '—')}</td></tr>`;
+  const cabTab = comTipo => `<thead><tr>${comTipo ? '<th style="width:9%">Tipo</th>' : ''}<th style="width:8%">UP</th><th>Atividade</th><th style="width:6%">Frente</th><th style="width:8%">Semana</th><th style="width:15%">Status</th>${MARCAS.map(x => `<th class="c" style="width:6%">${x.curto}</th>`).join('')}<th style="width:11%">Classificação</th><th style="width:7%">Equipe</th></tr></thead>`;
+  // Imagem da tela (PNG): cabeçalho, resumo por tipo e a aba atual com o filtro de semana — para mandar no WhatsApp/e-mail
+  $('#n1-imagem').addEventListener('click', async () => {
+    const R = estado.res; if (!R || !window.SMA_PDF) return;
+    const bt = $('#n1-imagem'), rot = $('span', bt), original = rot.textContent;
+    bt.disabled = true; rot.textContent = 'Gerando…';
+    const area = document.createElement('div'); area.className = 'n1-img';
+    try {
+      const t = tipoDe(estado.aba);
+      const titulo = t ? t.nome : ({ equipe: 'Por equipe', aderencia: 'Aderência', naoClass: 'Atividades não classificadas', corresp: 'Correspondências de nomes' })[estado.aba];
+      const resumo = `<div class="n1-img-resumo">${TIPOS.map(x => { const r = resumoTipo(x); return `<div style="--c:${x.cor}"><small>${esc(x.curto || x.nome)}</small><b>${r.semBase ? '—' : r.ader == null ? '—' : pct(r.ader)}</b><span>${r.ok} OK · ${r.pend} pend.${r.isento ? ` · ${r.isento} sem N1` : ''}</span></div>`; }).join('')}</div>`;
+      let corpo;
+      if (t) corpo = `<table class="n1-pdf-tab">${cabTab(false)}<tbody>${R.itens.filter(i => i.tipo === t.id).filter(passa).map(it => linhaPDF(it, false)).join('') || '<tr><td colspan="11">Nenhuma linha com esse filtro.</td></tr>'}</tbody></table>`;
+      else if (estado.aba === 'equipe') {
+        const sel = estado.equipesSel || new Set(equipesTodas());
+        corpo = [...sel].sort().map(e => { const l = R.itens.filter(passa).filter(it => (equipeDe(it) || 'Sem equipe') === e); return l.length ? `<h2 class="n1-pdf-sub">Equipe ${esc(e)} · ${l.filter(i => i.status === 'pend').length} pendente(s)</h2><table class="n1-pdf-tab">${cabTab(true)}<tbody>${l.map(it => linhaPDF(it, true)).join('')}</tbody></table>` : ''; }).join('') || '<p>Nenhuma linha.</p>';
+      } else corpo = `<div class="n1-pdf-livre">${$('#n1-painel').innerHTML}</div>`;
+      area.innerHTML = `<header class="n1-pdf-cab"><h1>Análise de Qualidade de Entrega – N1 · ${esc(titulo)}</h1><p>RF: ${esc(R.rfNome)} · ${estado.semana ? `Semana: ${esc(estado.semana)}` : `Semanas: ${esc(R.semanas.join(', '))}`} · ${['aderencia', 'naoClass', 'corresp'].includes(estado.aba) ? '' : estado.ver === 'pend' ? 'só pendentes · ' : 'todas as linhas · '}${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></header>${resumo}${corpo}`;
+      $$('input, .n1-eq-sel', area).forEach(x => x.remove());
+      document.body.appendChild(area);
+      const cv = await window.SMA_PDF.capturar(area, { fundo: '#ffffff' });
+      const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `Entrega_N1_${(titulo || '').replace(/[^\p{L}\p{N}]+/gu, '_')}${estado.semana ? `_${estado.semana.replace(/[^\p{L}\p{N}]+/gu, '')}` : ''}_${new Date().toISOString().slice(0, 10)}.png`;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      rot.textContent = 'Imagem baixada ✓';
+    } catch (e) { console.error('N1: imagem', e); rot.textContent = 'Não consegui gerar'; }
+    finally { area.remove(); bt.disabled = false; setTimeout(() => { rot.textContent = original; }, 2500); }
+  });
+
   // PDF gerado direto (A4 paisagem): a aba atual em páginas de até 16 linhas, cabeçalho em todas
   $('#n1-pdf').addEventListener('click', async () => {
     const R = estado.res; if (!R || !window.SMA_PDF) return;
@@ -493,9 +527,6 @@
       const t = tipoDe(estado.aba);
       const titulo = t ? t.nome : ({ equipe: 'Por equipe', aderencia: 'Aderência', naoClass: 'Atividades não classificadas', corresp: 'Correspondências de nomes' })[estado.aba];
       const cab = `<header class="n1-pdf-cab"><div><h1>Análise de Qualidade de Entrega – N1</h1><p>${esc(titulo)} · RF: ${esc(R.rfNome)} · Semanas: ${esc(R.semanas.join(', '))}${estado.aba === 'equipe' ? ` · Equipes: ${esc([...(estado.equipesSel || [])].join(', '))}` : ''} · ${['aderencia', 'naoClass', 'corresp'].includes(estado.aba) ? '' : estado.ver === 'pend' ? 'só pendentes · ' : 'todas as linhas · '}gerado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></div></header>`;
-      const marca = (it, k) => (marcaDe(it)[k] ? '☑' : '☐');
-      const linhaPDF = (it, comTipo) => `<tr class="st-${it.status}">${comTipo ? `<td>${esc(tipoDe(it.tipo).curto || tipoDe(it.tipo).nome)}</td>` : ''}<td><b>${esc(it.up)}</b></td><td>${esc(it.desc)}</td><td>${esc(it.frente || '—')}</td><td>${esc(it.semana)}</td><td><b>${STATUS[it.status].curto}</b>${it.onde ? `<br><small>${esc(it.onde)}</small>` : ''}</td>${MARCAS.map(x => `<td class="c">${marca(it, x.k)}</td>`).join('')}<td>${esc(classificacao(it))}</td><td>${esc(equipeDe(it) || '—')}</td></tr>`;
-      const cabTab = comTipo => `<thead><tr>${comTipo ? '<th style="width:9%">Tipo</th>' : ''}<th style="width:8%">UP</th><th>Atividade</th><th style="width:6%">Frente</th><th style="width:8%">Semana</th><th style="width:15%">Status</th>${MARCAS.map(x => `<th class="c" style="width:6%">${x.curto}</th>`).join('')}<th style="width:11%">Classificação</th><th style="width:7%">Equipe</th></tr></thead>`;
       const pags = [];
       const fatiar = (linhas, comTipo, sub = '') => { for (let i = 0; i < Math.max(1, linhas.length); i += 16) pags.push(`${cab}${sub}<table class="n1-pdf-tab">${cabTab(comTipo)}<tbody>${linhas.slice(i, i + 16).join('') || '<tr><td colspan="12">Nenhuma linha com esse filtro.</td></tr>'}</tbody></table>`); };
       if (t) fatiar(R.itens.filter(i => i.tipo === t.id).filter(passa).map(it => linhaPDF(it, false)), false);
@@ -533,6 +564,17 @@
     const u = JSON.parse(localStorage.getItem('n1:ultima') || 'null');
     if (u?.linhasRF) { u.quando = new Date(u.quando); estado.res = u; lerMarcas(); montarItens(); render(); atualizarSugestoes(); }
   } catch { /* sem análise anterior */ }
+  // Contexto para o Folhito: o que está na tela da Entrega N1
+  (window.SMA_CONTEXTO ||= {}).n1 = () => {
+    const R = estado.res; if (!R || raiz.hidden) return '';
+    const linhas = TIPOS.map(t => { const r = resumoTipo(t); return `- ${t.nome}: ${r.semBase ? 'base não enviada' : `aderência ${r.ader == null ? '—' : pct(r.ader)} (${r.ok} encontradas, ${r.pend} pendentes${r.isento ? `, ${r.isento} sem N1` : ''})`}`; });
+    const eq = aderencias()['Por equipe'].filter(x => x.pend).slice(0, 8).map(x => `${x.nome} ${x.pend} pend. (${x.ader == null ? '—' : pct(x.ader)})`).join('; ');
+    return `Painel Entrega N1 (análise de ${R.quando.toLocaleString('pt-BR')}, RF "${R.rfNome}", ${estado.semana ? `filtro: ${estado.semana}` : `semanas ${R.semanas.join(', ')}`}). Aba aberta: ${tipoDe(estado.aba)?.nome || estado.aba}.
+Por base de qualidade:
+${linhas.join('\n')}
+Pendências por equipe: ${eq || 'nenhuma'}.
+Equipes sem N1: ${isencoes.map(x => `${x.equipe} (${x.atividade === '*' ? 'todas' : x.atividade})`).join(', ') || 'nenhuma'}. Irrigações ficam fora da análise. Não classificadas: ${R.naoClass.length}.`;
+  };
   renderArquivos();
   document.addEventListener('qual:aba', e => { if (e.detail === 'n1') { icones(); if (estado.res) atualizarSugestoes(); } });
 })();

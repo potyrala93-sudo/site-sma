@@ -266,3 +266,17 @@ th.n1-chk { white-space: normal; font-size: .64rem; min-width: 74px; }
 table.n1-tab th.n1-c-up { width: 9%; } table.n1-tab th.n1-c-ativ { width: 23%; } table.n1-tab th.n1-c-fr { width: 6%; } table.n1-tab th.n1-c-sem { width: 8%; }
 table.n1-tab th.n1-c-st { width: 15%; } table.n1-tab th.n1-chk { width: 6.5%; } table.n1-tab th.n1-c-cl { width: 11.5%; } table.n1-tab th.n1-c-eq { width: 7%; } table.n1-tab th.n1-c-tipo { width: 9%; }
 table.n1-tab-ader th { width: auto; } table.n1-tab-ader th:first-child { width: 30%; }
+
+/* ---------- Imagem da tela (PNG) ---------- */
+.n1-img { position: fixed; left: -20000px; top: 0; width: 1500px; padding: 26px 30px; background: #fff; font-family: Manrope, system-ui, sans-serif; color: #0b2a23; }
+.n1-img * { color: #0b2a23 !important; text-shadow: none !important; box-shadow: none !important; }
+.n1-img-resumo { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin: 10px 0 14px; }
+.n1-img-resumo div { padding: 8px 10px; border: 1px solid #d5e5df; border-top: 4px solid var(--c); border-radius: 8px; background: #f8fbfa; }
+.n1-img-resumo small { display: block; font-size: 11px; font-weight: 800; color: #4b6b62 !important; }
+.n1-img-resumo b { font-size: 22px; }
+.n1-img-resumo span { display: block; font-size: 11px; }
+.n1-img .n1-pdf-tab { font-size: 12px; }
+.n1-img .n1-pdf-livre .n1-ader { border: 1px solid #d5e5df; border-radius: 8px; padding: 8px; margin-bottom: 10px; }
+.n1-img .n1-pdf-livre .n1-ader-barra { height: 18px; border-radius: 9px; overflow: hidden; position: relative; background: #fde2e2 !important; }
+.n1-img .n1-pdf-livre .n1-ader-barra i { position: absolute; inset: 0 auto 0 0; width: var(--p); background: #22c55e !important; }
+.n1-img .n1-pdf-livre .n1-ader-barra b { position: relative; padding-left: 6px; font-size: 11px; line-height: 18px; }
