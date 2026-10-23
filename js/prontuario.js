@@ -799,6 +799,17 @@
   });
   // Outros painéis e a própria página abrem uma UP por evento (os códigos de UP viram link para cá)
   window.SMA_PRONTUARIO = { abrir: up => abrirUP(up) };
+  // Contexto para o Folhito: a ficha aberta
+  (window.SMA_CONTEXTO ||= {}).prontuario = () => {
+    const F = estado.ficha; if (!F || raiz.hidden) return '';
+    const I = F.idt, K = F.kpis;
+    return `Prontuário aberto: UP ${I.up} · ${I.fazenda} · ${I.municipio}. Área ${fmtHa(I.area)} ha; material ${I.material || '—'}; plantio ${br(I.ini)} a ${br(I.fim)}${I.idade != null ? ` (${I.idade} dias)` : ''}; status ${I.status || '—'}; avaliação 120 dias ${br(I.d120)}.
+Apontado ${fmtHa(K.area)} ha, faturamento ${brl(K.faturamento)}, ${K.dias} dias, ${K.atividades} atividades, equipes ${[...K.equipes].join(', ') || '—'}, último apontamento ${br(K.ultimo)}.
+Avanço por grupo: ${F.porGrupo.map(g => `${g.grupo} ${g.pct ? pct(g.pct) : fmtHa(g.area) + ' ha'}`).join('; ') || '—'}.
+Alertas: ${F.alertas.map(a => a.texto).slice(0, 6).join(' | ') || 'nenhum'}.
+Eventos sensíveis de clima: ${F.sensiveis.length}${F.sensiveis.length ? ` (${F.sensiveis.slice(0, 4).map(s => s.texto).join(' | ')})` : ''}.
+${F.previsao ? `Previsão: chuva 7 dias ${fmt1(F.previsao.chuva7d)} mm; próxima janela boa ${F.previsao.proximaJanela?.rotulo || 'nenhuma'}.` : ''}`;
+  };
 
   let iniciado = false;
   function iniciar() {

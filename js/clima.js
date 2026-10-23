@@ -653,4 +653,17 @@
   } else iniciar();
   if (location.hash === '#clima') iniciar();
   window.SMA_CLIMA = { iniciar, abrirTela, abrirDetalhe, mapa: () => mapaHome, limites };
+  // Contexto para o Folhito: resumo do clima nas fazendas e a distância escolhida
+  (window.SMA_CONTEXTO ||= {}).clima = () => {
+    if (!estado.dados) return '';
+    const xs = itens();
+    const st0 = xs.filter(x => x.p.agora.status === 0).map(x => x.f.nome);
+    const alertas = xs.filter(x => x.p.alertas.length).slice(0, 10).map(x => `${x.f.nome}: ${x.p.alertas.map(a => a.texto).join('; ')}`);
+    const janelas = xs.filter(x => x.p.proximaJanela).sort((a, b) => a.p.proximaJanela.inicio.localeCompare(b.p.proximaJanela.inicio)).slice(0, 10).map(x => `${x.f.nome} (${x.f.municipio}): ${x.p.proximaJanela.rotulo}`);
+    const dist = $('#clima-dist-res')?.textContent.trim();
+    return `Clima nas Fazendas (Open-Meteo, ${xs.length} fazendas). Janela boa AGORA em ${st0.length}: ${st0.slice(0, 12).join(', ') || 'nenhuma'}.
+Próximas janelas boas: ${janelas.join(' | ') || 'nenhuma em 7 dias'}.
+Alertas: ${alertas.join(' | ') || 'nenhum'}.
+Bases: ${(CFG.bases || []).map(b => b.nome).join(', ')}.${dist && !/^Escolha/.test(dist) ? ` Distância na tela: ${dist}.` : ''}`;
+  };
 })();

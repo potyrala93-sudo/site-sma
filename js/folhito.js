@@ -51,9 +51,13 @@
     '#organograma':  { rotulo: 'Organograma', icone: 'network' }
   };
   D.SETORES.filter(s => s.id !== 'home').forEach(s => { DESTINOS[s.href] = { rotulo: s.nome, icone: s.icone }; });
+  DESTINOS['index.html'] = { rotulo: 'Início', icone: 'house' };
 
+  // "qualidade.html?up=S7A417" e "producao.html#remonta" valem: a página base precisa ser um destino conhecido
+  const baseDestino = d => (d.startsWith('#') ? d : d.split(/[?#]/)[0]);
   function resolverDestino(destino) {
-    if (!(destino in DESTINOS)) return null;
+    if (!(baseDestino(destino) in DESTINOS)) return null;
+    if (destino !== baseDestino(destino)) return /^[\w.-]+\.html[?#][\w=&%#.-]{1,80}$/.test(destino) ? destino : null;
     if (destino.startsWith('#')) return naHome ? destino : 'index.html' + (destino === '#inicio' ? '' : destino);
     return destino;
   }
@@ -250,11 +254,12 @@
   /* ---------- Renderização de texto (markdown simples e seguro) ---------- */
   function extrairLinks(texto) {
     const links = [];
-    const limpo = texto.replace(/\[\[([^\]|]{1,60})\|([^\]\s]{1,60})\]\]/g, (_, rotulo, destino) => {
-      if (destino in DESTINOS) links.push({ rotulo: rotulo.trim(), destino });
+    const perguntas = [];
+    const limpo = texto.replace(/\[\[([^\]|]{1,60})\|([^\]\s]{1,100})\]\]/g, (_, rotulo, destino) => {
+      if (baseDestino(destino) in DESTINOS) links.push({ rotulo: rotulo.trim(), destino });
       return '';
-    });
-    return { texto: limpo.replace(/\[\[[^\]]*$/, ''), links };
+    }).replace(/\[\[\?([^\]]{2,90})\]\]/g, (_, p) => { perguntas.push(p.trim()); return ''; });   // [[?próxima pergunta]] → botão
+    return { texto: limpo.replace(/\[\[[^\]]*$/, ''), links, perguntas };
   }
 
   function markdown(texto) {
@@ -323,7 +328,16 @@
   const sugestoes = $('#folhito-sugestoes');
   const icones = () => window.lucide?.createIcons();
 
+  const SUGESTOES_PAGINA = {
+    home: [{ texto: 'Dá para aplicar herbicida amanhã em alguma fazenda?', icone: 'cloud-sun' }, { texto: 'Qual fazenda fica mais longe da Base São Miguel?', icone: 'route' }],
+    faturamento: [{ texto: 'Quanto falta para a meta neste RF?', icone: 'target' }, { texto: 'Quais equipes estão abaixo da meta?', icone: 'trending-down' }],
+    producao: [{ texto: 'Qual o rendimento das equipes em ha/dia neste RF?', icone: 'gauge' }, { texto: 'Quais remontas estão vencidas?', icone: 'spray-can' }],
+    qualidade: [{ texto: 'Quais UPs estão críticas no mês?', icone: 'triangle-alert' }, { texto: 'Como está a aderência do N1?', icone: 'list-checks' }],
+    rh: [{ texto: 'Quantos colaboradores ativos temos por equipe?', icone: 'users' }, { texto: 'Quem tem mais tempo de casa?', icone: 'medal' }],
+    seguranca: [{ texto: 'A nota SSQV bateu a meta no último mês?', icone: 'shield-check' }, { texto: 'Me dá uma dica de segurança', icone: 'hard-hat' }]
+  };
   const SUGESTOES = [
+    ...(SUGESTOES_PAGINA[document.body.dataset.page] || []),
     { texto: 'O que você sabe fazer?', icone: 'sparkles' },
     { texto: 'Quanto a unidade faturou ontem?', icone: 'receipt' },
     { texto: 'Qual equipe tem a maior aderência?', icone: 'trophy' },
@@ -354,7 +368,7 @@
     const validos = links.map(l => ({ ...l, href: resolverDestino(l.destino) })).filter(l => l.href);
     if (!validos.length) return '';
     return `<div class="folhito-links">${validos.map(l => {
-      const info = DESTINOS[l.destino];
+      const info = DESTINOS[baseDestino(l.destino)];
       return `<a class="folhito-link" href="${l.href}" data-destino="${l.destino}"><i data-lucide="${info.icone}"></i>${escapar(l.rotulo || info.rotulo)}</a>`;
     }).join('')}</div>`;
   }
@@ -371,9 +385,9 @@
   function atualizarBolha(el, role, conteudo) {
     const bolha = el.querySelector('.folhito-bolha');
     if (role === 'user') { bolha.innerHTML = markdown(conteudo); return; }
-    const { texto, links } = extrairLinks(conteudo);
-    bolha.innerHTML = markdown(texto) + renderLinks(links);
-    if (links.length) icones(); // só redesenha ícones quando há botões (evita trabalho a cada palavra)
+    const { texto, links, perguntas } = extrairLinks(conteudo);
+    bolha.innerHTML = markdown(texto) + renderLinks(links) + (perguntas.length ? `<div class="folhito-seguir">${perguntas.slice(0, 3).map(p => `<button type="button" class="folhito-chip folhito-seguir-chip" data-texto="${escapar(p)}"><i data-lucide="corner-down-right"></i>${escapar(p)}</button>`).join('')}</div>` : '');
+    if (links.length || perguntas.length) icones(); // só redesenha ícones quando há botões (evita trabalho a cada palavra)
   }
 
   function rolarFim() { lista.scrollTop = lista.scrollHeight; }
@@ -425,6 +439,8 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && raiz.classList.contains('aberto')) { fechar(); lancador.focus(); } });
 
   lista.addEventListener('click', e => {
+    const p = e.target.closest('.folhito-seguir-chip');
+    if (p) { enviar(p.dataset.texto); return; }
     const a = e.target.closest('.folhito-link');
     if (!a) return;
     const destino = a.getAttribute('href');
@@ -509,11 +525,17 @@
   }
 
   // Envia o histórico ao servidor e mostra a resposta conforme ela chega (streaming)
+  // O que a pessoa está vendo agora: cada painel registra um resumo em window.SMA_CONTEXTO (só os visíveis entram)
+  function contextoDaPagina() {
+    const partes = Object.values(window.SMA_CONTEXTO || {}).map(f => { try { return f(); } catch { return ''; } }).filter(Boolean);
+    return partes.join('\n\n').slice(0, 9000);
+  }
+
   async function perguntarIA(indicador) {
     const resp = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mensagens: conversa.slice(-20), pagina: document.body.dataset.page })
+      body: JSON.stringify({ mensagens: conversa.slice(-20), pagina: document.body.dataset.page, contexto: contextoDaPagina() })
     });
     if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
 

@@ -1048,4 +1048,11 @@
     await Promise.all([carregar(), listarSalvas()]);
     renderSalvas();
   })();
+  // Contexto para o Folhito: a programação gerada na tela
+  (window.SMA_CONTEXTO ||= {}).programacao = () => {
+    const r = estado.resultado; if (!r || document.getElementById('aba-prog')?.hidden) return '';
+    const sup = pessoa(cfg.supervisor);
+    return `Programação de Atividades gerada: supervisor ${sup?.nome || '—'}; equipes ${r.equipes.map(e => `${e.nome} (${descEquipe(e)})`).join(', ')}; entrada ${br(r.entrada)}, término ${br(r.termino)}; área ${fmtHa(r.area)} ha; produção diária ${fmtHa(r.prod)} ha/dia; faturamento ${brl(r.faturamento)}.
+Fazendas na ordem: ${r.faz.map(f => `${f.nome} (${f.ups.length} UPs, ${fmtHa(f.area)} ha)`).join('; ')}.`;
+  };
 })();

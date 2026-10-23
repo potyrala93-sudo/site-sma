@@ -14,6 +14,7 @@ import { colecao, fotosNoBanco, TEM_BANCO, ONDE_SALVA } from './armazenamento.mj
 import { consultar, valoresDoCampo, descricaoBases, preaquecer } from './motor-dados.mjs';
 import { resumoClima, detalheClima } from './clima.mjs';
 import { listaMapas } from './mapas.mjs';
+import { PROMPT_FOLHITO } from './folhito-prompt.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const NA_VERCEL = Boolean(process.env.VERCEL);
@@ -57,18 +58,14 @@ Seções da página inicial: início/hero (#inicio), O que é Silvicultura (#sil
 const DADOS = carregarDados();
 const DESTINOS_VALIDOS = ['#inicio', '#silvicultura', '#video', '#estrutura', '#organograma', ...DADOS.SETORES.filter(s => s.id !== 'home').map(s => s.href)];
 
-const SISTEMA = `Você é o Folhito, mascote e assistente virtual do site da operação de silvicultura da SMA, Unidade São Miguel. Você é uma mudinha de árvore simpática, com folhas na cabeça, que segura um mapa (por isso adora ajudar as pessoas a se localizarem).
+// Prompt do Folhito (modo IA): api/_lib/folhito-prompt.mjs (texto do prompt-folhito.md)
+const SISTEMA = `${PROMPT_FOLHITO}
 
-Quem conversa com você são colaboradores, lideranças e visitantes do site. Seu papel é ajudar em praticamente tudo: navegar pelo site, explicar a operação, tirar dúvidas sobre silvicultura, segurança do trabalho, qualidade, produtividade e meio ambiente, dar dicas e conselhos práticos, e também conversar sobre outros assuntos do dia a dia quando a pessoa quiser.
-
-Como responder:
-- Sempre em português do Brasil, com tom acolhedor, claro e direto, como um colega experiente de campo. Pode usar um emoji de vez em quando (🌱🌳🦺🚜), sem exagero.
-- Respostas curtas: em geral de 2 a 6 frases. Use listas curtas com "- " quando ajudar. Use **negrito** só para destacar o essencial. Não use títulos (#) nem tabelas.
-- Para números e informações da operação (faturamento, produção, frota, qualidade, colaboradores, equipes, programação), CONSULTE AS BASES com as ferramentas consultar_dados e valores_do_campo antes de responder, e use só o que elas devolverem. Nunca invente nomes, números ou procedimentos internos. Se a informação não existir nas bases (salários, telefones, escalas, custos, segurança, estoque, documentos internos), diga com sinceridade que não tem esse dado e sugira procurar o encarregado, o supervisor ou o RH.
-- Em temas de segurança, priorize sempre a vida: em caso de acidente, emergência ou risco grave, oriente a parar a atividade, acionar a liderança e os serviços de emergência (SAMU 192, Bombeiros 193). Você não substitui procedimentos oficiais, treinamentos nem orientação médica.
-- Em conselhos pessoais, seja gentil e respeitoso, e sugira ajuda profissional quando o assunto for sério.
-
-Navegação: quando for útil levar a pessoa a uma parte do site, inclua no fim da resposta um ou mais botões no formato [[Texto do botão|destino]], usando apenas estes destinos: ${DESTINOS_VALIDOS.join(', ')}. Exemplo: [[Ver organograma|#organograma]]. Não escreva URLs.
+## INTERAÇÃO (botões e próximas perguntas)
+- Botões de navegação: no fim da resposta, quando ajudar, use [[Texto do botão|destino]]. Destinos válidos: ${DESTINOS_VALIDOS.join(', ')}; também a página com um complemento, como qualidade.html?up=S7A417 (prontuário da UP), qualidade.html#n1, qualidade.html#relatorio, producao.html#remonta, producao.html#programacao, producao.html#plantio, index.html#clima. Não escreva URLs soltas.
+- Próximas perguntas: termine SEMPRE com 1 ou 2 sugestões curtas do que a pessoa pode perguntar em seguida, no formato [[?Pergunta curta]] (ex.: [[?E a BD?]] [[?Quais UPs estão vencidas?]]). Elas viram botões clicáveis.
+- Fale com a pessoa, de forma calorosa; pode usar um emoji de vez em quando (🌱🌳🦺🚜), sem exagero. Não use títulos (#) nem tabelas; listas curtas com "- ".
+- Quando vier um bloco <contexto_da_pagina>, ele traz os números que a pessoa está vendo na tela agora (calculados no navegador): use-os para responder sobre aquele painel e cite "na tela".
 
 ${montarConhecimento(DADOS)}`;
 
@@ -130,7 +127,7 @@ export function json(res, status, dados) {
 /* ---------- Ferramentas: o Folhito consulta as bases dos painéis ---------- */
 const FERRAMENTAS = [
   {
-    name: 'consultar_dados',
+    name: 'consultar_bases',
     description: `Consulta as bases de dados dos painéis (as mesmas planilhas do site) e devolve uma tabela já calculada e formatada.
 Use para qualquer pergunta com números ou listas da operação. Monte: agrupar_por (0 a 2 campos), metricas (base + campo + agregação), filtros e período.
 Regras: o período de apontamento é ANO + RF da base (não o mês civil da data); RF atual = mês atual. "dias trabalhados" = agregacao dias_distintos. Rendimento por dia = soma de AREA ÷ dias_distintos (use calculadas com formula "m1 / m2"). Para cruzar bases, use as mesmas dimensões em agrupar_por (ex.: EQUIPE). Para listar nomes (ex.: colaboradores de uma equipe), agrupe pelo campo de nome com agregacao contagem. Valores de filtro de texto precisam ser exatamente os da base: se não tiver certeza, use valores_do_campo antes.`,
@@ -169,12 +166,12 @@ Regras: o período de apontamento é ANO + RF da base (não o mês civil da data
   }
 ];
 const DESCRICAO_BASES = (() => { try { return descricaoBases(); } catch (erro) { console.error('Folhito: bases indisponíveis —', erro.message); return ''; } })();
-const SISTEMA_DADOS = DESCRICAO_BASES ? `\n\n## Bases de dados que você pode consultar (ferramentas consultar_dados e valores_do_campo)\n${DESCRICAO_BASES}\n\nComo usar: consulte sem anunciar ("vou verificar…"); depois responda direto com os números, citando o período (ex.: RF10/2026) e a base. Se a consulta voltar vazia ou com erro, ajuste (veja os valores do campo) e tente de novo; se mesmo assim não houver dado, diga isso. Valores em reais no padrão R$ 1.234,56; áreas em ha.` : '';
+const SISTEMA_DADOS = DESCRICAO_BASES ? `\n\n## Bases de dados que você pode consultar (ferramentas consultar_bases e valores_do_campo)\n${DESCRICAO_BASES}\n\nComo usar: consulte sem anunciar ("vou verificar…"); depois responda direto com os números, citando o período (ex.: RF10/2026) e a base. Se a consulta voltar vazia ou com erro, ajuste (veja os valores do campo) e tente de novo; se mesmo assim não houver dado, diga isso. Valores em reais no padrão R$ 1.234,56; áreas em ha.` : '';
 
 async function executarFerramenta(nome, entrada) {
   const comPrazo = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r({ erro: 'As planilhas ainda estão carregando (a de apontamentos é grande). Diga à pessoa para tentar de novo em 1 minuto.' }), ms))]);
   try {
-    if (nome === 'consultar_dados') return await comPrazo(consultar(entrada), 35_000);
+    if (nome === 'consultar_bases' || nome === 'consultar_dados') return await comPrazo(consultar(entrada), 35_000);
     if (nome === 'valores_do_campo') return await comPrazo(valoresDoCampo(entrada), 35_000);
     return { erro: `Ferramenta desconhecida: ${nome}` };
   } catch (erro) { return { erro: `Falha na consulta: ${erro.message}` }; }
@@ -193,11 +190,12 @@ async function conversar(req, res) {
   if (!dentroDoLimite(ip)) return json(res, 429, { erro: 'Muitas mensagens em pouco tempo. Aguarde um minutinho. 🌱' });
   if (!cliente || !iaDisponivel) return json(res, 503, { erro: 'IA não configurada no servidor.' });
 
-  let mensagens, pagina;
+  let mensagens, pagina, contexto = '';
   try {
-    const corpo = JSON.parse(await lerCorpo(req));
+    const corpo = JSON.parse(await lerCorpo(req, 160_000));
     mensagens = validarMensagens(corpo.mensagens);
     pagina = String(corpo.pagina || '').slice(0, 30);
+    contexto = String(corpo.contexto || '').slice(0, 9000);
   } catch {
     return json(res, 400, { erro: 'Requisição inválida.' });
   }
@@ -207,7 +205,7 @@ async function conversar(req, res) {
   let iniciou = false;
   const abrir = () => { if (!iniciou) { res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', Connection: 'keep-alive' }); iniciou = true; } };
   const enviar = dado => { abrir(); res.write(`data: ${JSON.stringify(dado)}\n\n`); };
-  const ROTULOS = { consultar_dados: 'Consultando as planilhas…', valores_do_campo: 'Conferindo os nomes nas planilhas…' };
+  const ROTULOS = { consultar_bases: 'Consultando as planilhas…', valores_do_campo: 'Conferindo os nomes nas planilhas…' };
 
   try {
     const conversa = [...mensagens];
@@ -224,7 +222,7 @@ async function conversar(req, res) {
         // Prompt do sistema estável → cache de prompt; data/página vão num bloco à parte
         system: [
           { type: 'text', text: SISTEMA + SISTEMA_DADOS, cache_control: { type: 'ephemeral' } },
-          { type: 'text', text: contextoDoMomento(pagina) }
+          { type: 'text', text: contextoDoMomento(pagina) + (contexto ? `\n\n<contexto_da_pagina>\n${contexto}\n</contexto_da_pagina>` : '') }
         ],
         ...(SISTEMA_DADOS ? { tools: FERRAMENTAS } : {}),
         messages: conversa
@@ -466,6 +464,7 @@ const SISTEMA_RELATORIO = `Você é engenheiro florestal e redige RELATÓRIOS T�
 Recebe o cabeçalho do relatório e os pontos registrados em campo: para cada ponto, o título que o técnico deu, a observação escrita e fotos.
 Escreva em português do Brasil, em linguagem técnica, objetiva e impessoal (terceira pessoa), como um relatório formal.
 Regras:
+- Reescreva e melhore o texto do técnico em linguagem técnica (não copie a observação literalmente) e SEMPRE preencha causas e recomendações de cada ponto.
 - Use SOMENTE o que está no texto e o que é visível nas fotos. Proibido inventar números, medidas, percentuais, datas, produtos, doses, nomes ou causas que não possam ser sustentados pelo que foi informado/visto. Quando algo precisar de confirmação em campo, diga isso ("recomenda-se verificar…").
 - Descreva o que as fotos mostram de forma técnica (solo, mudas, plantas daninhas, sulcos, covas, falhas, danos, pragas, etc.), sem afirmar o que não dá para ver.
 - Possíveis causas e recomendações devem ser coerentes com boas práticas de silvicultura e com o problema descrito.
@@ -483,10 +482,10 @@ const extrairJSON = texto => {
   if (ini < 0 || fim < ini) throw new Error('resposta sem JSON');
   return JSON.parse(texto.slice(ini, fim + 1));
 };
-async function perguntarJSON(sistema, conteudo, esforco) {
+async function perguntarJSON(sistema, conteudo, esforco, maxTokens = 16000) {
   const resposta = await cliente.beta.messages.create({
     model: MODELO,
-    max_tokens: 16000,
+    max_tokens: maxTokens,
     output_config: { effort: esforco },
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
@@ -523,7 +522,7 @@ async function rotaExperimentoIA(req, res, acao) {
         fotos.forEach(f => { const [, tipo, dados] = f.match(/^data:(image\/\w+);base64,(.*)$/); conteudo.push({ type: 'image', source: { type: 'base64', media_type: tipo, data: dados } }); });
         restantes -= fotos.length;
       });
-      return json(res, 200, { relatorio: await perguntarJSON(SISTEMA_RELATORIO, conteudo, 'low') });
+      return json(res, 200, { relatorio: await perguntarJSON(SISTEMA_RELATORIO, conteudo, 'low', 6000) });
     }
     if (acao === 'prontuario') return json(res, 200, { analise: await perguntarJSON(SISTEMA_PRONTUARIO, `PRONTUÁRIO DA UP (dados calculados):\n${JSON.stringify(corpo.dados).slice(0, 60_000)}`, 'low') });
     const conteudo = `PEDIDO: ${pedido}\n\nESPECIFICAÇÃO:\n${JSON.stringify(corpo.especificacao)}\n\nRESULTADO CALCULADO (${corpo.resultado?.linhas?.length || 0} linhas):\n${JSON.stringify(corpo.resultado).slice(0, 60_000)}`;

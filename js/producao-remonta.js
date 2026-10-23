@@ -382,4 +382,15 @@
   function iniciar() { if (estado.iniciado) return; estado.iniciado = true; render(); carregar(); }
   document.addEventListener('producao:aba', e => { if (e.detail === 'remonta') iniciar(); });
   if (!aba.hidden) iniciar();
+  // Contexto para o Folhito: situação das remontas e a ordem das fazendas na tela
+  (window.SMA_CONTEXTO ||= {}).remonta = () => {
+    if (aba.hidden || !estado.calc.length) return '';
+    const cont = CARDS.map(k => { const l = estado.calc.filter(u => u.sit === k); return `${SIT[k].nome}: ${l.length} UPs (${ha(l.reduce((s, u) => s + u.area, 0))} ha)`; }).join('; ');
+    const faz = ordemFazendas(estado.fazendas.map(f => ({ ...f, vis: f.ups.filter(u => URGENTES.has(u.sit) || u.sit === 'prazo').sort(ordenarUPs) })).filter(f => f.vis.length)).slice(0, 8)
+      .map((f, i) => `${i + 1}º ${f.nome}: ${f.vis.slice(0, 4).map(u => `${u.up} ${nomeRemonta(u.prox)} ${dmy(u.venc)} (${SIT[u.sit].nome}${metodos[u.chave] ? `, ${METODOS[metodos[u.chave]].nome}` : ''})`).join(', ')}`).join('\n');
+    return `Painel Controle de Remonta Pré-Emergente (data de referência ${dmy(refData())}; R1 ${par.r1} d após Pós+Pré, R2 ${par.r2} d, R3 ${par.r3} d; filtro de remonta: ${(par.remontas || [1, 2, 3]).join(', ')}).
+${cont}.
+Ordem sugerida das fazendas:
+${faz || 'nenhuma com remonta pendente'}`;
+  };
 })();

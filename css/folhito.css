@@ -259,3 +259,8 @@
   .folhito-lancador, .folhito-boasvindas img { animation: none; }
 }
 .folhito-digitando .folhito-bolha.com-status span { margin-left: .35rem; font-size: .8rem; color: var(--texto-suave, #b8d8cf); }
+
+/* Próximas perguntas sugeridas pela IA (viram botões) */
+.folhito-seguir { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .55rem; }
+.folhito-seguir-chip { font-size: .76rem !important; }
+.folhito-seguir-chip svg { width: 13px; height: 13px; }
