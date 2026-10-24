@@ -21,6 +21,17 @@
   const dataBR = d => { if (!d) return '—'; const [a, m, dd] = String(d).slice(0, 10).split('-'); return `${dd}/${m}/${a}`; };
   const hojeISO = () => new Date().toLocaleDateString('sv-SE');
   const diasEntre = (a, b) => (new Date(b) - new Date(a)) / DIA;
+  // duração em dias; se for menos de 1 dia vira horas, depois minutos e, por último, segundos
+  const fmtDur = d => {
+    if (d == null || !Number.isFinite(d)) return '—';
+    const s = Math.max(0, d) * 86400;
+    if (s >= 86400) return `${fmtN(s / 86400, 1)} ${s < 172800 ? 'dia' : 'dias'}`;
+    if (s >= 3600) return `${fmtN(s / 3600, 1)} h`;
+    if (s >= 60) return `${fmtN(s / 60)} min`;
+    return `${fmtN(s)} s`;
+  };
+  // unidade do eixo de um gráfico de tempo, pela maior duração dele
+  const unidadeDur = max => (max >= 1 ? { div: 1, suf: 'd' } : max * 24 >= 1 ? { div: 1 / 24, suf: 'h' } : max * 1440 >= 1 ? { div: 1 / 1440, suf: 'min' } : { div: 1 / 86400, suf: 's' });
   const diasAte = d => Math.round((new Date(String(d).slice(0, 10) + 'T00:00:00') - new Date(hojeISO() + 'T00:00:00')) / DIA);
 
   const TIPOS = { Planejado: '#3dffa8', Emergencial: '#ff4d5e', 'Regularização': '#ffc83d' };
@@ -42,7 +53,7 @@
   const nomeItens = it => { if (!it?.length) return '—'; const n = it.length - 1; return it[0].produto + (n ? ` + ${n} ${n === 1 ? 'item' : 'itens'}` : ''); };
 
   /* ---------- Estado ---------- */
-  const estado = { pedidos: [], eventos: {}, perfis: {}, periodo: '90', cdc: '', usuario: '', busca: '', carregando: true };
+  const estado = { pedidos: [], eventos: {}, perfis: {}, periodo: '90', cdc: '', usuario: '', negadoPor: '', frota: '', carregando: true };
   try { estado.periodo = localStorage.getItem('sma:compras:periodo') || '90'; estado.usuario = localStorage.getItem('sma:compras:solicitante') || ''; } catch (_) {}
 
   function erro(titulo, texto) {
@@ -109,7 +120,6 @@
   });
   $('#c-cdc').addEventListener('change', e => { estado.cdc = e.target.value; renderizar(); });
   $('#c-usuario').addEventListener('change', e => { estado.usuario = e.target.value; try { localStorage.setItem('sma:compras:solicitante', estado.usuario); } catch (_) {} renderizar(); });
-  $('#c-busca').addEventListener('input', e => { estado.busca = e.target.value; tabelaProdutos(filtrados()); });
 
   /* ---------- KPIs ---------- */
   const aberto = p => !['recebido', 'negado'].includes(p.etapa);
@@ -265,7 +275,7 @@
     $('#c-tempos').innerHTML = etapas.map(e => {
       const vals = lista.map(p => { const a = e.de(p), b = e.ate(p); return a && b ? Math.max(0, diasEntre(a, b)) : null; }).filter(v => v != null);
       const media = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
-      const txt = media == null ? '—' : media < 1 ? `${fmtN(media * 24)} h` : `${fmtN(media, 1)} dias`;
+      const txt = fmtDur(media);
       return `<article class="kpi glass c-tempo${e.total ? ' c-tempo-total' : ''}">
         <span class="kpi-topo"><span class="icon-box"><i data-lucide="${e.icone}"></i></span><span class="kpi-rot">${e.nome}</span></span>
         <strong class="kpi-val">${txt}</strong><small class="kpi-ajuda">${vals.length ? `média de ${vals.length} ${vals.length === 1 ? 'pedido' : 'pedidos'}` : 'nenhum pedido passou desta etapa'}</small></article>`;
@@ -280,7 +290,8 @@
     const abertos = lista.filter(aberto).sort((a, b) => String(a.data_necessidade).localeCompare(String(b.data_necessidade)));
     $('#c-aberto-sub').textContent = abertos.length ? `${abertos.length} ${abertos.length === 1 ? 'pedido ainda não foi recebido' : 'pedidos ainda não foram recebidos'}, do mais urgente para o menos urgente. Toque num pedido para ver o caminho dele.` : '';
     if (!abertos.length) { $('#c-aberto').innerHTML = '<p class="tabela vazio c-ok"><i data-lucide="circle-check"></i> Nenhum pedido em aberto no período.</p>'; return; }
-    const parado = p => { const ult = (estado.eventos[p.id] || []).at(-1); return ult ? Math.floor(diasEntre(ult.criado_em, new Date())) : null; };
+    const paradoDur = p => { const ult = (estado.eventos[p.id] || []).at(-1); return ult ? diasEntre(ult.criado_em, new Date()) : null; };
+  const parado = p => { const d = paradoDur(p); return d == null ? null : Math.floor(d); };
     const prazo = p => { const n = diasAte(p.data_necessidade); return n < 0 ? `<span class="c-prazo atraso">${-n} d de atraso</span>` : n === 0 ? '<span class="c-prazo hoje">é hoje</span>' : n <= 3 ? `<span class="c-prazo perto">faltam ${n} d</span>` : `<span class="c-prazo">faltam ${n} d</span>`; };
     $('#c-aberto').innerHTML = `<table class="tabela c-tab">
       <colgroup><col class="c-c-num"><col class="c-c-prod"><col><col class="c-c-eq"><col><col class="c-c-sit"><col class="c-c-par"></colgroup>
@@ -292,35 +303,12 @@
         <td>${escapar(p.equipe)}${p.frota ? `<small class="c-sub">Frota ${escapar(p.frota)}</small>` : ''}</td>
         <td>${dataBR(p.data_necessidade)}${prazo(p)}</td>
         <td><span class="c-sit" style="--c:${s?.cor || '#9fb9b3'}">${escapar(s?.nome || p.etapa)}</span></td>
-        <td class="num">${d == null ? '—' : d === 0 ? 'hoje' : `${d} d`}</td></tr>`; }).join('')}</tbody></table>`;
-  }
-  function tabelaProdutos(lista) {
-    const mapa = {};
-    lista.forEach(p => (p.itens || []).forEach(i => {
-      const k = semAcento(i.produto).trim(); if (!k) return;
-      const m = (mapa[k] = mapa[k] || { produto: i.produto, pedidos: new Set(), qtd: {}, equipes: new Set(), ultimo: '' });
-      m.pedidos.add(p.id); m.equipes.add(p.equipe);
-      const u = i.unidade || 'un'; m.qtd[u] = (m.qtd[u] || 0) + Number(i.quantidade || 0);
-      if (String(p.data_pedido) > m.ultimo) m.ultimo = String(p.data_pedido);
-    }));
-    const q = semAcento(estado.busca).trim();
-    const linhas = Object.values(mapa).filter(m => !q || q.split(/\s+/).every(t => semAcento(m.produto).includes(t)))
-      .sort((a, b) => b.pedidos.size - a.pedidos.size || a.produto.localeCompare(b.produto, 'pt-BR')).slice(0, 25);
-    if (!linhas.length) { $('#c-produtos').innerHTML = `<p class="tabela vazio">${q ? 'Nenhum produto com esse nome no período.' : 'Nenhum produto no período.'}</p>`; return; }
-    const max = linhas[0].pedidos.size;
-    $('#c-produtos').innerHTML = `<table class="tabela c-tab">
-      <colgroup><col class="c-c-prod2"><col class="c-c-n"><col><col><col class="c-c-ult"></colgroup>
-      <thead><tr>${['Produto', 'Pedidos', 'Quantidade total', 'Equipes', 'Último pedido'].map(h => `<th><button type="button" disabled>${h}</button></th>`).join('')}</tr></thead>
-      <tbody>${linhas.map(m => `<tr>
-        <th scope="row">${escapar(m.produto)}</th>
-        <td class="num"><b>${m.pedidos.size}</b><span class="mini-barra"><i style="width:${m.pedidos.size / max * 100}%"></i></span></td>
-        <td>${Object.entries(m.qtd).map(([u, v]) => `${fmtN(v, Number.isInteger(v) ? 0 : 2)} ${escapar(u)}`).join(' · ')}</td>
-        <td>${[...m.equipes].map(escapar).join(', ')}</td>
-        <td>${dataBR(m.ultimo)}</td></tr>`).join('')}</tbody></table>`;
+        <td class="num">${d == null ? '—' : fmtDur(paradoDur(p))}</td></tr>`; }).join('')}</tbody></table>`;
   }
 
   /* ---------- Solicitante filtrado: foto e resumo ---------- */
-  const parado = p => { const ult = (estado.eventos[p.id] || []).at(-1); return ult ? Math.floor(diasEntre(ult.criado_em, new Date())) : null; };
+  const paradoDur = p => { const ult = (estado.eventos[p.id] || []).at(-1); return ult ? diasEntre(ult.criado_em, new Date()) : null; };
+  const parado = p => { const d = paradoDur(p); return d == null ? null : Math.floor(d); };
   const pctTxt = (a, b) => (b ? `${fmtN(a / b * 100)}%` : '—');
   function perfilSolicitante(lista) {
     const sec = $('#c-perfil-sec'), p = estado.usuario && estado.perfis[estado.usuario];
@@ -383,8 +371,8 @@
       <ul class="c-dlg-itens">${(p.itens || []).map(i => `<li><b>${fmtN(Number(i.quantidade), Number.isInteger(Number(i.quantidade)) ? 0 : 2)} ${escapar(i.unidade)}</b> ${escapar(i.produto)}${i.descricao ? ` <small>· ${escapar(i.descricao)}</small>` : ''}</li>`).join('')}</ul>
       ${p.motivo ? `<p class="c-dlg-motivo"><small>Motivo</small>${escapar(p.motivo)}</p>` : ''}
       <ol class="c-linha">${ev.map((e, i) => `<li class="${/negado/.test(e.tipo) ? 'neg' : ''}"><span class="c-linha-ic"><i data-lucide="${ICONE_EV[e.tipo] || 'circle-dot'}"></i></span>
-        <div><strong>${escapar(e.titulo || e.tipo)}</strong><small>${escapar(e.autor_nome || '—')}${e.autor_cargo ? ` · ${escapar(e.autor_cargo)}` : ''} · ${quando(e.criado_em)}${i ? ` · ${fmtN(diasEntre(ev[i - 1].criado_em, e.criado_em), 1)} d depois` : ''}</small>${e.detalhe ? `<p>${escapar(e.detalhe)}</p>` : ''}</div></li>`).join('') || '<li><div><strong>Sem histórico</strong></div></li>'}
-        ${aberto(p) ? `<li class="espera"><span class="c-linha-ic"><i data-lucide="hourglass"></i></span><div><strong>Esperando: ${escapar(s?.nome || p.etapa)}</strong><small>parado há ${parado(p) ?? 0} d</small></div></li>` : ''}</ol>`;
+        <div><strong>${escapar(e.titulo || e.tipo)}</strong><small>${escapar(e.autor_nome || '—')}${e.autor_cargo ? ` · ${escapar(e.autor_cargo)}` : ''} · ${quando(e.criado_em)}${i ? ` · ${fmtDur(diasEntre(ev[i - 1].criado_em, e.criado_em))} depois` : ''}</small>${e.detalhe ? `<p>${escapar(e.detalhe)}</p>` : ''}</div></li>`).join('') || '<li><div><strong>Sem histórico</strong></div></li>'}
+        ${aberto(p) ? `<li class="espera"><span class="c-linha-ic"><i data-lucide="hourglass"></i></span><div><strong>Esperando: ${escapar(s?.nome || p.etapa)}</strong><small>parado há ${fmtDur(paradoDur(p))}</small></div></li>` : ''}</ol>`;
     const dlg = $('#c-dialogo'); if (!dlg.open) dlg.showModal(); icones();
   }
   document.addEventListener('click', e => {
@@ -394,7 +382,6 @@
   raiz.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('tr[data-pedido]')) abrirPedido(e.target.dataset.pedido); });
 
   /* ---------- Qualidade do processo ---------- */
-  const fmtDias = d => (d < 1 ? `${fmtN(d * 24)} h` : `${fmtN(d, 1)} d`);
   function graficoEmergenciais(lista) {
     const eqs = [...new Set(lista.map(p => p.equipe))].map(e => ({ e, l: lista.filter(p => p.equipe === e) })).sort((a, b) => b.l.length - a.l.length).slice(0, 12);
     if (!eqs.length) return vazioGraf('g-emerg', 'Nenhum pedido no período.');
@@ -431,12 +418,25 @@
     if (!l.length) return vazioGraf('g-aprov', 'Nenhuma aprovação no período.');
     mostrarGraf('g-aprov');
     const cor = x => (/analista/i.test(x.cargo || '') ? '#ffc83d' : '#38bdf8');
-    const cfg = barraH(l.map(x => `${x.n.split(' ')[0]} · ${x.cargo || ''}`), l.map(x => +x.media.toFixed(2)), l.map(cor), 'Dias');
-    cfg.data.datasets[0].rotulo = (v, i) => `${fmtDias(v)} · ${l[i].qtd} ${l[i].qtd === 1 ? 'pedido' : 'pedidos'}`;
-    cfg.options.plugins.rotulos = { folga: 120 };
-    cfg.options.plugins.tooltip = { callbacks: { label: c => ` média ${fmtDias(c.raw)} em ${l[c.dataIndex].qtd} decisões` } };
-    cfg.options.scales.x.ticks = { callback: v => `${v} d` };
+    const u = unidadeDur(Math.max(...l.map(x => x.media)));
+    const cfg = barraH(l.map(x => `${x.n.split(' ')[0]} · ${x.cargo || ''}`), l.map(x => +(x.media / u.div).toFixed(2)), l.map(cor), 'Tempo');
+    cfg.data.datasets[0].rotulo = (_v, i) => `${fmtDur(l[i].media)} · ${l[i].qtd} ${l[i].qtd === 1 ? 'pedido' : 'pedidos'}`;
+    cfg.options.plugins.rotulos = { folga: 130 };
+    cfg.options.plugins.tooltip = { callbacks: { label: c => ` média ${fmtDur(l[c.dataIndex].media)} em ${l[c.dataIndex].qtd} decisões` } };
+    cfg.options.scales.x.ticks = { callback: v => `${fmtN(v, Number.isInteger(v) ? 0 : 1)} ${u.suf}` };
     desenhar('g-aprov', cfg);
+  }
+  // Quem negou: coordenador ou analista (vazio = os dois)
+  const QUEM_NEGOU = [{ k: 'coord', nome: 'Coordenador', cor: '#38bdf8' }, { k: 'analista', nome: 'Analista', cor: '#ffc83d' }];
+  const negouQuem = p => (p.negado_por === 'Coordenador' ? 'coord' : 'analista');
+  function filtrarNegado(k) {
+    estado.negadoPor = estado.negadoPor === k ? '' : k;
+    renderNegados(filtrados());
+  }
+  $('#c-neg-filtro').addEventListener('click', e => { const b = e.target.closest('[data-neg]'); if (b) filtrarNegado(b.dataset.neg); });
+  function renderNegados(lista) {
+    $$('#c-neg-filtro [data-neg]').forEach(b => { const a = b.dataset.neg === estado.negadoPor; b.classList.toggle('ativo', a); b.classList.toggle('apagado', Boolean(estado.negadoPor) && !a); b.setAttribute('aria-pressed', String(a)); });
+    graficoRecusas(lista); tabelaRecusas(lista); icones();
   }
   function graficoRecusas(lista) {
     const neg = lista.filter(p => p.etapa === 'negado');
@@ -444,14 +444,18 @@
     if (!neg.length) return vazioGraf('g-recusa', 'Nenhum pedido negado no período.');
     mostrarGraf('g-recusa');
     desenhar('g-recusa', { type: 'bar',
-      data: { labels: eqs.map(e => `Equipe ${e}`), datasets: [['Coordenador', '#38bdf8'], ['Analista', '#ffc83d']].map(([q, cor]) => ({ label: q, data: eqs.map(e => neg.filter(p => p.equipe === e && (q === 'Coordenador' ? p.negado_por === 'Coordenador' : p.negado_por !== 'Coordenador')).length), backgroundColor: `${cor}cc`, borderColor: cor, borderWidth: 1.5, borderRadius: 6, maxBarThickness: 28 })) },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, rotulos: { totalTexto: soma => `${soma} ${soma === 1 ? 'negado' : 'negados'}`, folga: 90 } },
+      data: { labels: eqs.map(e => `Equipe ${e}`), datasets: QUEM_NEGOU.map(q => ({ label: q.nome, hidden: Boolean(estado.negadoPor) && estado.negadoPor !== q.k, data: eqs.map(e => neg.filter(p => p.equipe === e && negouQuem(p) === q.k).length), backgroundColor: `${q.cor}cc`, borderColor: q.cor, borderWidth: 1.5, borderRadius: 6, maxBarThickness: 28 })) },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        onClick: (_e, els) => { if (els[0]) filtrarNegado(QUEM_NEGOU[els[0].datasetIndex].k); },
+        onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+        plugins: { legend: { display: false }, rotulos: { totalTexto: soma => `${soma} ${soma === 1 ? 'negado' : 'negados'}`, folga: 90 } },
         scales: { x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }, y: { stacked: true, grid: { display: false } } } } });
   }
   function tabelaRecusas(lista) {
-    const neg = lista.filter(p => p.etapa === 'negado').sort((a, b) => String(b.data_pedido).localeCompare(String(a.data_pedido)));
-    $('#c-recusas-sub').textContent = neg.length ? `${neg.length} ${neg.length === 1 ? 'pedido negado' : 'pedidos negados'} no período (${pctTxt(neg.length, lista.length)} do total). Toque para ver o caminho.` : '';
-    if (!neg.length) { $('#c-recusas').innerHTML = '<p class="tabela vazio c-ok"><i data-lucide="circle-check"></i> Nenhum pedido negado no período.</p>'; return; }
+    const quem = QUEM_NEGOU.find(q => q.k === estado.negadoPor);
+    const neg = lista.filter(p => p.etapa === 'negado' && (!quem || negouQuem(p) === quem.k)).sort((a, b) => String(b.data_pedido).localeCompare(String(a.data_pedido)));
+    $('#c-recusas-sub').textContent = neg.length ? `${neg.length} ${neg.length === 1 ? 'pedido negado' : 'pedidos negados'}${quem ? ` pelo ${quem.nome.toLowerCase()}` : ''} no período (${pctTxt(neg.length, lista.length)} do total). Toque para ver o caminho.` : '';
+    if (!neg.length) { $('#c-recusas').innerHTML = `<p class="tabela vazio c-ok"><i data-lucide="circle-check"></i> Nenhum pedido negado${quem ? ` pelo ${quem.nome.toLowerCase()}` : ''} no período.</p>`; return; }
     $('#c-recusas').innerHTML = `<table class="tabela c-tab"><colgroup><col class="c-c-num"><col class="c-c-prod"><col class="c-c-eq"><col class="c-c-eq"><col></colgroup>
       <thead><tr>${['Nº', 'Produto', 'Equipe', 'Negado por', 'Justificativa'].map(h => `<th><button type="button" disabled>${h}</button></th>`).join('')}</tr></thead>
       <tbody>${neg.map(p => `<tr class="c-clica" data-pedido="${escapar(p.id)}" tabindex="0"><th scope="row">${escapar(p.numero)}</th><td><b>${escapar(nomeItens(p.itens))}</b><small class="c-sub">${escapar(nome(p.solicitante_id))} · ${dataBR(p.data_pedido)}</small></td><td>${escapar(p.equipe)}</td><td>${escapar(p.negado_por || '—')}</td><td>${escapar(p.justificativa_negativa || '—')}</td></tr>`).join('')}</tbody></table>`;
@@ -464,35 +468,49 @@
     const ord = Object.entries(cont).sort((a, b) => b[1].n - a[1].n).slice(0, 12);
     if (!ord.length) return vazioGraf('g-frota', 'Nenhum pedido com frota no período.');
     mostrarGraf('g-frota');
-    const cfg = barraH(ord.map(([k]) => `Frota ${k}`), ord.map(([, v]) => v.n), ord.map(() => '#c8f560'), 'Pedidos');
+    if (estado.frota && !cont[estado.frota]) estado.frota = '';
+    const cfg = barraH(ord.map(([k]) => `Frota ${k}`), ord.map(([, v]) => v.n), ord.map(([k]) => (!estado.frota || k === estado.frota ? '#c8f560' : '#c8f56040')), 'Pedidos');
     cfg.options.plugins.tooltip = { callbacks: { afterLabel: c => [...ord[c.dataIndex][1].itens].slice(0, 6).join(', ') } };
+    cfg.options.onClick = (_e, els) => { if (els[0]) escolherFrota(ord[els[0].index][0]); };
+    cfg.options.onHover = (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; };
     desenhar('g-frota', cfg);
   }
-  function porProduto(lista) {
-    const m = {};
-    lista.forEach(p => (p.itens || []).forEach(i => {
-      const k = semAcento(i.produto).trim(); if (!k) return;
-      const x = (m[k] = m[k] || { produto: i.produto, pedidos: new Set(), meses: new Set(), equipes: {}, emerg: 0, qtd: {} });
-      x.pedidos.add(p.id); x.meses.add(String(p.data_pedido).slice(0, 7)); if (p.tipo_pedido === 'Emergencial') x.emerg++;
-      const u = i.unidade || 'un', q = Number(i.quantidade || 0);
-      x.qtd[u] = (x.qtd[u] || 0) + q; ((x.equipes[p.equipe] = x.equipes[p.equipe] || {})[u] = (x.equipes[p.equipe][u] || 0) + q);
-    }));
-    return Object.values(m);
+  function escolherFrota(k) {
+    estado.frota = estado.frota === k ? '' : k;
+    const lista = filtrados(); graficoFrota(lista); tabelaFrota(lista); icones();
   }
-  const qtdTxt = o => Object.entries(o || {}).map(([u, v]) => `${fmtN(v, Number.isInteger(v) ? 0 : 2)} ${escapar(u)}`).join(' · ');
-  function tabelaRepetidos(lista) {
-    const l = porProduto(lista).filter(x => x.pedidos.size >= 2).sort((a, b) => b.meses.size - a.meses.size || b.pedidos.size - a.pedidos.size).slice(0, 15);
-    if (!l.length) { $('#c-repetidos').innerHTML = '<p class="tabela vazio">Nenhum produto foi pedido mais de uma vez no período.</p>'; return; }
-    const sug = x => (x.meses.size >= 3 ? ['Estoque mínimo', '#3dffa8'] : x.emerg ? ['Planejar (já foi emergencial)', '#ff4d5e'] : x.pedidos.size >= 3 ? ['Compra mensal planejada', '#c8f560'] : ['Acompanhar', '#9fb9b3']);
-    $('#c-repetidos').innerHTML = `<table class="tabela c-tab"><thead><tr>${['Produto', 'Pedidos', 'Meses', 'Sugestão'].map(h => `<th><button type="button" disabled>${h}</button></th>`).join('')}</tr></thead>
-      <tbody>${l.map(x => { const [t, c] = sug(x); return `<tr><th scope="row">${escapar(x.produto)}<small class="c-sub">${qtdTxt(x.qtd)}</small></th><td class="num"><b>${x.pedidos.size}</b>${x.emerg ? `<small class="c-sub">${x.emerg} emerg.</small>` : ''}</td><td class="num">${x.meses.size}</td><td><span class="c-sit" style="--c:${c}">${t}</span></td></tr>`; }).join('')}</tbody></table>`;
+  $('#c-frota-limpar').addEventListener('click', () => escolherFrota(estado.frota));
+  // Tabela de pedidos (usada na frota e em "Pedidos feitos")
+  function tabelaPedidos(l, vazio, compacta = false) {
+    if (!l.length) return `<p class="tabela vazio">${vazio}</p>`;
+    // versão estreita (ao lado de um gráfico): Nº, pedido com data e solicitante, situação
+    if (compacta) return `<table class="tabela c-tab c-tab-ped"><colgroup><col class="c-c-num"><col><col class="c-c-sit2"></colgroup>
+      <thead><tr>${['Nº', 'Pedido', 'Situação'].map(x => `<th><button type="button" disabled>${x}</button></th>`).join('')}</tr></thead>
+      <tbody>${l.map(p => { const s = SIT[situacaoDe(p)]; return `<tr class="c-clica" data-pedido="${escapar(p.id)}" tabindex="0" style="--sc-linha:${TIPOS[p.tipo_pedido] || 'transparent'}">
+        <th scope="row">${escapar(p.numero)}</th>
+        <td><b>${escapar(nomeItens(p.itens))}</b><small class="c-sub">${dataBR(p.data_pedido)} · Frota ${escapar(p.frota)} · Equipe ${escapar(p.equipe)}</small><span class="c-pessoa c-sub">${foto(p.solicitante_id)}${escapar(nome(p.solicitante_id))}</span></td>
+        <td><span class="c-sit" style="--c:${s?.cor || '#9fb9b3'}">${escapar(s?.nome || p.etapa)}</span></td></tr>`; }).join('')}</tbody></table>`;
+    return `<table class="tabela c-tab c-tab-ped"><colgroup><col class="c-c-num"><col class="c-c-data"><col class="c-c-prod"><col><col class="c-c-eq"><col class="c-c-data"><col class="c-c-sit"></colgroup>
+      <thead><tr>${['Nº', 'Data', 'Produto', 'Solicitante', 'Equipe', 'Necessidade', 'Situação'].map(x => `<th><button type="button" disabled>${x}</button></th>`).join('')}</tr></thead>
+      <tbody>${l.map(p => { const s = SIT[situacaoDe(p)]; return `<tr class="c-clica" data-pedido="${escapar(p.id)}" tabindex="0" style="--sc-linha:${TIPOS[p.tipo_pedido] || 'transparent'}">
+        <th scope="row">${escapar(p.numero)}</th><td>${dataBR(p.data_pedido)}</td>
+        <td><b>${escapar(nomeItens(p.itens))}</b><small class="c-sub">${escapar(p.tipo_pedido)} · ${escapar(p.departamento)}</small></td>
+        <td><span class="c-pessoa">${foto(p.solicitante_id)}${escapar(nome(p.solicitante_id))}</span></td>
+        <td>${escapar(p.equipe)}${p.frota ? `<small class="c-sub">Frota ${escapar(p.frota)}</small>` : ''}</td>
+        <td>${dataBR(p.data_necessidade)}${p.recebido_em ? `<small class="c-sub">recebido ${dataBR(new Date(p.recebido_em).toLocaleDateString('sv-SE'))}</small>` : ''}</td>
+        <td><span class="c-sit" style="--c:${s?.cor || '#9fb9b3'}">${escapar(s?.nome || p.etapa)}</span></td></tr>`; }).join('')}</tbody></table>`;
   }
-  function tabelaConsumo(lista) {
-    const l = porProduto(lista).sort((a, b) => b.pedidos.size - a.pedidos.size).slice(0, 15);
-    const eqs = [...new Set(lista.map(p => p.equipe))].sort();
-    if (!l.length) { $('#c-consumo').innerHTML = '<p class="tabela vazio">Nenhum produto no período.</p>'; return; }
-    $('#c-consumo').innerHTML = `<table class="tabela c-tab c-tab-consumo"><thead><tr><th><button type="button" disabled>Produto</button></th>${eqs.map(e => `<th class="num"><button type="button" disabled>${escapar(e)}</button></th>`).join('')}<th class="num"><button type="button" disabled>Total</button></th></tr></thead>
-      <tbody>${l.map(x => `<tr><th scope="row">${escapar(x.produto)}</th>${eqs.map(e => `<td class="num">${x.equipes[e] ? qtdTxt(x.equipes[e]) : '<span class="c-mudo">—</span>'}</td>`).join('')}<td class="num"><b>${qtdTxt(x.qtd)}</b></td></tr>`).join('')}</tbody></table>`;
+  const porData = (a, b) => String(b.data_pedido).localeCompare(String(a.data_pedido)) || (b.numero || 0) - (a.numero || 0);
+  function tabelaFrota(lista) {
+    const l = lista.filter(p => String(p.frota || '').trim() && (!estado.frota || String(p.frota).trim() === estado.frota)).sort(porData);
+    $('#c-frota-tit').innerHTML = estado.frota ? `Pedidos da <span class="serif">frota ${escapar(estado.frota)}</span>` : 'Pedidos com <span class="serif">frota</span>';
+    $('#c-frota-limpar').hidden = !estado.frota;
+    $('#c-frota-ped').innerHTML = tabelaPedidos(l, 'Nenhum pedido com frota no período.', true);
+  }
+  function tabelaTodos(lista) {
+    const l = [...lista].sort(porData);
+    $('#c-pedidos-sub').textContent = l.length ? `${l.length} ${l.length === 1 ? 'pedido' : 'pedidos'} no período, do mais novo para o mais antigo. Toque num pedido para ver o caminho dele.` : '';
+    $('#c-pedidos').innerHTML = tabelaPedidos(l, 'Nenhum pedido no período.');
   }
 
   /* ---------- Folhito: resumo do que está na tela ---------- */
@@ -566,10 +584,9 @@ Negados: ${l.filter(p => p.etapa === 'negado').slice(0, 6).map(p => `Nº ${p.num
     graficoMes(lista); graficoEtapa(lista); graficoEquipe(lista); graficoDep(lista);
     tempos(lista);
     tabelaAberto(lista);
-    tabelaProdutos(lista);
     perfilSolicitante(lista); gargalo(lista); calendario(lista);
-    graficoEmergenciais(lista); graficoPrazo(lista); graficoAprovadores(lista); graficoRecusas(lista); tabelaRecusas(lista);
-    graficoFrota(lista); tabelaRepetidos(lista); tabelaConsumo(lista);
+    graficoEmergenciais(lista); graficoPrazo(lista); graficoAprovadores(lista); renderNegados(lista);
+    graficoFrota(lista); tabelaFrota(lista); tabelaTodos(lista);
     icones();
   }
 

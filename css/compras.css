@@ -170,3 +170,15 @@
 .p-pdf-pag { width: 1123px; min-height: 790px; padding: 26px 30px 40px; position: relative; background: #fff; font-family: Manrope, system-ui, sans-serif; font-size: 13px; color: #0b2a23; }
 .p-pdf-pag * { color: #0b2a23 !important; text-shadow: none !important; box-shadow: none !important; animation: none !important; transition: none !important; }
 .p-pdf-rodape { position: absolute; left: 28px; right: 28px; bottom: 14px; font-size: 10px; text-align: right; color: #6b8a80 !important; border-top: 1px solid #d5e5df; padding-top: 4px; }
+
+/* Filtro de quem negou (botões no lugar da legenda) */
+.c-leg-filtro button { display: inline-flex; align-items: center; gap: .4rem; min-height: 36px; padding: .3rem .8rem; border-radius: 999px; font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; color: var(--texto); background: rgb(var(--tinta-rgb) / .04); border: 1px solid var(--borda); transition: all .2s; }
+.c-leg-filtro button:hover { border-color: var(--c); }
+.c-leg-filtro button.ativo { color: var(--texto-forte); background: color-mix(in srgb, var(--c) 18%, transparent); border-color: var(--c); box-shadow: 0 0 14px -4px var(--c); }
+.c-leg-filtro button.apagado { opacity: .5; }
+/* Tabelas de pedidos */
+.c-tab col.c-c-data { width: 10%; }
+.c-tab-ped td, .c-tab-ped th { font-size: .82rem; }
+#c-frota-limpar[hidden] { display: none; }
+.c-tab col.c-c-sit2 { width: 34%; }
+.c-tab-ped .c-pessoa.c-sub { display: flex; margin-top: .3rem; }
