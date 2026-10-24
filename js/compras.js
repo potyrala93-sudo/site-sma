@@ -153,7 +153,7 @@
       if (op?.desligado) return;
       const { ctx } = chart, horiz = chart.options.indexAxis === 'y';
       const empilhado = Boolean(chart.options.scales?.x?.stacked || chart.options.scales?.y?.stacked);
-      const cor = corTexto();
+      const cor = op?.cor || corTexto();
       ctx.save(); ctx.font = '800 11.5px Manrope, sans-serif'; ctx.textBaseline = 'middle';
       chart.data.datasets.forEach((ds, di) => {
         const meta = chart.getDatasetMeta(di); if (meta.hidden || !chart.isDatasetVisible(di)) return;
@@ -200,8 +200,10 @@
     if (!C.registry.plugins.get('rotulos')) C.register(rotulos);
     return true;
   }
+  const configs = {};
   function desenhar(id, config) {
     graficos[id]?.destroy();
+    configs[id] = config;
     if (!prepararChart()) return;
     // espaço para os rótulos não saírem do gráfico
     const horiz = config.options?.indexAxis === 'y';
@@ -209,7 +211,7 @@
     graficos[id] = new window.Chart(document.getElementById(id), config);
   }
   const vazioGraf = (id, texto) => {
-    graficos[id]?.destroy(); delete graficos[id];
+    graficos[id]?.destroy(); delete graficos[id]; delete configs[id];
     const c = document.getElementById(id); const box = c.parentElement;
     let v = $('.fat-vazio-graf', box); if (!v) { v = document.createElement('p'); v.className = 'fat-vazio-graf c-vazio'; box.appendChild(v); }
     v.textContent = texto; v.hidden = false; c.hidden = true;
@@ -528,7 +530,6 @@ Negados: ${l.filter(p => p.etapa === 'negado').slice(0, 6).map(p => `Nº ${p.num
   };
 
   /* ---------- Imagem e PDF do painel ---------- */
-  const secoes = () => $$(':scope > section', raiz).filter(s => !s.hidden && s.offsetHeight > 0);
   const nomeArq = ext => `Compras${estado.usuario ? `_${(estado.perfis[estado.usuario]?.nome || '').split(' ')[0]}` : ''}_${hojeISO()}.${ext}`;
   async function exportar(bt, faz) {
     if (!window.SMA_PDF) return;
@@ -543,24 +544,97 @@ Negados: ${l.filter(p => p.etapa === 'negado').slice(0, 6).map(p => `Nº ${p.num
     const cv = await window.SMA_PDF.capturar(raiz);
     baixar(cv.toDataURL('image/png'), nomeArq('png'));
   }));
+  /* ---------- PDF: relatório claro, com gráficos redesenhados e tabelas próprias ---------- */
+  const PERIODO_NOME = { 30: 'últimos 30 dias', 90: 'últimos 90 dias', ano: 'este ano', tudo: 'todo o período' };
+  // redesenha um gráfico da tela em versão clara (fundo branco, letras escuras), já com os rótulos
+  function fotoGrafico(id, w, h) {
+    const cfg = configs[id]; if (!cfg || !window.Chart) return null;
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    cv.style.cssText = `position:fixed;left:-9999px;top:0;width:${w}px;height:${h}px`; document.body.appendChild(cv);
+    const tinta = '#33524a', fonte = { family: 'Manrope, sans-serif', size: 12, weight: 700 };
+    const escalas = Object.fromEntries(Object.entries(cfg.options.scales || {}).map(([k, s]) => [k, { ...s, ticks: { ...(s.ticks || {}), color: tinta, font: fonte }, grid: { ...(s.grid || {}), color: '#e3ece8' }, border: { color: '#cfdcd7' } }]));
+    const leg = cfg.options.plugins?.legend || {};
+    const g = new window.Chart(cv, {
+      type: cfg.type,
+      data: { labels: [...cfg.data.labels], datasets: cfg.data.datasets.map(d => ({ ...d, data: [...d.data] })) },
+      options: { ...cfg.options, responsive: false, maintainAspectRatio: false, animation: false, devicePixelRatio: 2, onClick: null, onHover: null, scales: escalas,
+        plugins: { ...cfg.options.plugins, tooltip: { enabled: false }, legend: { ...leg, labels: { ...(leg.labels || {}), color: tinta, font: fonte } }, rotulos: { ...(cfg.options.plugins?.rotulos || {}), cor: '#0b2a23' } } }
+    });
+    const url = cv.toDataURL('image/png'); g.destroy(); cv.remove();
+    return url;
+  }
+  function paginasPDF() {
+    const lista = filtrados(), pf = estado.usuario && estado.perfis[estado.usuario];
+    const quem = QUEM_NEGOU.find(q => q.k === estado.negadoPor);
+    const filtros = [PERIODO_NOME[estado.periodo], pf ? `Solicitante: ${pf.nome}` : 'Todos os solicitantes', estado.cdc && `CDC ${estado.cdc}`].filter(Boolean).join(' · ');
+    const cab = (titulo, cont) => `<header class="cp-cab"><div><span>SMA Silvicultura · Unidade São Miguel · App de Compras</span><h1>Compras · <em>${titulo}</em>${cont ? ' <small>(continuação)</small>' : ''}</h1></div><p>${escapar(filtros)}<br>gerado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></header>`;
+    const graf = (id, titulo, sub, w = 500, h = 250) => { const u = fotoGrafico(id, w, h); return `<figure class="cp-graf"><figcaption><b>${titulo}</b>${sub ? `<small>${sub}</small>` : ''}</figcaption>${u ? `<img src="${u}" style="height:${h}px" alt="">` : `<p class="cp-vazio" style="height:${h}px">Sem dados no período.</p>`}</figure>`; };
+    const sit = p => { const s = SIT[situacaoDe(p)]; return `<span class="cp-sit"><i style="background:${s?.cor || '#9fb9b3'}"></i>${escapar(s?.nome || p.etapa)}</span>`; };
+    const pessoa = id => `<span class="cp-pessoa">${foto(id, 'cp-foto cp-foto-mini')}${escapar(nome(id))}</span>`;
+    const prazo = p => { const n = diasAte(p.data_necessidade); return n < 0 ? `<small class="cp-atraso">${-n} d de atraso</small>` : n === 0 ? '<small class="cp-atraso">é hoje</small>' : `<small>faltam ${n} d</small>`; };
+    const pags = [];
+    // tabela em páginas de 13 linhas
+    const tabela = (titulo, l, cols, vazio) => {
+      if (!l.length) { pags.push(`${cab(titulo)}<p class="cp-nada">${vazio}</p>`); return; }
+      for (let i = 0; i < l.length; i += 13) pags.push(`${cab(titulo, i > 0)}<table class="cp-tab"><colgroup>${cols.map(c => `<col style="width:${c.w || 'auto'}">`).join('')}</colgroup>
+        <thead><tr>${cols.map(c => `<th>${c.t}</th>`).join('')}</tr></thead>
+        <tbody>${l.slice(i, i + 13).map(p => `<tr style="--t:${TIPOS[p.tipo_pedido] || '#cbd5e1'}">${cols.map(c => `<td>${c.f(p)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+        <p class="cp-pe">${Math.min(i + 13, l.length)} de ${l.length} · a faixa colorida à esquerda é o tipo do pedido (verde planejado, vermelho emergencial, amarelo regularização)</p>`);
+    };
+
+    // 1. Resumo
+    const n = c => lista.filter(c).length, rec = lista.filter(x => x.etapa === 'recebido'), neg = n(x => x.etapa === 'negado');
+    const kpis = [
+      ['Pedidos no período', lista.length, `${n(x => x.tipo_pedido === 'Emergencial')} emergenciais`, '#1f6f54'],
+      ['Em aprovação', n(x => ['coordenador', 'analista'].includes(x.etapa)), `coord. ${n(x => x.etapa === 'coordenador')} · analista ${n(x => x.etapa === 'analista')}`, '#0284c7'],
+      ['Com o comprador', n(x => x.etapa === 'compras'), 'em cotação ou transporte', '#4d7c0f'],
+      ['Recebidos', rec.length, rec.length ? `${pctTxt(rec.filter(noPrazo).length, rec.length)} no prazo` : 'nenhum ainda', '#15803d'],
+      ['Atrasados', n(atrasado), 'passaram da necessidade', '#dc2626'],
+      ['Negados', neg, `${pctTxt(neg, lista.length)} do total`, '#d97706']];
+    const ab = lista.filter(aberto), parados = ab.filter(x => (parado(x) ?? 0) >= 3);
+    const tempos = $$('#c-tempos .c-tempo').map(el => [$('.kpi-rot', el)?.textContent, $('.kpi-val', el)?.textContent, $('.kpi-ajuda', el)?.textContent]);
+    pags.push(`${cab('Resumo')}
+      ${pf ? `<div class="cp-perfil">${foto(pf.id, 'cp-foto')}<div><small>Solicitante filtrado</small><b>${escapar(pf.nome)}</b><span>${escapar(pf.cargo || '')}${pf.cdc ? ` · ${escapar(pf.cdc)}` : ''}</span></div></div>` : ''}
+      <div class="cp-kpis">${kpis.map(([r, v, a, c]) => `<div style="--c:${c}"><small>${r}</small><strong style="color:${c}">${fmtN(v)}</strong><span>${escapar(a)}</span></div>`).join('')}</div>
+      <div class="cp-alerta${parados.length ? '' : ' ok'}"><b>${parados.length ? `⚠ ${parados.length} ${parados.length === 1 ? 'pedido parado' : 'pedidos parados'} há 3 dias ou mais` : '✓ Sem gargalo: nenhum pedido parado há 3 dias ou mais'}</b>${parados.length ? `<span>${SITUACOES.map(s => [s.nome, parados.filter(x => situacaoDe(x) === s.id).length]).filter(x => x[1]).map(x => `${x[0]}: ${x[1]}`).join(' · ')}</span>` : ''}</div>
+      <h2 class="cp-h2">Tempo médio em cada etapa</h2>
+      <div class="cp-tempos">${tempos.map(([r, v, a]) => `<div><small>${escapar(r)}</small><strong>${escapar(v)}</strong><span>${escapar(a)}</span></div>`).join('')}</div>
+      <div class="cp-grade2">${graf('g-mes', 'Pedidos por tipo', 'mês a mês', 500, pf ? 170 : 215)}${graf('g-etapa', 'Onde estão os pedidos', 'situação agora', 500, pf ? 170 : 215)}</div>`);
+    // 2. Quem pede e planejamento
+    pags.push(`${cab('Equipes e prazos')}<div class="cp-grade2">${graf('g-equipe', 'Pedidos por equipe', 'verde mecanizado · azul manual')}${graf('g-dep', 'Pedidos por departamento')}${graf('g-emerg', 'Emergenciais por equipe', '% de pedidos emergenciais')}${graf('g-prazo', 'Prazo cumprido por mês', 'recebidos até a data da necessidade')}</div>`);
+    // 3. Aprovações, recusas e frota
+    const prox = ab.filter(p => String(p.data_necessidade).slice(0, 10) >= hojeISO()).sort((a, b) => String(a.data_necessidade).localeCompare(String(b.data_necessidade))).slice(0, 7);
+    pags.push(`${cab('Aprovações e frota')}<div class="cp-grade2">${graf('g-aprov', 'Tempo de decisão por aprovador', 'média por pedido')}${graf('g-recusa', 'Negados por equipe', quem ? `só os negados pelo ${quem.nome.toLowerCase()}` : 'azul coordenador · amarelo analista')}${graf('g-frota', 'Pedidos por frota', estado.frota ? `frota ${escapar(estado.frota)} em destaque` : '')}
+      <figure class="cp-graf"><figcaption><b>Próximas necessidades</b><small>pedidos em aberto por data</small></figcaption>${prox.length ? `<ul class="cp-lista">${prox.map(p => `<li style="--t:${TIPOS[p.tipo_pedido] || '#cbd5e1'}"><b>${dataBR(p.data_necessidade)}</b><span>Nº ${escapar(p.numero)} · ${escapar(nomeItens(p.itens))}<small>Equipe ${escapar(p.equipe)} · ${escapar(SIT[situacaoDe(p)]?.nome || p.etapa)}</small></span></li>`).join('')}</ul>` : '<p class="cp-vazio" style="height:250px">Nenhum pedido em aberto com necessidade daqui para frente.</p>'}</figure></div>`);
+    // 4. Tabelas
+    tabela('Pedidos em aberto', ab.sort((a, b) => String(a.data_necessidade).localeCompare(String(b.data_necessidade))), [
+      { t: 'Nº', w: '6%', f: p => `<b>${escapar(p.numero)}</b>` },
+      { t: 'Produto', w: '26%', f: p => `<b>${escapar(nomeItens(p.itens))}</b><small>${escapar(p.tipo_pedido)} · ${escapar(p.departamento)}</small>` },
+      { t: 'Solicitante', w: '18%', f: p => pessoa(p.solicitante_id) },
+      { t: 'Equipe', w: '9%', f: p => `${escapar(p.equipe)}${p.frota ? `<small>Frota ${escapar(p.frota)}</small>` : ''}` },
+      { t: 'Necessidade', w: '12%', f: p => `${dataBR(p.data_necessidade)}${prazo(p)}` },
+      { t: 'Situação', w: '19%', f: sit },
+      { t: 'Parado há', w: '10%', f: p => fmtDur(paradoDur(p)) }], 'Nenhum pedido em aberto no período.');
+    tabela(`Motivos das recusas${quem ? ` · ${quem.nome}` : ''}`, lista.filter(p => p.etapa === 'negado' && (!quem || negouQuem(p) === quem.k)).sort(porData), [
+      { t: 'Nº', w: '6%', f: p => `<b>${escapar(p.numero)}</b>` },
+      { t: 'Produto', w: '26%', f: p => `<b>${escapar(nomeItens(p.itens))}</b><small>${dataBR(p.data_pedido)}</small>` },
+      { t: 'Solicitante', w: '18%', f: p => pessoa(p.solicitante_id) },
+      { t: 'Equipe', w: '8%', f: p => escapar(p.equipe) },
+      { t: 'Negado por', w: '12%', f: p => escapar(p.negado_por || '—') },
+      { t: 'Justificativa', w: '30%', f: p => escapar(p.justificativa_negativa || '—') }], 'Nenhum pedido negado no período.');
+    tabela('Pedidos feitos', [...lista].sort(porData), [
+      { t: 'Nº', w: '6%', f: p => `<b>${escapar(p.numero)}</b>` },
+      { t: 'Data', w: '9%', f: p => dataBR(p.data_pedido) },
+      { t: 'Produto', w: '25%', f: p => `<b>${escapar(nomeItens(p.itens))}</b><small>${escapar(p.tipo_pedido)} · ${escapar(p.departamento)}</small>` },
+      { t: 'Solicitante', w: '18%', f: p => pessoa(p.solicitante_id) },
+      { t: 'Equipe', w: '9%', f: p => `${escapar(p.equipe)}${p.frota ? `<small>Frota ${escapar(p.frota)}</small>` : ''}` },
+      { t: 'Necessidade', w: '12%', f: p => `${dataBR(p.data_necessidade)}${p.recebido_em ? `<small>recebido ${dataBR(new Date(p.recebido_em).toLocaleDateString('sv-SE'))}</small>` : ''}` },
+      { t: 'Situação', w: '21%', f: sit }], 'Nenhum pedido no período.');
+    return pags;
+  }
   $('#c-pdf').addEventListener('click', e => exportar(e.currentTarget, async rot => {
-    // cada parte do painel vira uma foto; as fotos são encaixadas em páginas A4 deitadas
-    const fotos = [];
-    for (const [i, s] of secoes().entries()) { rot.textContent = `Lendo ${i + 1}/${secoes().length}…`; const cv = await window.SMA_PDF.capturar(s);
-      // parte mais alta que uma página (tabela longa): corta em pedaços e continua na página seguinte
-      const esc = 960 / cv.width, passo = Math.floor(650 / esc);
-      for (let y = 0; y < cv.height; y += passo) {
-        const pedaco = document.createElement('canvas'); pedaco.width = cv.width; pedaco.height = Math.min(passo, cv.height - y);
-        pedaco.getContext('2d').drawImage(cv, 0, y, cv.width, pedaco.height, 0, 0, cv.width, pedaco.height);
-        fotos.push({ src: pedaco.toDataURL('image/jpeg', .9), h: pedaco.height * esc });
-      }
-    }
-    const quem = estado.usuario ? estado.perfis[estado.usuario]?.nome : '';
-    const cab = `<header class="c-pdf-cab"><h1>Compras · App de Compras</h1><p>${quem ? `Solicitante: ${escapar(quem)} · ` : ''}Período: ${({ 30: 'últimos 30 dias', 90: 'últimos 90 dias', ano: 'este ano', tudo: 'tudo' })[estado.periodo]} · gerado em ${new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></header>`;
-    const pags = []; let atual = [], alt = 0;
-    fotos.forEach(f => { const h = Math.min(f.h, 650); if (atual.length && alt + h > 650) { pags.push(atual); atual = []; alt = 0; } atual.push({ ...f, h }); alt += h + 8; });
-    if (atual.length) pags.push(atual);
-    await window.SMA_PDF.gerar(pags.map(p => cab + p.map(f => `<img class="c-pdf-img" src="${f.src}" style="height:${f.h}px" alt="">`).join('')), nomeArq('pdf'), { progresso: (i, n) => { rot.textContent = `Página ${i}/${n}…`; } });
+    rot.textContent = 'Montando…';
+    await window.SMA_PDF.gerar(paginasPDF(), nomeArq('pdf'), { progresso: (i, n) => { rot.textContent = `Página ${i}/${n}…`; } });
   }));
 
   /* ---------- Exportar ---------- */

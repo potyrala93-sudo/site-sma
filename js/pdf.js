@@ -34,6 +34,14 @@
         const v = cs[p]; if (v && MODERNA.test(v)) el.style.setProperty(p.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), paraRgba(v), 'important');
       });
       if (MODERNA.test(cs.backgroundImage)) el.style.setProperty('background-image', 'none', 'important');
+      // texto pintado com degradê (background-clip: text): o html2canvas desenha uma faixa por cima da palavra; vira cor sólida
+      if ((cs.webkitBackgroundClip || cs.backgroundClip) === 'text') {
+        const solida = getComputedStyle(raiz.ownerDocument.documentElement).getPropertyValue('--neon').trim() || '#3dffa8';
+        ['background-image', 'background', '-webkit-background-clip', 'background-clip'].forEach(x => el.style.setProperty(x, x.includes('clip') ? 'border-box' : 'none', 'important'));
+        el.style.setProperty('background-color', 'transparent', 'important');
+        el.style.setProperty('-webkit-text-fill-color', solida, 'important');
+        el.style.setProperty('color', solida, 'important');
+      }
       // sombras com cores modernas também quebram o html2canvas: troca a cor de cada sombra por rgba
       ['boxShadow', 'textShadow'].forEach(p => {
         const v = cs[p]; if (!v || !MODERNA.test(v)) return;
