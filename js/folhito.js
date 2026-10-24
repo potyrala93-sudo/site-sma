@@ -335,7 +335,8 @@
     producao: [{ texto: 'Qual o rendimento das equipes em ha/dia neste RF?', icone: 'gauge' }, { texto: 'Quais remontas estão vencidas?', icone: 'spray-can' }],
     qualidade: [{ texto: 'Quais UPs estão críticas no mês?', icone: 'triangle-alert' }, { texto: 'Como está a aderência do N1?', icone: 'list-checks' }],
     rh: [{ texto: 'Quantos colaboradores ativos temos por equipe?', icone: 'users' }, { texto: 'Quem tem mais tempo de casa?', icone: 'medal' }],
-    seguranca: [{ texto: 'A nota SSQV bateu a meta no último mês?', icone: 'shield-check' }, { texto: 'Me dá uma dica de segurança', icone: 'hard-hat' }]
+    seguranca: [{ texto: 'A nota SSQV bateu a meta no último mês?', icone: 'shield-check' }, { texto: 'Me dá uma dica de segurança', icone: 'hard-hat' }],
+    custos: [{ texto: 'Quais pedidos de compra estão atrasados?', icone: 'alarm-clock' }, { texto: 'O que está parado esperando aprovação?', icone: 'hourglass' }]
   };
   const SUGESTOES = [
     ...(SUGESTOES_PAGINA[document.body.dataset.page] || []),

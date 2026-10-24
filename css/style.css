@@ -1107,3 +1107,15 @@ html[data-tema="claro"] { --lima-fundo: #a9d93c; --neon-fundo: #34d399; }
   .org-tree li.org-vazio::before { display: none; }
   .org-tree li.org-vazio > ul { margin: 0; padding: 0; border: 0; }
 }
+
+/* Aviso de compras na Home (js/compras-alerta.js) */
+.c-aviso-home { position: fixed; left: 16px; bottom: 16px; z-index: 60; display: flex; align-items: center; gap: .7rem; max-width: min(420px, calc(100vw - 110px)); padding: .7rem .6rem .7rem .9rem; border-radius: 16px; background: rgba(4,18,17,.92); border: 1px solid rgba(255,77,94,.55); box-shadow: 0 16px 40px rgba(0,0,0,.45), 0 0 24px -10px #ff4d5e; backdrop-filter: blur(10px); animation: c-aviso-entra .5s ease both; }
+.c-aviso-home > svg { width: 22px; height: 22px; flex: none; color: #ff6b7a; }
+.c-aviso-home a { display: grid; gap: .1rem; color: #e6fff5; text-decoration: none; font-size: .84rem; line-height: 1.35; }
+.c-aviso-home a strong { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: #ff8a96; }
+.c-aviso-home a b { color: #fff; }
+.c-aviso-home a small { color: var(--neon, #3dffa8); font-weight: 800; }
+.c-aviso-home button { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border: 0; border-radius: 50%; background: rgba(255,255,255,.06); color: #cfe9e1; cursor: pointer; }
+.c-aviso-home button svg { width: 16px; height: 16px; }
+@keyframes c-aviso-entra { from { opacity: 0; transform: translateY(14px); } }
+@media (prefers-reduced-motion: reduce) { .c-aviso-home { animation: none; } }

@@ -85,3 +85,88 @@
 .c-costflow { margin-top: 1rem; }
 #c-usuario { max-width: 300px; }
 .c-select.ativo { border-color: rgba(61,255,168,.55); box-shadow: 0 0 0 1px rgba(61,255,168,.25); }
+
+/* ---------- Foto do solicitante ---------- */
+.c-foto { position: relative; display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: rgba(61,255,168,.16); border: 1px solid rgba(61,255,168,.4); }
+.c-foto b { font-size: .62rem; font-weight: 800; color: var(--neon); }
+.c-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.c-foto-grande { width: 96px; height: 96px; border-width: 2px; box-shadow: 0 0 30px -6px rgba(61,255,168,.6); }
+.c-foto-grande b { font-size: 1.8rem; }
+.c-pessoa { display: inline-flex; align-items: center; gap: .5rem; }
+.c-perfil { display: flex; align-items: center; gap: 1.2rem 1.6rem; flex-wrap: wrap; padding: 1.2rem 1.4rem; border-radius: var(--raio-lg); border-color: rgba(61,255,168,.4); }
+.c-perfil-txt h2 { margin: .15rem 0 .1rem; font-size: 1.5rem; color: var(--texto-forte); }
+.c-perfil-txt p { margin: 0; color: var(--texto-suave); font-weight: 600; }
+.c-perfil-num { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: .7rem 1.2rem; flex: 1 1 420px; }
+.c-perfil-num strong { display: block; font-size: 1.35rem; color: var(--texto-forte); }
+.c-perfil-num small { font-size: .7rem; font-weight: 700; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .05em; }
+
+/* ---------- Gargalo ---------- */
+.c-gargalo { display: flex; gap: 1rem; align-items: flex-start; padding: 1rem 1.2rem; border-radius: var(--raio-lg); border-color: rgba(255,77,94,.5); box-shadow: var(--sombra), 0 0 30px -14px #ff4d5e; }
+.c-gargalo > svg { width: 26px; height: 26px; flex: none; color: #ff4d5e; }
+.c-gargalo.ok { border-color: rgba(61,255,168,.35); box-shadow: none; }
+.c-gargalo.ok > svg { color: var(--neon); }
+.c-gargalo strong { color: var(--texto-forte); }
+.c-gargalo p { margin: .2rem 0 0; color: var(--texto-suave); }
+.c-gargalo-chips { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .55rem; }
+.c-chip { display: inline-flex; align-items: center; gap: .35rem; min-height: 36px; padding: .3rem .8rem; border-radius: 999px; font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; color: var(--texto-forte); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 50%, transparent); }
+.c-chip b { color: var(--c); } .c-chip small { color: var(--texto-suave); font-weight: 600; }
+
+/* ---------- Linhas clicáveis e diálogo ---------- */
+.c-tab tr.c-clica { cursor: pointer; }
+.c-tab tr.c-clica:hover td, .c-tab tr.c-clica:hover th, .c-tab tr.c-clica:focus-visible td { background: rgba(61,255,168,.06); }
+.c-dialogo { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 1.3rem 1.4rem; border-radius: var(--raio-lg); border: 1px solid rgba(61,255,168,.35); color: var(--texto); background: var(--bg, #04100f); box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+.c-dialogo::backdrop { background: rgba(2,10,9,.7); backdrop-filter: blur(4px); }
+.c-dlg-cab { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.c-dlg-cab h2 { margin: .2rem 0 0; font-size: 1.25rem; color: var(--texto-forte); }
+.c-dlg-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .7rem 1rem; margin: 1rem 0; }
+.c-dlg-info > span, .c-dlg-motivo { display: grid; gap: .2rem; font-weight: 700; color: var(--texto-forte); font-size: .88rem; }
+.c-dlg-info small, .c-dlg-motivo small { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--texto-suave); }
+.c-dlg-itens { margin: 0 0 .8rem; padding-left: 1.1rem; font-size: .9rem; }
+.c-dlg-itens small { color: var(--texto-suave); }
+.c-dlg-motivo { margin: 0 0 1rem; font-weight: 600; }
+.c-linha { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.c-linha li { position: relative; display: flex; gap: .8rem; padding-bottom: .9rem; }
+.c-linha li:not(:last-child)::before { content: ""; position: absolute; left: 15px; top: 32px; bottom: 0; width: 2px; background: rgba(61,255,168,.3); }
+.c-linha-ic { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%; background: rgba(61,255,168,.14); border: 1px solid rgba(61,255,168,.45); }
+.c-linha-ic svg { width: 16px; height: 16px; color: var(--neon); }
+.c-linha li.neg .c-linha-ic { background: rgba(255,77,94,.15); border-color: rgba(255,77,94,.5); } .c-linha li.neg .c-linha-ic svg { color: #ff4d5e; }
+.c-linha li.espera .c-linha-ic { border-style: dashed; } .c-linha li.espera .c-linha-ic svg { color: #ffc83d; }
+.c-linha strong { color: var(--texto-forte); } .c-linha small { display: block; color: var(--texto-suave); font-weight: 600; font-size: .78rem; }
+.c-linha p { margin: .25rem 0 0; font-size: .86rem; }
+
+/* ---------- Calendário ---------- */
+.c-cal-wrap { padding: 1rem; }
+.c-cal-scroll { overflow-x: auto; }
+.c-cal { display: grid; grid-template-columns: repeat(7, minmax(110px, 1fr)); gap: 6px; min-width: 780px; }
+.c-cal-dia-sem { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-suave); text-align: center; }
+.c-cal-dia { min-height: 92px; padding: .4rem; border-radius: 12px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .03); display: flex; flex-direction: column; gap: 4px; }
+.c-cal-dia.fds { background: rgb(var(--tinta-rgb) / .015); }
+.c-cal-dia.passou { opacity: .45; }
+.c-cal-dia.hoje { border-color: var(--neon); box-shadow: 0 0 16px -6px var(--neon); }
+.c-cal-num { font-size: .78rem; font-weight: 800; color: var(--texto-suave); }
+.c-cal-dia.hoje .c-cal-num { color: var(--neon); }
+.c-cal-ped { display: block; width: 100%; text-align: left; padding: .2rem .4rem; border-radius: 7px; font: inherit; font-size: .72rem; font-weight: 600; line-height: 1.3; cursor: pointer; color: var(--texto-forte); background: color-mix(in srgb, var(--c) 16%, transparent); border: 0; border-left: 3px solid var(--c); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-cal-ped b { color: var(--c); }
+.c-cal-atras { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; margin-bottom: .8rem; padding: .6rem .8rem; border-radius: 12px; border: 1px solid rgba(255,77,94,.45); background: rgba(255,77,94,.07); }
+.c-cal-atras > span { display: inline-flex; align-items: center; gap: .35rem; font-weight: 800; color: #ff6b7a; font-size: .82rem; }
+.c-cal-atras > span svg { width: 16px; height: 16px; }
+.c-cal-atras > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.c-cal-atras .c-cal-ped { width: auto; max-width: 240px; }
+.c-cal-mais { margin: .7rem 0 0; font-size: .82rem; color: var(--texto-suave); font-weight: 600; }
+
+/* ---------- Tabelas novas ---------- */
+.c-alto { max-height: 380px; overflow: auto; }
+.c-tab-consumo td.num, .c-tab-consumo th.num { text-align: right; white-space: nowrap; }
+.c-mudo { color: var(--texto-fraco); }
+
+/* ---------- PDF ---------- */
+.c-pdf-cab { padding-bottom: 6px; margin-bottom: 8px; border-bottom: 3px solid #1f6f54; }
+.c-pdf-cab h1 { margin: 0; font-size: 20px; }
+.c-pdf-cab p { margin: 2px 0 0; font-size: 11px; color: #4b6b62 !important; }
+.c-pdf-img { display: block; max-width: 100%; margin: 0 auto 8px; border-radius: 6px; object-fit: contain; }
+.c-dlg-info .c-sit { justify-self: start; white-space: nowrap; }
+/* página do PDF (js/pdf.js) — a mesma base do Prontuário, que esta página não carrega */
+.p-pdf { position: fixed; left: -20000px; top: 0; z-index: -1; }
+.p-pdf-pag { width: 1123px; min-height: 790px; padding: 26px 30px 40px; position: relative; background: #fff; font-family: Manrope, system-ui, sans-serif; font-size: 13px; color: #0b2a23; }
+.p-pdf-pag * { color: #0b2a23 !important; text-shadow: none !important; box-shadow: none !important; animation: none !important; transition: none !important; }
+.p-pdf-rodape { position: absolute; left: 28px; right: 28px; bottom: 14px; font-size: 10px; text-align: right; color: #6b8a80 !important; border-top: 1px solid #d5e5df; padding-top: 4px; }

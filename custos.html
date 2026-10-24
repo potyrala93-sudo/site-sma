@@ -20,6 +20,7 @@
   <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
   <script src="js/main.js" defer></script>
+  <script src="js/pdf.js" defer></script>
   <script src="js/compras.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
@@ -68,6 +69,8 @@
             <label class="c-select" id="c-cdc-wrap" hidden><i data-lucide="map-pin"></i><select id="c-cdc" aria-label="CDC"></select></label>
           </div>
           <div class="fat-barra-dir">
+            <button type="button" class="fat-btn" id="c-imagem"><i data-lucide="image-down"></i><span>Imagem</span></button>
+            <button type="button" class="fat-btn" id="c-pdf"><i data-lucide="file-down"></i><span>PDF</span></button>
             <button type="button" class="fat-btn" id="c-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
             <button type="button" class="fat-btn fat-atualizar" id="c-atualizar"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
           </div>
@@ -78,6 +81,12 @@
     <div class="container"><div class="fat-erros" id="c-erros" role="alert" hidden></div></div>
 
     <div class="fat-conteudo carregando" id="cmp">
+      <!-- Solicitante filtrado: foto e resumo -->
+      <section class="container fat-secao c-perfil-sec" id="c-perfil-sec" hidden><div class="c-perfil glass" id="c-perfil"></div></section>
+
+      <!-- Gargalo agora -->
+      <section class="container fat-secao c-gargalo-sec"><div id="c-gargalo"></div></section>
+
       <!-- KPIs -->
       <section class="container fat-secao" aria-label="Indicadores de compras">
         <div class="c-kpis">
@@ -132,6 +141,66 @@
         <div class="fat-painel glass tabela-wrap" id="c-aberto"><div class="esqueleto tabela-esq"></div></div>
       </section>
 
+      <!-- Calendário de necessidades -->
+      <section class="container fat-secao">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">O que precisa chegar</span><h2 class="fat-sec-titulo">Calendário de <span class="serif">necessidades</span></h2></div>
+          <p class="fat-sec-sub">Pedidos em aberto na data em que o material precisa estar na mão. Toque num pedido para ver o caminho dele.</p>
+        </div>
+        <div class="fat-painel glass c-cal-wrap" id="c-cal"></div>
+      </section>
+
+      <!-- Qualidade do processo -->
+      <section class="container fat-secao c-dupla">
+        <div>
+          <div class="fat-sec-head"><div><span class="eyebrow">Planejamento</span><h2 class="fat-sec-titulo">Emergenciais por <span class="serif">equipe</span></h2></div></div>
+          <div class="fat-painel glass"><div class="fat-grafico"><canvas id="g-emerg" role="img" aria-label="Pedidos por equipe e tipo"></canvas></div></div>
+        </div>
+        <div>
+          <div class="fat-sec-head"><div><span class="eyebrow">Pontualidade</span><h2 class="fat-sec-titulo">Prazo cumprido por <span class="serif">mês</span></h2></div></div>
+          <div class="fat-painel glass"><div class="fat-grafico"><canvas id="g-prazo" role="img" aria-label="Recebidos no prazo e atrasados por mês"></canvas></div></div>
+        </div>
+      </section>
+
+      <section class="container fat-secao c-dupla">
+        <div>
+          <div class="fat-sec-head"><div><span class="eyebrow">Aprovações</span><h2 class="fat-sec-titulo">Tempo de decisão por <span class="serif">aprovador</span></h2></div></div>
+          <div class="fat-painel glass"><div class="fat-grafico"><canvas id="g-aprov" role="img" aria-label="Tempo médio de decisão por aprovador"></canvas></div></div>
+        </div>
+        <div>
+          <div class="fat-sec-head"><div><span class="eyebrow">Recusas</span><h2 class="fat-sec-titulo">Negados por <span class="serif">equipe</span></h2></div><div class="s-legenda c-leg"><span><i style="--c:#38bdf8"></i>Coordenador</span><span><i style="--c:#ffc83d"></i>Analista</span></div></div>
+          <div class="fat-painel glass"><div class="fat-grafico"><canvas id="g-recusa" role="img" aria-label="Pedidos negados por equipe"></canvas></div></div>
+        </div>
+      </section>
+
+      <section class="container fat-secao">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Por que foi negado</span><h2 class="fat-sec-titulo">Motivos das <span class="serif">recusas</span></h2></div>
+          <p class="fat-sec-sub" id="c-recusas-sub"></p>
+        </div>
+        <div class="fat-painel glass tabela-wrap" id="c-recusas"></div>
+      </section>
+
+      <!-- Frota e materiais -->
+      <section class="container fat-secao c-dupla">
+        <div>
+          <div class="fat-sec-head"><div><span class="eyebrow">Máquinas</span><h2 class="fat-sec-titulo">Pedidos por <span class="serif">frota</span></h2></div></div>
+          <div class="fat-painel glass"><div class="fat-grafico"><canvas id="g-frota" role="img" aria-label="Pedidos por frota"></canvas></div></div>
+        </div>
+        <div>
+          <div class="fat-sec-head"><div><span class="eyebrow">Virar planejado</span><h2 class="fat-sec-titulo">Produtos <span class="serif">repetidos</span></h2></div></div>
+          <div class="fat-painel glass tabela-wrap c-alto" id="c-repetidos"></div>
+        </div>
+      </section>
+
+      <section class="container fat-secao">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Quem usa o quê</span><h2 class="fat-sec-titulo">Consumo por <span class="serif">equipe</span></h2></div>
+          <p class="fat-sec-sub">Quantidade pedida de cada material por equipe no período (os 15 produtos mais pedidos).</p>
+        </div>
+        <div class="fat-painel glass tabela-wrap" id="c-consumo"></div>
+      </section>
+
       <!-- Produtos -->
       <section class="container fat-secao">
         <div class="fat-sec-head">
@@ -142,6 +211,8 @@
       </section>
     </div>
   </main>
+
+  <dialog class="c-dialogo" id="c-dialogo" aria-labelledby="c-dlg-titulo"><div id="c-dlg"></div></dialog>
 
   <footer class="site-footer" id="site-footer"></footer>
 </body>

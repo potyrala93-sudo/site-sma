@@ -32,7 +32,7 @@ export async function lerCompras(fresco = false) {
   if (!fresco && cache && Date.now() - cache.em < 60_000) return cache.dados;
   const [pedidos, perfis, eventos] = await Promise.all([
     tabela('pedidos', '*', 'criado_em.desc'),
-    tabela('perfis', 'id,nome,cargo,cdc', 'nome.asc'),
+    tabela('perfis', 'id,nome,cargo,cdc,foto_url', 'nome.asc'),
     tabela('pedido_eventos', '*', 'id.asc')
   ]);
   const dados = { pedidos, perfis, eventos, atualizado: new Date().toISOString() };
