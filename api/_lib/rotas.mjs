@@ -15,6 +15,7 @@ import { consultar, valoresDoCampo, descricaoBases, preaquecer } from './motor-d
 import { resumoClima, detalheClima } from './clima.mjs';
 import { listaMapas } from './mapas.mjs';
 import { PROMPT_FOLHITO } from './folhito-prompt.mjs';
+import { lerCompras, comprasConfigurado } from './compras.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const NA_VERCEL = Boolean(process.env.VERCEL);
@@ -569,6 +570,18 @@ async function rotaMapas(req, res) {
   }
 }
 
+/* ---------- Compras (App de Compras): todos os pedidos, lidos no servidor com a chave secreta ---------- */
+async function rotaCompras(req, res) {
+  if (!comprasConfigurado()) return json(res, 503, { erro: 'A chave do App de Compras não está configurada no servidor (COMPRAS_SUPABASE_KEY).', configurar: true });
+  try {
+    const fresco = /[?&]fresco=1/.test(req.url);
+    json(res, 200, await lerCompras(fresco));
+  } catch (erro) {
+    console.warn('Compras:', erro.message);
+    json(res, 502, { erro: `Não consegui ler o App de Compras: ${erro.message}` });
+  }
+}
+
 /* ---------- Roteador: devolve false se não era da API; senão, uma Promise que termina com a resposta ---------- */
 export function tratarApi(req, res) {
   const rota = req.url.split('?')[0];
@@ -586,6 +599,7 @@ export function tratarApi(req, res) {
   if (expIA && req.method === 'POST') return Promise.resolve(rotaExperimentoIA(req, res, expIA[1]));
   const fotos = rota.match(/^\/api\/fotos\/([a-z]+)$/);
   if (fotos && req.method === 'GET') return Promise.resolve(listarFotos(res, fotos[1]));
+  if (rota === '/api/compras' && req.method === 'GET') return Promise.resolve(rotaCompras(req, res));
   if (rota === '/api/mapas' && req.method === 'GET') return Promise.resolve(rotaMapas(req, res));
   if (rota === '/api/clima' && req.method === 'GET') return Promise.resolve(rotaClima(req, res));
   const climaPonto = rota.match(/^\/api\/clima\/ponto\/([^/]+)$/);

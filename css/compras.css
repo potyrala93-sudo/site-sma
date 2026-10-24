@@ -1,0 +1,87 @@
+/* ==========================================================================
+   SMA · Silvicultura — Compras
+   (usa os componentes de faturamento.css: hero, barra, kpi, painéis, tabela)
+   ========================================================================== */
+
+/* ---------- Entrar ---------- */
+.c-login { max-width: 560px; margin: 0 auto; padding: 2rem; border-radius: var(--raio-lg); display: grid; gap: 1rem; }
+.c-login .icon-box { width: 46px; height: 46px; border-radius: 14px; }
+.c-login .fat-sec-sub { max-width: none; }
+.c-campos { display: grid; gap: .8rem; grid-template-columns: 1fr 1fr; }
+.c-campos label { display: grid; gap: .35rem; font-size: .8rem; font-weight: 700; color: var(--texto-suave); }
+.c-campos input {
+  min-height: 48px; padding: .7rem .9rem; border-radius: 14px; font: inherit; font-size: 1rem; color: var(--texto-forte);
+  background: rgb(var(--tinta-rgb) / .05); border: 1px solid var(--borda);
+}
+.c-campos input:focus { outline: none; border-color: var(--neon); box-shadow: 0 0 0 3px rgba(61,255,168,.18); }
+.c-erro { min-height: 1.2em; color: var(--tom-erro, #ff6b7a); font-weight: 700; font-size: .88rem; }
+.c-login .btn { justify-self: start; }
+@media (max-width: 560px) { .c-campos { grid-template-columns: 1fr; } .c-login { padding: 1.4rem; } }
+
+/* ---------- Barra ---------- */
+.c-filtros { display: flex; align-items: center; gap: .6rem 1rem; flex-wrap: wrap; }
+.c-grupo { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+.c-rot { display: inline-flex; align-items: center; gap: .4rem; font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--texto-suave); margin-right: .2rem; }
+.c-rot svg, .c-select svg, .c-quem svg { width: 15px; height: 15px; color: var(--neon); }
+.c-grupo button {
+  min-height: 40px; padding: .4rem .85rem; border-radius: 999px; font-size: .84rem; font-weight: 700;
+  border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .03); color: var(--texto-suave); transition: all .2s;
+}
+.c-grupo button:hover { border-color: rgba(61,255,168,.5); color: var(--texto-forte); }
+.c-grupo button.ativo { background: var(--neon-fundo, var(--neon)); border-color: var(--neon-fundo, var(--neon)); color: #04201a; box-shadow: 0 0 16px rgba(61,255,168,.45); }
+.c-select { display: inline-flex; align-items: center; gap: .45rem; padding: 0 .4rem 0 .8rem; min-height: 40px; border-radius: 999px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .03); }
+.c-select[hidden], .c-login[hidden] { display: none; }
+.c-select select { border: 0; background: transparent; color: var(--texto); font: inherit; font-weight: 700; font-size: .86rem; padding: .4rem .2rem; }
+.c-select select option { color: #10201f; }
+.c-quem { display: inline-flex; align-items: center; gap: .4rem; font-size: .82rem; font-weight: 700; color: var(--texto-suave); margin-right: .3rem; }
+
+/* ---------- KPIs ---------- */
+.c-kpis { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(5, minmax(0, 1fr)); gap: 1rem; }
+.c-kpis .kpi .icon-box { color: var(--c, var(--neon)); }
+.c-kpis .kpi:not(.c-kpi-total) .kpi-val { color: var(--c-txt, var(--texto-forte)); }
+.c-kpi-total { border-color: rgba(61,255,168,.35); }
+.c-kpi-alerta:not(.c-zero) { border-color: color-mix(in srgb, var(--c) 50%, transparent); box-shadow: var(--sombra), 0 0 30px -12px var(--c); }
+.c-kpi-alerta:not(.c-zero) .kpi-val { color: var(--c); text-shadow: 0 0 18px color-mix(in srgb, var(--c) 45%, transparent); }
+@media (max-width: 1100px) { .c-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .c-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .c-kpi-total, .c-kpis .kpi:last-child { grid-column: 1 / -1; } }
+
+/* ---------- Gráficos lado a lado ---------- */
+.c-dupla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.4rem; }
+@media (max-width: 900px) { .c-dupla { grid-template-columns: 1fr; } }
+.c-leg { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .8rem; font-weight: 700; color: var(--texto-suave); }
+.c-leg span { display: inline-flex; align-items: center; gap: .4rem; }
+.c-leg i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.c-vazio { position: absolute; inset: 0; display: grid; place-items: center; color: var(--texto-suave); font-weight: 700; }
+
+/* ---------- Tempo por etapa ---------- */
+.c-tempos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.c-tempo .icon-box svg { color: var(--neon); }
+.c-tempo-total { background: linear-gradient(140deg, rgba(61,255,168,.12), rgba(200,245,96,.04)); border-color: rgba(61,255,168,.4); }
+.c-tempo-total .kpi-val { color: var(--neon); }
+@media (max-width: 900px) { .c-tempos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- Tabelas ---------- */
+.c-tab td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+.c-tab col.c-c-num { width: 6%; } .c-tab col.c-c-prod { width: 26%; } .c-tab col.c-c-eq { width: 10%; }
+.c-tab col.c-c-sit { width: 19%; } .c-tab col.c-c-par { width: 9%; }
+.c-tab col.c-c-prod2 { width: 30%; } .c-tab col.c-c-n { width: 14%; } .c-tab col.c-c-ult { width: 14%; }
+.c-sub { display: block; font-size: .72rem; color: var(--texto-fraco); font-weight: 600; margin-top: .15rem; }
+.c-prazo { display: block; font-size: .72rem; font-weight: 700; color: var(--texto-fraco); margin-top: .15rem; }
+.c-prazo.perto { color: #ffc83d; }
+.c-prazo.hoje, .c-prazo.atraso { color: var(--tom-erro, #ff6b7a); }
+.c-sit { display: inline-block; padding: .2rem .6rem; border-radius: 999px; font-weight: 700; font-size: .74rem; color: var(--c-txt, var(--c)); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); }
+.c-tab .mini-barra i { display: block; height: 100%; background: var(--neon-fundo, var(--neon)); box-shadow: 0 0 8px var(--neon); border-radius: 99px; }
+.c-ok { display: flex; align-items: center; justify-content: center; gap: .5rem; }
+.c-ok svg { width: 18px; height: 18px; color: var(--neon); }
+.c-busca { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: 0 .9rem; border-radius: 999px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .04); }
+.c-busca svg { width: 16px; height: 16px; color: var(--neon); }
+.c-busca input { border: 0; background: transparent; color: var(--texto); font: inherit; font-weight: 600; min-width: 200px; }
+.c-busca input:focus { outline: none; }
+@media (max-width: 760px) {
+  .c-tab { font-size: .74rem; }
+}
+
+/* Dentro de Custos: botão do Cost Flow no topo e filtro de solicitante */
+.c-costflow { margin-top: 1rem; }
+#c-usuario { max-width: 300px; }
+.c-select.ativo { border-color: rgba(61,255,168,.55); box-shadow: 0 0 0 1px rgba(61,255,168,.25); }
