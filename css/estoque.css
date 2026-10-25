@@ -72,3 +72,30 @@
   .e-k span { font-size: .6rem; letter-spacing: .06em; }
   .e-busca { max-width: none; width: 100%; }
 }
+
+/* ==========================================================================
+   Almoxarifado (mesma tabela dos insumos; produtos agrupados por tamanho/tipo)
+   ========================================================================== */
+.a-apps { display: flex; flex-direction: column; gap: .6rem; align-items: stretch; }
+.a-atalhos { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
+.a-atalhos a { padding: .35rem .9rem; border-radius: 999px; border: 1px solid var(--borda); font-size: .84rem; font-weight: 700; color: var(--texto); text-decoration: none; }
+.a-atalhos a:hover { border-color: var(--neon); color: var(--neon); }
+#a-tab-tit { scroll-margin-top: 90px; } #e-tab-tit { scroll-margin-top: 90px; }
+.a-barra { margin-bottom: 1rem; }
+#a-erros { margin-bottom: 1rem; }
+.e-foto.a-des { overflow: hidden; padding: 0; border: 0; }
+.e-foto.a-des svg { width: 100%; height: 100%; display: block; }
+.a-sub { display: block; margin-top: .15rem; font-size: .76rem; font-weight: 600; color: var(--texto-fraco); }
+.a-falta { color: var(--tom-erro, #ff6b7a); }
+.a-dlg-tams { display: grid; gap: .5rem; }
+.a-tams-tit { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--texto-suave); }
+.a-tams { display: flex; flex-wrap: wrap; gap: .4rem; }
+.a-tam { display: inline-flex; align-items: baseline; gap: .45rem; min-height: 38px; padding: .35rem .8rem; border-radius: 12px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .04); color: var(--texto); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; }
+.a-tam b { color: var(--neon); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.a-tam.zero b { color: var(--tom-erro, #ff6b7a); }
+.a-tam:hover { border-color: var(--neon); }
+.a-tam[aria-pressed="true"] { border-color: var(--neon); background: rgba(61,255,168,.14); box-shadow: 0 0 16px -6px rgba(61,255,168,.7); }
+.a-mov-tam col.e-c-data { width: 15%; } .a-mov-tam col.e-c-tipo { width: 18%; } .a-mov-tam col.a-c-tam { width: 16%; } .a-mov-tam col.e-c-q { width: 15%; }
+@media (max-width: 1000px) {
+  .a-apps { flex-direction: row; flex-wrap: wrap; }
+}
