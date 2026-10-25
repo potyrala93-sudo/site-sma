@@ -5,7 +5,7 @@
   <script>try{if(localStorage.getItem("sma:tema")==="claro")document.documentElement.dataset.tema="claro"}catch(e){}</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Estoque · SMA Silvicultura · Unidade São Miguel</title>
-  <meta name="description" content="Estoque de insumos da Unidade São Miguel: saldo de cada produto e as entradas e retiradas, direto do App de Estoque.">
+  <meta name="description" content="Estoque de insumos e do almoxarifado da Unidade São Miguel: saldo de cada produto e as entradas e retiradas, direto dos apps.">
   <meta name="theme-color" content="#040d0c">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,6 +22,8 @@
   <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
   <script src="js/main.js" defer></script>
   <script src="js/estoque.js" defer></script>
+  <script src="js/almox-desenhos.js" defer></script>
+  <script src="js/almoxarifado.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
 </head>
@@ -36,13 +38,20 @@
       <div class="container fat-hero-inner">
         <div>
           <span class="pill reveal"><span class="tag">Painel</span><span>Estoque · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
-          <h1 class="fat-titulo reveal" id="e-titulo" style="--d:.08s">Estoque · <span class="serif">Insumos</span></h1>
-          <p class="fat-sub reveal" style="--d:.16s">Quantidade de cada insumo agora, somando as entradas e descontando as retiradas registradas no App de Estoque. Clique no produto para ver a movimentação.</p>
-          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> App de Estoque · <span id="e-status">Conectando…</span></p>
+          <h1 class="fat-titulo reveal" id="e-titulo" style="--d:.08s">Estoque · <span class="serif">Insumos e almoxarifado</span></h1>
+          <p class="fat-sub reveal" style="--d:.16s">Quantidade de cada insumo agora, somando as entradas e descontando as retiradas registradas no App de Estoque e no App Almoxarifado. Clique no produto para ver a movimentação.</p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Insumos · <span id="e-status">Conectando…</span></p>
+          <p class="fat-status reveal" style="--d:.28s"><i data-lucide="package"></i> Almoxarifado · <span id="a-status">Conectando…</span></p>
+          <p class="a-atalhos reveal" style="--d:.32s"><a href="#e-tab-tit">Insumos</a><a href="#a-tab-tit">Almoxarifado</a></p>
         </div>
-        <a class="btn btn-primary reveal" style="--d:.2s" href="https://potyrala93-sudo.github.io/APP-estoque/" target="_blank" rel="noopener noreferrer">
-          Abrir o App de Estoque <span class="btn-arrow"><i data-lucide="external-link"></i></span>
-        </a>
+        <div class="a-apps">
+          <a class="btn btn-primary reveal" style="--d:.2s" href="https://potyrala93-sudo.github.io/APP-estoque/" target="_blank" rel="noopener noreferrer">
+            Abrir o App de Estoque <span class="btn-arrow"><i data-lucide="external-link"></i></span>
+          </a>
+          <a class="btn btn-primary reveal" style="--d:.26s" href="https://potyrala93-sudo.github.io/APP-almoxarifado/" target="_blank" rel="noopener noreferrer">
+            Abrir o App Almoxarifado <span class="btn-arrow"><i data-lucide="external-link"></i></span>
+          </a>
+        </div>
       </div>
     </section>
 
@@ -70,6 +79,25 @@
         <div class="fat-painel glass tabela-wrap" id="e-tabela"><div class="esqueleto tabela-esq"></div></div>
       </section>
     </div>
+
+    <!-- Almoxarifado (App Almoxarifado) -->
+    <div class="fat-conteudo carregando" id="alm">
+      <section class="container fat-secao" aria-labelledby="a-tab-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Saldo atual</span><h2 class="fat-sec-titulo" id="a-tab-tit">Almoxarifado em <span class="serif">estoque</span></h2></div>
+          <p class="fat-sec-sub" id="a-resumo"></p>
+        </div>
+        <div class="fat-barra glass a-barra" role="toolbar" aria-label="Filtros do almoxarifado">
+          <label class="e-busca"><i data-lucide="search"></i><input type="search" id="a-busca" placeholder="Buscar no almoxarifado (ex.: bota, luva, camiseta G)" aria-label="Buscar no almoxarifado"></label>
+          <div class="fat-barra-dir">
+            <label class="e-zerados"><input type="checkbox" id="a-zerados"> Mostrar zerados</label>
+            <button type="button" class="fat-btn" id="a-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+          </div>
+        </div>
+        <div class="fat-erros" id="a-erros" role="alert" hidden></div>
+        <div class="fat-painel glass tabela-wrap" id="a-tabela"><div class="esqueleto tabela-esq"></div></div>
+      </section>
+    </div>
   </main>
 
   <!-- Movimentação do produto -->
@@ -81,6 +109,19 @@
       </div>
       <div class="e-dlg-kpis" id="e-dlg-kpis"></div>
       <div class="e-dlg-lista" id="e-dlg-lista"></div>
+    </div>
+  </dialog>
+
+  <!-- Movimentação do produto do almoxarifado -->
+  <dialog class="e-dlg glass" id="a-dlg" aria-labelledby="a-dlg-tit">
+    <div class="e-dlg-in">
+      <div class="e-dlg-head">
+        <div class="e-dlg-prod" id="a-dlg-prod"></div>
+        <button type="button" class="e-fechar" id="a-fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
+      </div>
+      <div class="e-dlg-kpis" id="a-dlg-kpis"></div>
+      <div class="a-dlg-tams" id="a-dlg-tams" hidden></div>
+      <div class="e-dlg-lista" id="a-dlg-lista"></div>
     </div>
   </dialog>
 
