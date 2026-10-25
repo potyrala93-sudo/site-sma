@@ -24,6 +24,7 @@
   <script src="js/estoque.js" defer></script>
   <script src="js/almox-desenhos.js" defer></script>
   <script src="js/almoxarifado.js" defer></script>
+  <script src="js/estoque-abas.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
 </head>
@@ -39,10 +40,9 @@
         <div>
           <span class="pill reveal"><span class="tag">Painel</span><span>Estoque · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
           <h1 class="fat-titulo reveal" id="e-titulo" style="--d:.08s">Estoque · <span class="serif">Insumos e almoxarifado</span></h1>
-          <p class="fat-sub reveal" style="--d:.16s">Quantidade de cada insumo agora, somando as entradas e descontando as retiradas registradas no App de Estoque e no App Almoxarifado. Clique no produto para ver a movimentação.</p>
+          <p class="fat-sub reveal" style="--d:.16s">Quantidade de cada insumo agora, somando as entradas e descontando as retiradas registradas no App de Estoque e no App Almoxarifado. Escolha abaixo o que quer ver e clique no produto para ver a movimentação.</p>
           <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Insumos · <span id="e-status">Conectando…</span></p>
           <p class="fat-status reveal" style="--d:.28s"><i data-lucide="package"></i> Almoxarifado · <span id="a-status">Conectando…</span></p>
-          <p class="a-atalhos reveal" style="--d:.32s"><a href="#e-tab-tit">Insumos</a><a href="#a-tab-tit">Almoxarifado</a></p>
         </div>
         <div class="a-apps">
           <a class="btn btn-primary reveal" style="--d:.2s" href="https://potyrala93-sudo.github.io/APP-estoque/" target="_blank" rel="noopener noreferrer">
@@ -57,44 +57,53 @@
 
     <div class="fat-barra-wrap">
       <div class="container">
-        <div class="fat-barra glass" role="toolbar" aria-label="Filtros do estoque">
-          <label class="e-busca"><i data-lucide="search"></i><input type="search" id="e-busca" placeholder="Buscar produto" aria-label="Buscar produto"></label>
+        <div class="fat-barra glass est-barra">
+          <div class="est-abas" role="tablist" aria-label="Escolha o estoque">
+            <button type="button" class="est-aba" role="tab" id="aba-insumos" aria-controls="est" aria-selected="true" data-aba="insumos">
+              <i data-lucide="sprout"></i><span>Insumos</span><small id="aba-insumos-n"></small></button>
+            <button type="button" class="est-aba" role="tab" id="aba-almox" aria-controls="alm" aria-selected="false" data-aba="almoxarifado" tabindex="-1">
+              <i data-lucide="package"></i><span>Almoxarifado</span><small id="aba-almox-n"></small></button>
+          </div>
           <div class="fat-barra-dir">
-            <label class="e-zerados"><input type="checkbox" id="e-zerados"> Mostrar zerados</label>
-            <button type="button" class="fat-btn" id="e-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
             <button type="button" class="fat-btn fat-atualizar" id="e-atualizar"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="container"><div class="fat-erros" id="e-erros" role="alert" hidden></div></div>
-
-    <div class="fat-conteudo carregando" id="est">
+    <div class="fat-conteudo carregando est-painel" id="est" role="tabpanel" aria-labelledby="aba-insumos">
       <section class="container fat-secao" aria-labelledby="e-tab-tit">
         <div class="fat-sec-head">
           <div><span class="eyebrow">Saldo atual</span><h2 class="fat-sec-titulo" id="e-tab-tit">Insumos em <span class="serif">estoque</span></h2></div>
           <p class="fat-sec-sub" id="e-resumo"></p>
         </div>
+        <div class="fat-barra glass a-barra" role="toolbar" aria-label="Filtros dos insumos">
+          <label class="e-busca"><i data-lucide="search"></i><input type="search" id="e-busca" placeholder="Buscar insumo" aria-label="Buscar insumo"></label>
+          <div class="fat-barra-dir">
+            <label class="e-zerados"><input type="checkbox" id="e-zerados"> Mostrar zerados</label>
+            <button type="button" class="fat-btn" id="e-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+          </div>
+        </div>
+        <div class="fat-erros a-erros" id="e-erros" role="alert" hidden></div>
         <div class="fat-painel glass tabela-wrap" id="e-tabela"><div class="esqueleto tabela-esq"></div></div>
       </section>
     </div>
 
     <!-- Almoxarifado (App Almoxarifado) -->
-    <div class="fat-conteudo carregando" id="alm">
+    <div class="fat-conteudo carregando est-painel" id="alm" role="tabpanel" aria-labelledby="aba-almox" hidden>
       <section class="container fat-secao" aria-labelledby="a-tab-tit">
         <div class="fat-sec-head">
           <div><span class="eyebrow">Saldo atual</span><h2 class="fat-sec-titulo" id="a-tab-tit">Almoxarifado em <span class="serif">estoque</span></h2></div>
           <p class="fat-sec-sub" id="a-resumo"></p>
         </div>
         <div class="fat-barra glass a-barra" role="toolbar" aria-label="Filtros do almoxarifado">
-          <label class="e-busca"><i data-lucide="search"></i><input type="search" id="a-busca" placeholder="Buscar no almoxarifado (ex.: bota, luva, camiseta G)" aria-label="Buscar no almoxarifado"></label>
+          <label class="e-busca"><i data-lucide="search"></i><input type="search" id="a-busca" placeholder="Buscar no almoxarifado" aria-label="Buscar no almoxarifado"></label>
           <div class="fat-barra-dir">
             <label class="e-zerados"><input type="checkbox" id="a-zerados"> Mostrar zerados</label>
             <button type="button" class="fat-btn" id="a-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
           </div>
         </div>
-        <div class="fat-erros" id="a-erros" role="alert" hidden></div>
+        <div class="fat-erros a-erros" id="a-erros" role="alert" hidden></div>
         <div class="fat-painel glass tabela-wrap" id="a-tabela"><div class="esqueleto tabela-esq"></div></div>
       </section>
     </div>
