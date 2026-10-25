@@ -77,12 +77,8 @@
    Almoxarifado (mesma tabela dos insumos; produtos agrupados por tamanho/tipo)
    ========================================================================== */
 .a-apps { display: flex; flex-direction: column; gap: .6rem; align-items: stretch; }
-.a-atalhos { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
-.a-atalhos a { padding: .35rem .9rem; border-radius: 999px; border: 1px solid var(--borda); font-size: .84rem; font-weight: 700; color: var(--texto); text-decoration: none; }
-.a-atalhos a:hover { border-color: var(--neon); color: var(--neon); }
-#a-tab-tit { scroll-margin-top: 90px; } #e-tab-tit { scroll-margin-top: 90px; }
 .a-barra { margin-bottom: 1rem; }
-#a-erros { margin-bottom: 1rem; }
+.a-erros { margin-bottom: 1rem; }
 .e-foto.a-des { overflow: hidden; padding: 0; border: 0; }
 .e-foto.a-des svg { width: 100%; height: 100%; display: block; }
 .a-sub { display: block; margin-top: .15rem; font-size: .76rem; font-weight: 600; color: var(--texto-fraco); }
@@ -98,4 +94,29 @@
 .a-mov-tam col.e-c-data { width: 15%; } .a-mov-tam col.e-c-tipo { width: 18%; } .a-mov-tam col.a-c-tam { width: 16%; } .a-mov-tam col.e-c-q { width: 15%; }
 @media (max-width: 1000px) {
   .a-apps { flex-direction: row; flex-wrap: wrap; }
+}
+
+/* Seletor Insumos / Almoxarifado */
+.est-abas { display: inline-flex; gap: .3rem; padding: .3rem; border-radius: 999px; border: 1px solid var(--borda); background: rgb(var(--tinta-rgb) / .04); }
+.est-aba { display: inline-flex; align-items: center; gap: .55rem; min-height: 46px; padding: 0 1.3rem; border: 0; border-radius: 999px; background: transparent; color: var(--texto-suave); font: inherit; font-size: .98rem; font-weight: 800; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; }
+.est-aba svg { width: 18px; height: 18px; }
+.est-aba small { min-width: 1.6rem; padding: .05rem .5rem; border-radius: 999px; background: rgb(var(--tinta-rgb) / .08); font-size: .76rem; font-weight: 800; text-align: center; }
+.est-aba small:empty { display: none; }
+.est-aba:hover { color: var(--texto-forte); }
+.est-aba[aria-selected="true"] { background: var(--lima-fundo, var(--lima)); color: #0b1d07; box-shadow: 0 0 24px -4px rgba(200,245,96,.55); }
+.est-aba[aria-selected="true"] small { background: rgba(11,29,7,.16); }
+.est-aba:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+.est-painel[hidden] { display: none; }
+.est-painel .fat-secao { padding-top: 1.6rem; }
+@media (max-width: 640px) {
+  .est-barra .est-abas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: 100%; min-width: 0; }
+  .est-aba { justify-content: center; gap: .35rem; min-width: 0; padding: 0 .4rem; font-size: .9rem; }
+  .est-aba svg, .est-aba i { display: none; }
+  .est-barra { flex-wrap: nowrap; }
+  .est-barra .fat-barra-dir { width: auto; flex: none; }
+  .est-barra .est-abas { flex: 1 1 0; width: auto; }
+}
+@media (max-width: 420px) {
+  .est-aba small { display: none; }
+  .est-aba span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
