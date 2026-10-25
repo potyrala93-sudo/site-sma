@@ -5,43 +5,84 @@
   <script>try{if(localStorage.getItem("sma:tema")==="claro")document.documentElement.dataset.tema="claro"}catch(e){}</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Estoque · SMA Silvicultura · Unidade São Miguel</title>
-  <meta name="description" content="Estoque da operação de silvicultura da Unidade São Miguel.">
+  <meta name="description" content="Estoque de insumos da Unidade São Miguel: saldo de cada produto e as entradas e retiradas, direto do App de Estoque.">
   <meta name="theme-color" content="#040d0c">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/faturamento.css">
+  <link rel="stylesheet" href="css/estoque.css">
   <link rel="stylesheet" href="css/folhito.css">
+  <!-- Endereço e chave pública do banco: os mesmos do App de Compras / App de Estoque -->
+  <script src="https://potyrala93-sudo.github.io/APP-compras/config.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" defer></script>
   <script src="js/dados.js" defer></script>
   <script src="js/planilhas.js" defer></script>
   <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
   <script src="js/main.js" defer></script>
+  <script src="js/estoque.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
 </head>
-<body data-page="estoque">
+<body data-page="estoque" class="pagina-fat pagina-est">
   <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
   <div class="scroll-progress" aria-hidden="true"></div>
+  <div class="fat-fundo" aria-hidden="true"><div class="fat-grade"></div><div class="particles" id="particles"></div></div>
   <header class="site-header" id="site-header"></header>
 
   <main id="conteudo">
-    <section class="construcao section-grid" aria-labelledby="titulo">
-      <div class="glow-orb" aria-hidden="true"></div>
-      <div class="container">
-        <div class="construcao-card glass reveal">
-          <div class="construcao-icon" aria-hidden="true"><i data-lucide="package"></i></div>
-          <span class="pill"><span class="dot" aria-hidden="true"></span> Em construção</span>
-          <h1 id="titulo"><span class="serif">Estoque</span></h1>
-          <p>Esta página está em construção. Em breve, o controle de estoque da Unidade São Miguel estará disponível aqui.</p>
-          <div class="progresso" aria-hidden="true"><span></span></div>
-          <a class="btn btn-primary" href="index.html">
-            Voltar para a Home
-            <span class="btn-arrow"><i data-lucide="arrow-right"></i></span>
-          </a>
+    <section class="fat-hero" aria-labelledby="e-titulo">
+      <div class="container fat-hero-inner">
+        <div>
+          <span class="pill reveal"><span class="tag">Painel</span><span>Estoque · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
+          <h1 class="fat-titulo reveal" id="e-titulo" style="--d:.08s">Estoque · <span class="serif">Insumos</span></h1>
+          <p class="fat-sub reveal" style="--d:.16s">Quantidade de cada insumo agora, somando as entradas e descontando as retiradas registradas no App de Estoque. Clique no produto para ver a movimentação.</p>
+          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> App de Estoque · <span id="e-status">Conectando…</span></p>
         </div>
+        <a class="btn btn-primary reveal" style="--d:.2s" href="https://potyrala93-sudo.github.io/APP-estoque/" target="_blank" rel="noopener noreferrer">
+          Abrir o App de Estoque <span class="btn-arrow"><i data-lucide="external-link"></i></span>
+        </a>
       </div>
     </section>
+
+    <div class="fat-barra-wrap">
+      <div class="container">
+        <div class="fat-barra glass" role="toolbar" aria-label="Filtros do estoque">
+          <label class="e-busca"><i data-lucide="search"></i><input type="search" id="e-busca" placeholder="Buscar produto" aria-label="Buscar produto"></label>
+          <div class="fat-barra-dir">
+            <label class="e-zerados"><input type="checkbox" id="e-zerados"> Mostrar zerados</label>
+            <button type="button" class="fat-btn" id="e-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+            <button type="button" class="fat-btn fat-atualizar" id="e-atualizar"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container"><div class="fat-erros" id="e-erros" role="alert" hidden></div></div>
+
+    <div class="fat-conteudo carregando" id="est">
+      <section class="container fat-secao" aria-labelledby="e-tab-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Saldo atual</span><h2 class="fat-sec-titulo" id="e-tab-tit">Insumos em <span class="serif">estoque</span></h2></div>
+          <p class="fat-sec-sub" id="e-resumo"></p>
+        </div>
+        <div class="fat-painel glass tabela-wrap" id="e-tabela"><div class="esqueleto tabela-esq"></div></div>
+      </section>
+    </div>
   </main>
+
+  <!-- Movimentação do produto -->
+  <dialog class="e-dlg glass" id="e-dlg" aria-labelledby="e-dlg-tit">
+    <div class="e-dlg-in">
+      <div class="e-dlg-head">
+        <div class="e-dlg-prod" id="e-dlg-prod"></div>
+        <button type="button" class="e-fechar" id="e-fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
+      </div>
+      <div class="e-dlg-kpis" id="e-dlg-kpis"></div>
+      <div class="e-dlg-lista" id="e-dlg-lista"></div>
+    </div>
+  </dialog>
 
   <footer class="site-footer" id="site-footer"></footer>
 </body>
