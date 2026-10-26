@@ -570,6 +570,73 @@ async function rotaMapas(req, res) {
   }
 }
 
+/* ---------- Inspeções TERMAC (Segurança): a planilha é lida da imagem pela IA, conferida na tela e guardada para todos ---------- */
+const SISTEMA_TERMAC = `Você transcreve a planilha "Vencimento das Inspeções TERMAC" (JFI Serviços) a partir de uma imagem.
+Responda SOMENTE com um JSON, sem texto antes ou depois, neste formato:
+{"unidade": "...", "tst": "...", "data_planilha": "aaaa-mm-dd ou \"\"", "total_linhas": 0,
+ "linhas": [{"frota": "...", "tipo": "...", "placa": "...", "regional": "...", "vencimento": "aaaa-mm-dd", "validade": "...", "resultado": "...", "obs": "..."}],
+ "ilegiveis": ["linha 7, campo placa: ..."]}
+Regras:
+- Transcreva TODAS as linhas da tabela, na ordem da imagem, sem pular e sem inventar. "total_linhas" é quantas linhas a tabela tem.
+- Copie o texto exatamente como está (acentos, maiúsculas, espaços como "TRA 392", "IMP0203").
+- Campo vazio ou com "-" vira "-".
+- "validade" deve ser exatamente "Válido", "Atenção!" ou "Vencido", como aparece na imagem.
+- "resultado" deve ser exatamente "Aprovado", "Reprovado" ou "Vencido", como aparece na imagem.
+- A coluna Vencimento vem como dd/mm/aaaa: devolva em aaaa-mm-dd.
+- "unidade" é o nome que vem depois de "TERMAC" no título (ex.: "São Miguel Arcanjo"); "tst" é o nome depois de "TST RESPONSÁVEL:".
+- "data_planilha" só se houver uma data de emissão escrita na imagem; senão "".
+- Se algum valor estiver ilegível, escreva "[ilegível]" no campo e descreva em "ilegiveis".`;
+const txt = (v, max = 160) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max) || '-';
+const dataISO = v => {
+  const s = String(v ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+};
+const linhaTermac = l => ({ frota: txt(l.frota, 40), tipo: txt(l.tipo, 60), placa: txt(l.placa, 30), regional: txt(l.regional, 30), venc: dataISO(l.venc || l.vencimento), validade: txt(l.validade, 20), resultado: txt(l.resultado, 20), obs: txt(l.obs, 200) });
+async function rotaTermac(req, res, acao) {
+  const col = colecao('termac'), ia = Boolean(cliente && iaDisponivel);
+  if (req.method === 'GET' && !acao) {
+    if (!col.disponivel) return json(res, 200, { dados: null, onde: ONDE_SALVA, ia });
+    try { const lista = await col.ler(); return json(res, 200, { dados: lista[0] || null, versoes: lista.length, onde: ONDE_SALVA, ia }); }
+    catch (erro) { return json(res, 502, { erro: `Não consegui ler os dados salvos: ${erro.message}`, onde: ONDE_SALVA, ia }); }
+  }
+  if (req.method === 'POST' && acao === 'ler') {
+    if (!dentroDoLimite(ipDe(req))) return json(res, 429, { erro: 'Muitos pedidos em pouco tempo. Aguarde um minutinho.' });
+    if (!ia) return json(res, 503, { erro: 'A IA não está configurada no servidor (falta a ANTHROPIC_API_KEY).', semIA: true });
+    let corpo;
+    try { corpo = JSON.parse(await lerCorpo(req, 4_200_000)); } catch { return json(res, 400, { erro: 'Imagem grande demais ou inválida.' }); }
+    const m = String(corpo.imagem || '').match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+    if (!m) return json(res, 400, { erro: 'Envie uma imagem JPG, PNG ou WEBP.' });
+    try {
+      const lido = await perguntarJSON(SISTEMA_TERMAC, [
+        { type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } },
+        { type: 'text', text: 'Transcreva a tabela desta imagem seguindo as regras.' }
+      ], 'medium', 12000);
+      const linhas = (Array.isArray(lido.linhas) ? lido.linhas : []).slice(0, 300).map(linhaTermac);
+      return json(res, 200, { leitura: { planilha: { unidade: txt(lido.unidade, 80), tst: txt(lido.tst, 80), data: dataISO(lido.data_planilha) }, linhas, total: Number(lido.total_linhas) || linhas.length, ilegiveis: (Array.isArray(lido.ilegiveis) ? lido.ilegiveis : []).slice(0, 40).map(x => txt(x, 200)) } });
+    } catch (erro) {
+      if (erro instanceof Anthropic.AuthenticationError || erro instanceof Anthropic.PermissionDeniedError) { iaDisponivel = false; return json(res, 503, { erro: 'A chave da IA não é válida no servidor.', semIA: true }); }
+      if (erro instanceof Anthropic.RateLimitError) return json(res, 429, { erro: 'A IA está ocupada. Tente de novo em alguns segundos.' });
+      console.error('TERMAC: erro na leitura —', erro.message);
+      return json(res, 502, { erro: `A IA não conseguiu ler a imagem (${erro.message}).` });
+    }
+  }
+  if (req.method === 'POST' && !acao) {
+    let corpo;
+    try { corpo = JSON.parse(await lerCorpo(req, 300_000)); } catch { return json(res, 400, { erro: 'Dados inválidos.' }); }
+    const linhas = (Array.isArray(corpo.linhas) ? corpo.linhas : []).slice(0, 300).map(linhaTermac);
+    if (!linhas.length) return json(res, 400, { erro: 'Nenhuma linha para salvar.' });
+    if (linhas.some(l => !l.venc)) return json(res, 400, { erro: 'Há linhas sem data de vencimento válida.' });
+    const p = corpo.planilha || {};
+    const dados = { planilha: { unidade: txt(p.unidade, 80), tst: txt(p.tst, 80), data: dataISO(p.data) || new Date().toLocaleDateString('sv-SE') }, linhas, atualizado: new Date().toISOString() };
+    if (!col.disponivel) return json(res, 503, { erro: 'O site publicado ainda não tem banco para guardar (Upstash).', navegador: true, dados });
+    try { const lista = await col.ler(); await col.gravar([dados, ...lista].slice(0, 20)); return json(res, 200, { dados, onde: ONDE_SALVA }); }
+    catch (erro) { return json(res, 502, { erro: `Não consegui salvar: ${erro.message}` }); }
+  }
+  return json(res, 405, { erro: 'Método não permitido.' });
+}
+
 /* ---------- Compras (App de Compras): todos os pedidos, lidos no servidor com a chave secreta ---------- */
 async function rotaCompras(req, res) {
   if (!comprasConfigurado()) return json(res, 503, { erro: 'A chave do App de Compras não está configurada no servidor (COMPRAS_SUPABASE_KEY).', configurar: true });
@@ -600,6 +667,8 @@ export function tratarApi(req, res) {
   const fotos = rota.match(/^\/api\/fotos\/([a-z]+)$/);
   if (fotos && req.method === 'GET') return Promise.resolve(listarFotos(res, fotos[1]));
   if (rota === '/api/compras' && req.method === 'GET') return Promise.resolve(rotaCompras(req, res));
+  const termac = rota.match(/^\/api\/termac(?:\/(ler))?$/);
+  if (termac) return Promise.resolve(rotaTermac(req, res, termac[1]));
   if (rota === '/api/mapas' && req.method === 'GET') return Promise.resolve(rotaMapas(req, res));
   if (rota === '/api/clima' && req.method === 'GET') return Promise.resolve(rotaClima(req, res));
   const climaPonto = rota.match(/^\/api\/clima\/ponto\/([^/]+)$/);

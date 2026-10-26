@@ -124,12 +124,35 @@
     <!-- ===== Inspeções TERMAC (js/termac.js) ===== -->
     <div id="aba-termac" class="fat-conteudo" role="tabpanel" aria-labelledby="s-tab-termac" hidden>
       <section class="container fat-secao">
-        <div class="t-cab glass" id="t-cab"></div>
+        <div class="t-cab glass">
+          <div id="t-cab-txt"></div>
+          <div class="t-acoes">
+            <input type="file" id="t-arquivo" accept="image/*" hidden>
+            <button type="button" class="fat-btn fat-atualizar" id="t-atualizar"><i data-lucide="image-up"></i><span>Atualizar com imagem</span></button>
+            <button type="button" class="fat-btn" id="t-editar"><i data-lucide="pencil"></i><span>Editar dados</span></button>
+            <button type="button" class="fat-btn" id="t-imagem"><i data-lucide="share-2"></i><span>Imagem</span></button>
+            <button type="button" class="fat-btn" id="t-pdf"><i data-lucide="file-down"></i><span>PDF</span></button>
+          </div>
+        </div>
         <div class="t-resumo glass" id="t-resumo"></div>
       </section>
 
       <section class="container fat-secao" aria-label="Indicadores das inspeções">
         <div class="t-kpis" id="t-kpis"></div>
+      </section>
+
+      <section class="container fat-secao">
+        <div class="fat-sec-head"><div><span class="eyebrow">Precisa de ação</span><h2 class="fat-sec-titulo">Vencidos, reprovados e <span class="serif">atenção</span></h2></div><p class="fat-sec-sub">Quantos dias faltam (ou passaram) para cada vencimento. Toque num equipamento para ver na tabela.</p></div>
+        <div class="t-dests" id="t-dest"></div>
+      </section>
+
+      <section class="container fat-secao">
+        <div class="fat-sec-head"><div><span class="eyebrow">Quando vence</span><h2 class="fat-sec-titulo">Calendário de <span class="serif">vencimentos</span></h2></div></div>
+        <div class="fat-painel glass t-cal-painel">
+          <div class="t-cal-nav" id="t-cal-nav"></div>
+          <div class="t-cal-meses" id="t-cal-meses" role="group" aria-label="Meses com vencimento"></div>
+          <div class="t-cal-scroll" id="t-cal"></div>
+        </div>
       </section>
 
       <section class="container fat-secao t-dupla">
@@ -141,16 +164,6 @@
           <div class="fat-sec-head"><div><span class="eyebrow">Calendário</span><h2 class="fat-sec-titulo">Vencimentos por <span class="serif">mês</span></h2></div></div>
           <div class="fat-painel glass"><div class="fat-grafico"><canvas id="t-g-mes" role="img" aria-label="Vencimentos por mês e situação"></canvas></div></div>
         </div>
-      </section>
-
-      <section class="container fat-secao">
-        <div class="fat-sec-head"><div><span class="eyebrow">Não operar</span><h2 class="fat-sec-titulo">Equipamentos <span class="serif">bloqueados</span></h2></div><p class="fat-sec-sub" id="t-bloq-sub"></p></div>
-        <div class="fat-painel glass tabela-wrap" id="t-bloq"></div>
-      </section>
-
-      <section class="container fat-secao">
-        <div class="fat-sec-head"><div><span class="eyebrow">Renovar a inspeção</span><h2 class="fat-sec-titulo">Agenda de <span class="serif">renovação</span></h2></div><p class="fat-sec-sub" id="t-agenda-sub"></p></div>
-        <div class="fat-painel glass tabela-wrap" id="t-agenda"></div>
       </section>
 
       <section class="container fat-secao" id="t-todos-sec">
@@ -174,6 +187,12 @@
       </section>
     </div>
   </main>
+
+  <dialog class="t-dlg" id="t-dlg" aria-labelledby="t-dlg-titulo">
+    <header class="t-dlg-cab"><div><span class="eyebrow">Inspeções TERMAC</span><h2 id="t-dlg-titulo">Conferir antes de salvar</h2></div><button type="button" class="fat-btn" data-fechar aria-label="Fechar"><i data-lucide="x"></i></button></header>
+    <div id="t-dlg-corpo"></div>
+    <footer class="t-dlg-pe"><button type="button" class="fat-btn" data-fechar><span>Cancelar</span></button><button type="button" class="fat-btn fat-atualizar" id="t-ed-salvar"><i data-lucide="save"></i><span>Salvar e publicar</span></button></footer>
+  </dialog>
 
   <footer class="site-footer" id="site-footer"></footer>
   <script>
