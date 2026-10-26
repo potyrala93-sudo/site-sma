@@ -114,7 +114,8 @@ def preparar_dados(linha: LinhaPlanilha, cfg: dict) -> dict:
     # Insumos: cada NI precisa de uma quantidade (e vice-versa)
     casas = int(ap.get("casas_decimais", 3))
     insumos = []
-    for ni, q in (linha.insumos or []):
+    for ni, q, *resto in (linha.insumos or []):
+        nome = str(resto[0]).strip() if resto else ""
         ni_txt = texto_inteiro(ni)
         if not ni_txt:
             problemas.append(f"quantidade de insumo {q!r} sem NI")
@@ -122,10 +123,10 @@ def preparar_dados(linha: LinhaPlanilha, cfg: dict) -> dict:
         try:
             if parse_numero(q) <= 0:
                 raise ValueError
-            insumos.append((ni_txt, formatar_quantidade(q, casas)))
+            insumos.append((ni_txt, formatar_quantidade(q, casas), nome))
         except ValueError:
             problemas.append(f"insumo {ni_txt} sem quantidade válida ({q!r})")
-    nis = [n for n, _ in insumos]
+    nis = [n for n, *_ in insumos]
     if len(set(nis)) != len(nis):
         problemas.append("NI de insumo repetido na linha")
     if linha.possui_insumo and not insumos and not problemas:
@@ -168,7 +169,7 @@ def processar_linha(robo, linha: LinhaPlanilha, d: dict, cfg: dict, simulacao: b
     if d["insumos"] and not simulacao:
         robo.apontar_insumos(idx, d["insumos"])
     if simulacao:
-        ins = ("; insumos da planilha " + ", ".join(f"{n}={q}" for n, q in d["insumos"])
+        ins = ("; insumos da planilha " + ", ".join(f"{n}={q}" for n, q, *_ in d["insumos"])
                + " (não testados: o SAP só abre a grade de insumos após confirmar a operação)") if d["insumos"] else ""
         return "SIMULACAO", (f"popup preenchido (data {d['data_sap']}, qtd {d['quantidade_sap']}) e cancelado"
                              f"{ins}; nada salvo")

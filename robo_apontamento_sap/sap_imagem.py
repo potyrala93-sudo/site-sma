@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from utils import (ErroConfiguracao, ErroNegocio, ErroSAP, ParadaEmergencia, TempoEsgotado,
-                   esperar_ate, normalizar_servico, parse_numero)
+                   esperar_ate, normalizar_servico, normalizar_texto, parse_numero)
 
 log = logging.getLogger("robo.imagem")
 
@@ -148,6 +148,16 @@ def escrever_clipboard(texto: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+def mesmo_nome(planilha: str, sap: str) -> bool:
+    """Nome do insumo na planilha x 'Descrição do Material' do SAP. O SAP corta nomes
+    longos com '...': aí vale o começo do nome (com pelo menos 15 caracteres)."""
+    cortado = str(sap or "").rstrip().endswith(("...", "…"))
+    p, s = normalizar_texto(planilha), normalizar_texto(str(sap or "").rstrip().rstrip(".…"))
+    if not p or not s:
+        return False
+    return p == s or (cortado and len(s) >= 15 and p.startswith(s))
+
+
 class SapImagem:
     def __init__(self, cfg: dict, ids: dict, parada: ParadaEmergencia) -> None:
         self.cfg = cfg
@@ -593,16 +603,40 @@ class SapImagem:
         no_sap = {normalizar_servico(m): i for i, m in enumerate(materiais)}
         log.info("Materiais no SAP: %s", ", ".join(materiais))
 
-        faltando = [ni for ni, _ in insumos if normalizar_servico(ni) not in no_sap]
-        if faltando:
-            raise ErroNegocio(f"insumo(s) da planilha não existem na O.S. no SAP: {', '.join(map(str, faltando))} "
-                              f"(SAP tem: {', '.join(materiais)})")
-        sobra = set(no_sap) - {normalizar_servico(ni) for ni, _ in insumos}
+        # 1º pelo NI; para NI que não existe na O.S. (ex.: código digitado errado na
+        # planilha), plano B pelo NOME do insumo comparado com a "Descrição do Material"
+        itens = [(ni, qtd, str(r[0]) if r else "") for ni, qtd, *r in insumos]
+        destino: dict[int, int] = {}  # índice do insumo na planilha -> linha na grade
+        sem_ni = []
+        for k, (ni, _, _) in enumerate(itens):
+            i = no_sap.get(normalizar_servico(ni))
+            if i is None:
+                sem_ni.append(k)
+            else:
+                destino[k] = i
+        if sem_ni:
+            descricoes = self._ler_descricoes_materiais(cab_qtd, dy0, alt, len(materiais))
+            usados = set(destino.values())
+            faltando = []
+            for k in sem_ni:
+                ni, _, nome = itens[k]
+                cands = [i for i, d in enumerate(descricoes) if i not in usados and mesmo_nome(nome, d)]
+                if len(cands) == 1:
+                    destino[k] = cands[0]
+                    usados.add(cands[0])
+                    log.warning("Insumo com NI %s (não existe na O.S.) casado pelo nome '%s' com o material %s.",
+                                ni, nome, materiais[cands[0]])
+                else:
+                    faltando.append(f"{ni} ({nome or 'sem nome'})")
+            if faltando:
+                raise ErroNegocio(f"insumo(s) da planilha não existem na O.S. no SAP: {', '.join(faltando)} "
+                                  f"(SAP tem: {', '.join(materiais)})")
+        sobra = [materiais[i] for i in range(len(materiais)) if i not in destino.values()]
         if sobra:
-            log.warning("Materiais no SAP sem quantidade na planilha (ficam como estão): %s", ", ".join(sorted(sobra)))
+            log.warning("Materiais no SAP sem quantidade na planilha (ficam como estão): %s", ", ".join(sobra))
 
-        for ni, qtd in insumos:
-            i = no_sap[normalizar_servico(ni)]
+        for k, (ni, qtd, _) in enumerate(itens):
+            i = destino[k]
             yq = cab_qtd[1] + dy0 + i * alt
             for tentativa in range(2):
                 self.pag.click(cab_qtd[0], yq)
@@ -626,6 +660,15 @@ class SapImagem:
         if self._erro_na_barra():
             raise ErroSAP("SAP mostrou erro na barra de status ao apontar os insumos")
         self._print("2b_insumos")
+
+    def _ler_descricoes_materiais(self, cab_qtd, dy0: int, alt: int, n: int) -> list[str]:
+        larg, _ = self.pag.size()
+        cab = self._achar("col_descricao_material", 3, regiao=(0, max(cab_qtd[1] - 15, 0), larg, 30))
+        if cab is None:
+            raise ErroSAP("não achei a coluna 'Descrição do Material' na grade de insumos")
+        descr = [self._ler_em(cab[0], cab[1] + dy0 + i * alt, insistir=True) for i in range(n)]
+        log.info("Descrições no SAP: %s", " | ".join(descr))
+        return descr
 
     def conferir_apontamento(self, linha: int, servico: Any, quantidade: float) -> int:
         if not self._imagem_na_celula("perc_100", "perc_exec", linha, timeout=self.timeout):

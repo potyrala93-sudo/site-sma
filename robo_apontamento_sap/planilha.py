@@ -50,7 +50,7 @@ class LinhaPlanilha:
     insumo: Any
     status: str
     possui_insumo: bool
-    insumos: list = None   # [(NI, quantidade), ...] lidos dos pares de colunas (I/J, L/M, O/P, R/S)
+    insumos: list = None   # [(NI, quantidade, nome), ...]: NI/quantidade em I/J, L/M, O/P, R/S e nome em H, K, N, Q
 
     def vazia(self) -> bool:
         return all(vazio(v) for v in (self.os, self.servico, self.quantidade, self.data))
@@ -110,7 +110,8 @@ class Planilha:
                 quantidade=cel(c["quantidade"]), data=cel(c["data"]), insumo=insumo,
                 status=str(cel(self.col_status) or "").strip(),
                 possui_insumo=self._tem_insumo(insumo),
-                insumos=[(cel(ni), cel(q)) for ni, q in pares if not vazio(cel(ni)) or not vazio(cel(q))],
+                insumos=[(cel(ni), cel(q), cel(cols_insumo[k]) if k < len(cols_insumo) else "")
+                         for k, (ni, q) in enumerate(pares) if not vazio(cel(ni)) or not vazio(cel(q))],
             ))
         log.info("Planilha carregada: %d linhas de dados (modo %s).", len(linhas), self.modo)
         return linhas
