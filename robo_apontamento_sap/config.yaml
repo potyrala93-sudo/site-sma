@@ -102,6 +102,7 @@ imagem:
   timeout_abrir_janela: 30     # espera o Citrix redesenhar o SAP (ex.: estava minimizado)
   confianca:                   # ícones pequenos variam no Citrix: exigência menor, área limitada
     icone_enter: 0.7
+  preferir_esquerda: [col_material]   # "Material" também aparece em "Descrição do Material"
   regiao_busca:                # [esquerda, topo, largura, altura] em pixels
     icone_enter: [0, 0, 400, 160]
   campos:
@@ -122,5 +123,5 @@ imagem:
     altura_linha: 23
     max_linhas: 15
     dx_coluna:
-      maq_evento: -34          # o ícone fica à esquerda da célula
-      material: 30             # col_material.png inclui a coluna "Dep." à esquerda
+      maq_evento: -32          # o ícone fica à esquerda do texto do cabeçalho
+      material: 0

@@ -162,10 +162,14 @@ def processar_linha(robo, linha: LinhaPlanilha, d: dict, cfg: dict, simulacao: b
             return "PULADO", "já consta 'Criado' no SAP"
         return "OK", "já constava 'Criado' no SAP (não apontado de novo)"
     robo.apontar(idx, d["data_sap"], d["quantidade_sap"], simulacao)      # 3.5
-    if d["insumos"]:                                                      # 3.5b insumos
+    # 3.5b insumos. Em simulação o popup é cancelado e o SAP só abre a grade de materiais
+    # depois de a operação ser confirmada ("Antes de preencher o material, preencher a
+    # operação"), então a etapa de insumos só roda no modo real.
+    if d["insumos"] and not simulacao:
         robo.apontar_insumos(idx, d["insumos"])
     if simulacao:
-        ins = "; insumos " + ", ".join(f"{n}={q}" for n, q in d["insumos"]) if d["insumos"] else ""
+        ins = ("; insumos da planilha " + ", ".join(f"{n}={q}" for n, q in d["insumos"])
+               + " (não testados: o SAP só abre a grade de insumos após confirmar a operação)") if d["insumos"] else ""
         return "SIMULACAO", (f"popup preenchido (data {d['data_sap']}, qtd {d['quantidade_sap']}) e cancelado"
                              f"{ins}; nada salvo")
     idx = robo.conferir_apontamento(idx, d["servico"], d["quantidade"])   # 3.6

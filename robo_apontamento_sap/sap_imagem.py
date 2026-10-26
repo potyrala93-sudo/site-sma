@@ -79,6 +79,36 @@ def localizar_imagem(caminho: str | Path, confidence: float, timeout: float = 0,
         return None
 
 
+def melhor_posicao(caminho: str | Path, confidence: float, regiao=None, mais_a_esquerda: bool = False):
+    """Centro (x, y) da MELHOR correspondência da imagem na tela (não a primeira que
+    passar do limite), ou None. Com mais_a_esquerda, entre as que passam do limite fica
+    com a mais à esquerda (ex.: 'Material' também aparece em 'Descrição do Material')."""
+    import cv2
+    import numpy as np
+    pag = _pyautogui()
+    modelo = cv2.imdecode(np.fromfile(str(caminho), dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+    if modelo is None:
+        raise ErroConfiguracao(f"imagem de referência não existe: {caminho}")
+    tela = pag.screenshot(region=regiao) if regiao else pag.screenshot()
+    cinza = cv2.cvtColor(np.array(tela), cv2.COLOR_RGB2GRAY)
+    if cinza.shape[0] < modelo.shape[0] or cinza.shape[1] < modelo.shape[1]:
+        return None
+    r = cv2.matchTemplate(cinza, modelo, cv2.TM_CCOEFF_NORMED)
+    if mais_a_esquerda:
+        ys, xs = np.where(r >= confidence)
+        if not len(xs):
+            return None
+        perto = xs <= xs.min() + 3
+        i = int(np.argmax(np.where(perto, r[ys, xs], -1)))
+        x, y = int(xs[i]), int(ys[i])
+    else:
+        _, maximo, _, (x, y) = cv2.minMaxLoc(r)
+        if maximo < confidence:
+            return None
+    ox, oy = (regiao[0], regiao[1]) if regiao else (0, 0)
+    return ox + x + modelo.shape[1] // 2, oy + y + modelo.shape[0] // 2
+
+
 def clicar_imagem(caminho: str | Path, confidence: float, cliques: int = 1, timeout: float = 10,
                   dx: int = 0, dy: int = 0) -> tuple[int, int]:
     pos = localizar_imagem(caminho, confidence, timeout)
@@ -151,11 +181,14 @@ class SapImagem:
         if regiao is None and (self.im.get("regiao_busca") or {}).get(nome):
             regiao = tuple(int(v) for v in self.im["regiao_busca"][nome])
 
+        esquerda = nome in (self.im.get("preferir_esquerda") or [])
+
         def uma_vez():
             for arq in arquivos:
-                pos = localizar_imagem(arq, conf, 0, regiao)
-                if pos:
-                    return pos
+                if arq.exists():
+                    pos = melhor_posicao(arq, conf, regiao, esquerda)
+                    if pos:
+                        return pos
             return None
         if timeout <= 0:
             return uma_vez()
@@ -522,13 +555,18 @@ class SapImagem:
         self.checar_parada()
         x, y = self._pos_celula("descricao_servico", linha)
         self.pag.doubleClick(x, y)
-        cab_mat = self._achar("col_material", self.timeout)
-        if cab_mat is None:
+        cab_qtd = self._achar("col_qtd_cons", self.timeout)
+        if cab_qtd is None:
             raise ErroSAP("a grade de materiais (insumos) não abriu")
+        # "Material" é procurado só na linha de cabeçalho da grade de materiais (a mesma
+        # do "Qtd. Cons"); a aba "Operação/Material" e "Descrição do Material" ficam de fora
+        larg, _ = self.pag.size()
+        cab_mat = self._achar("col_material", 3, regiao=(0, max(cab_qtd[1] - 15, 0), larg, 30))
+        if cab_mat is None:
+            raise ErroSAP("não achei a coluna 'Material' na grade de insumos")
         g = self.im["grade"]
         dy0, alt = int(g.get("dy_primeira_linha", 23)), int(g.get("altura_linha", 23))
-        x_mat = cab_mat[0] + int(g.get("dx_coluna", {}).get("material", 30))
-        cab_qtd = self._esperar("col_qtd_cons", 5)
+        x_mat = cab_mat[0] + int(g.get("dx_coluna", {}).get("material", 0))
 
         materiais: list[str] = []
         for i in range(int(g.get("max_linhas", 15))):
