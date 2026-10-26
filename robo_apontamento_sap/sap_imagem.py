@@ -321,18 +321,32 @@ class SapImagem:
         x, y = self._pos_celula(coluna, linha)
         return self._ler_em(x, y)
 
-    def _ler_em(self, x: int, y: int, editavel: bool = False) -> str:
-        """Clica no ponto e copia com Ctrl+C. Em célula editável, seleciona o texto antes."""
-        escrever_clipboard("")
-        self.pag.click(x, y)
-        if editavel:
-            self._tecla_end()
-            self._shift_home()
-        self.pag.hotkey("ctrl", "c")
-        try:  # no Citrix o valor copiado demora um pouco para chegar ao computador
-            return esperar_ate(ler_clipboard, 4, intervalo=0.15, descricao="área de transferência")
-        except TempoEsgotado:
-            return ""
+    def _ler_em(self, x: int, y: int, editavel: bool = False, insistir: bool = False) -> str:
+        """Clica no ponto e copia com Ctrl+C. Em célula editável, seleciona o texto antes.
+        Com insistir, se vier vazio tenta de novo: o 1º clique numa grade que acabou de
+        abrir às vezes só a ativa; e se a célula for editável, seleciona o texto e copia."""
+        tentativas = [editavel] * (3 if insistir else 1)
+        for i, selecionar in enumerate(tentativas):
+            # Marca única no clipboard: se o Ctrl+C não copiar nada (ex.: célula editável
+            # sem seleção), o Citrix às vezes devolve o valor ANTERIOR; com a marca dá
+            # para saber que nada foi copiado.
+            marca = f"#robo-{time.time_ns()}#"
+            escrever_clipboard(marca)
+            time.sleep(0.3)  # deixa o Citrix levar a marca para o servidor
+            self.pag.click(x, y)
+            if selecionar:
+                self._tecla_end()
+                self._shift_home()
+            self.pag.hotkey("ctrl", "c")
+
+            def copiado():
+                v = ler_clipboard()
+                return v if v and v != marca else None
+            try:  # no Citrix o valor copiado demora um pouco para chegar ao computador
+                return esperar_ate(copiado, 4 if i == 0 else 2, intervalo=0.15, descricao="área de transferência")
+            except TempoEsgotado:
+                continue
+        return ""
 
     def _imagem_na_celula(self, nome: str, coluna: str, linha: int, timeout: float = 0) -> bool:
         x, y = self._pos_celula(coluna, linha)
@@ -570,7 +584,7 @@ class SapImagem:
 
         materiais: list[str] = []
         for i in range(int(g.get("max_linhas", 15))):
-            v = self._ler_em(x_mat, cab_mat[1] + dy0 + i * alt)
+            v = self._ler_em(x_mat, cab_mat[1] + dy0 + i * alt, insistir=True)
             if not v or (materiais and v == materiais[-1]):
                 break
             materiais.append(v)
@@ -595,7 +609,7 @@ class SapImagem:
                 self._digitar(qtd)
                 self.pag.press("enter")
                 time.sleep(0.6)
-                lido = self._ler_em(cab_qtd[0], yq, editavel=True)
+                lido = self._ler_em(cab_qtd[0], yq, editavel=True, insistir=True)
                 try:
                     ok = abs(parse_numero(lido) - parse_numero(qtd)) < 0.0005
                 except ValueError:
