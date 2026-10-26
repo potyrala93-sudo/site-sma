@@ -16,6 +16,7 @@ import { resumoClima, detalheClima } from './clima.mjs';
 import { listaMapas } from './mapas.mjs';
 import { PROMPT_FOLHITO } from './folhito-prompt.mjs';
 import { lerCompras, comprasConfigurado } from './compras.mjs';
+import { colecaoNuvem, nuvemDisponivel } from './nuvem.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const NA_VERCEL = Boolean(process.env.VERCEL);
@@ -595,11 +596,13 @@ const dataISO = v => {
 };
 const linhaTermac = l => ({ frota: txt(l.frota, 40), tipo: txt(l.tipo, 60), placa: txt(l.placa, 30), regional: txt(l.regional, 30), venc: dataISO(l.venc || l.vencimento), validade: txt(l.validade, 20), resultado: txt(l.resultado, 20), obs: txt(l.obs, 200) });
 async function rotaTermac(req, res, acao) {
-  const col = colecao('termac'), ia = Boolean(cliente && iaDisponivel);
+  // guarda no banco (Upstash) se houver; senão no Supabase do App de Compras (já configurado na Vercel); senão no arquivo local
+  const naNuvem = !TEM_BANCO && nuvemDisponivel();
+  const col = naNuvem ? colecaoNuvem('termac') : colecao('termac'), onde = naNuvem ? 'nuvem' : ONDE_SALVA, ia = Boolean(cliente && iaDisponivel);
   if (req.method === 'GET' && !acao) {
-    if (!col.disponivel) return json(res, 200, { dados: null, onde: ONDE_SALVA, ia });
-    try { const lista = await col.ler(); return json(res, 200, { dados: lista[0] || null, versoes: lista.length, onde: ONDE_SALVA, ia }); }
-    catch (erro) { return json(res, 502, { erro: `Não consegui ler os dados salvos: ${erro.message}`, onde: ONDE_SALVA, ia }); }
+    if (!col.disponivel) return json(res, 200, { dados: null, onde, ia });
+    try { const lista = await col.ler(); return json(res, 200, { dados: lista[0] || null, anterior: lista[1] || null, versoes: lista.length, onde, ia }); }
+    catch (erro) { return json(res, 502, { erro: `Não consegui ler os dados salvos: ${erro.message}`, onde, ia }); }
   }
   if (req.method === 'POST' && acao === 'ler') {
     if (!dentroDoLimite(ipDe(req))) return json(res, 429, { erro: 'Muitos pedidos em pouco tempo. Aguarde um minutinho.' });
@@ -631,7 +634,7 @@ async function rotaTermac(req, res, acao) {
     const p = corpo.planilha || {};
     const dados = { planilha: { unidade: txt(p.unidade, 80), tst: txt(p.tst, 80), data: dataISO(p.data) || new Date().toLocaleDateString('sv-SE') }, linhas, atualizado: new Date().toISOString() };
     if (!col.disponivel) return json(res, 503, { erro: 'O site publicado ainda não tem banco para guardar (Upstash).', navegador: true, dados });
-    try { const lista = await col.ler(); await col.gravar([dados, ...lista].slice(0, 20)); return json(res, 200, { dados, onde: ONDE_SALVA }); }
+    try { const lista = await col.ler(); await col.gravar([dados, ...lista].slice(0, 20)); return json(res, 200, { dados, onde }); }
     catch (erro) { return json(res, 502, { erro: `Não consegui salvar: ${erro.message}` }); }
   }
   return json(res, 405, { erro: 'Método não permitido.' });

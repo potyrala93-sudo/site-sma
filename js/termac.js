@@ -252,7 +252,7 @@
       <td><select data-c="validade" aria-label="Validade">${opcoes(OPC_VAL, l.validade)}</select></td><td><select data-c="resultado" aria-label="Resultado">${opcoes(OPC_RES, l.resultado)}</select></td>
       <td><input data-c="obs" value="${esc(l.obs)}" aria-label="Observações"></td>
       <td class="t-ed-sit"></td><td><button type="button" class="t-ed-tirar" title="Tirar esta linha" aria-label="Tirar esta linha"><i data-lucide="trash-2"></i></button></td></tr>`;
-  function abrirEdicao(dados, aviso = '') {
+  function abrirEdicao(dados, aviso = '', duvidas = new Set()) {
     const dlg = $('#t-dlg');
     $('#t-dlg-corpo').innerHTML = `${aviso}
       <div class="t-ed-cab"><label>Unidade<input id="t-ed-unidade" value="${esc(dados.planilha.unidade)}"></label><label>TST responsável<input id="t-ed-tst" value="${esc(dados.planilha.tst)}"></label><label>Data da planilha<input id="t-ed-data" type="date" value="${esc(dados.planilha.data || hojeISO())}"></label></div>
@@ -260,8 +260,10 @@
       <div class="t-ed-wrap"><table class="tabela t-tab t-ed"><thead><tr>${['Frota', 'Tipo', 'Placa', 'Regional', 'Vencimento', 'Validade', 'Resultado', 'Observações', 'Situação', ''].map(t => `<th>${t}</th>`).join('')}</tr></thead>
       <tbody id="t-ed-linhas">${dados.linhas.map(linhaEdicao).join('')}</tbody></table></div>
       <button type="button" class="fat-btn" id="t-ed-mais"><i data-lucide="plus"></i><span>Adicionar linha</span></button>`;
+    $$('#t-ed-linhas tr').forEach((tr, i) => tr.classList.toggle('t-ed-duvida', duvidas.has(i)));
     contarEdicao();
     if (!dlg.open) dlg.showModal();
+    $('#t-ed-linhas tr.t-ed-duvida')?.scrollIntoView({ block: 'center' });
   }
   const lerEdicao = () => ({
     planilha: { unidade: $('#t-ed-unidade')?.value.trim() || '-', tst: $('#t-ed-tst')?.value.trim() || '-', data: $('#t-ed-data')?.value || hojeISO() },
@@ -284,23 +286,42 @@
     else if (e.target.closest('#t-ed-mais')) { $('#t-ed-linhas').insertAdjacentHTML('beforeend', linhaEdicao({ frota: '-', tipo: '', placa: '-', regional: 'SMA', venc: '', validade: 'Válido', resultado: 'Aprovado', obs: '-' })); contarEdicao(); $('#t-ed-linhas tr:last-child input')?.focus(); }
     else if (e.target.closest('[data-fechar]') || e.target === $('#t-dlg')) $('#t-dlg').close();
   });
+  // guarda a planilha para todos (servidor); sem onde guardar lá, fica neste navegador
+  async function salvar(d) {
+    const r = await fetch('api/termac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ planilha: d.planilha, linhas: d.linhas }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { estado.dados = j.dados; estado.origem = 'servidor'; try { localStorage.removeItem('termac:dados'); } catch (_) {} return 'servidor'; }
+    if (j.navegador) {
+      estado.dados = { planilha: d.planilha, linhas: d.linhas, atualizado: new Date().toISOString() }; estado.origem = 'navegador';
+      try { localStorage.setItem('termac:dados', JSON.stringify(estado.dados)); } catch (_) {}
+      return 'navegador';
+    }
+    throw new Error(j.erro || `erro ${r.status}`);
+  }
+  // aviso no canto depois de atualizar, com "Desfazer"
+  function aviso(html, desfazer) {
+    $('.t-toast')?.remove();
+    const el = document.createElement('div'); el.className = 't-toast'; el.setAttribute('role', 'status');
+    el.innerHTML = `<i data-lucide="circle-check"></i><div>${html}</div>${desfazer ? '<button type="button" class="fat-btn" data-desfazer><i data-lucide="undo-2"></i><span>Desfazer</span></button>' : ''}<button type="button" class="t-toast-x" aria-label="Fechar"><i data-lucide="x"></i></button>`;
+    el.addEventListener('click', async e => {
+      if (e.target.closest('.t-toast-x')) el.remove();
+      else if (e.target.closest('[data-desfazer]')) { el.remove(); try { await salvar(desfazer); renderTudo(); aviso('Voltou para a planilha anterior.'); } catch (ex) { alert(`Não consegui desfazer: ${ex.message}`); } }
+    });
+    document.body.appendChild(el); icones();
+    setTimeout(() => el.remove(), 20000);
+  }
+  const resumoTxt = linhas => { const c = {}; linhas.forEach(l => { const k = situacao(l.validade, l.resultado); c[k] = (c[k] || 0) + 1; }); return `${linhas.length} equipamentos · ${(c.vencido || 0) + (c.reprovado || 0)} bloqueados (${c.vencido || 0} vencidos, ${c.reprovado || 0} reprovados) · ${c.atencao || 0} em atenção`; };
   $('#t-ed-salvar').addEventListener('click', async () => {
     const d = lerEdicao();
     if (!d.linhas.length) { alert('Nenhuma linha para salvar.'); return; }
     const semData = d.linhas.findIndex(l => !l.venc);
     if (semData >= 0) { alert(`A linha ${semData + 1} está sem data de vencimento.`); return; }
     const bt = $('#t-ed-salvar'), rot = $('span', bt), orig = rot.textContent; bt.disabled = true; rot.textContent = 'Salvando…';
+    const antes = estado.dados;
     try {
-      const r = await fetch('api/termac', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
-      const j = await r.json().catch(() => ({}));
-      if (r.ok) { estado.dados = j.dados; estado.origem = 'servidor'; try { localStorage.removeItem('termac:dados'); } catch (_) {} }
-      else if (j.navegador) {   // site publicado sem banco: guarda neste navegador
-        estado.dados = { ...d, atualizado: new Date().toISOString() }; estado.origem = 'navegador';
-        try { localStorage.setItem('termac:dados', JSON.stringify(estado.dados)); } catch (_) {}
-        alert('Salvo só neste navegador: o site publicado ainda não tem o banco (Upstash) para guardar para todos.');
-      } else throw new Error(j.erro || `erro ${r.status}`);
-      $('#t-dlg').close();
-      renderTudo();
+      const onde = await salvar(d);
+      $('#t-dlg').close(); renderTudo();
+      aviso(`<b>Planilha atualizada</b>${onde === 'navegador' ? ' (só neste navegador)' : ''}: ${resumoTxt(d.linhas)}.`, antes);
     } catch (ex) { alert(`Não consegui salvar: ${ex.message}`); }
     finally { bt.disabled = false; rot.textContent = orig; }
   });
@@ -315,23 +336,43 @@
     img.onerror = () => { URL.revokeObjectURL(url); falha(new Error('Não consegui abrir a imagem.')); };
     img.src = url;
   });
+  // linha "boa": tem data, validade e resultado conhecidos
+  const linhaBoa = l => /^\d{4}-\d{2}-\d{2}$/.test(l.venc) && OPC_VAL.includes(l.validade) && OPC_RES.includes(l.resultado) && l.tipo && l.tipo !== '-';
+  // Subir a imagem → ler (IA do servidor, se houver; senão o leitor do navegador) → salvar sozinho.
+  // Só abre a conferência quando alguma linha ficou em dúvida.
   $('#t-arquivo').addEventListener('change', async e => {
     const arq = e.target.files?.[0]; e.target.value = ''; if (!arq) return;
     const bt = $('#t-atualizar'), rot = $('span', bt), orig = rot.textContent; bt.disabled = true; rot.textContent = 'Lendo a imagem…';
+    raiz.classList.add('t-lendo');
+    let L = null, por = '';
     try {
-      const imagem = await reduzir(arq);
-      const r = await fetch('api/termac/ler', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imagem }) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        if (j.semIA) abrirEdicao(estado.dados, '<p class="t-ed-aviso erro"><i data-lucide="bot-off"></i>A leitura automática ainda não está ligada no servidor (falta a chave da IA, ANTHROPIC_API_KEY). Corrija os dados abaixo à mão, olhando a imagem.</p>');
-        else alert(j.erro || `Erro ${r.status}`);
+      if (estado.ia) {
+        try {
+          const r = await fetch('api/termac/ler', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imagem: await reduzir(arq) }) });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok && j.leitura?.linhas?.length) { L = { planilha: j.leitura.planilha, linhas: j.leitura.linhas, duvidas: [] }; por = 'IA'; }
+        } catch (_) { /* cai no leitor do navegador */ }
+      }
+      if (!L) {
+        if (!window.SMA_TERMAC_OCR) throw new Error('o leitor de imagem não carregou');
+        L = await window.SMA_TERMAC_OCR.ler(arq, { anterior: estado.dados, progresso: t => { rot.textContent = t; } });
+        por = 'leitor';
+      }
+      if (!L.linhas.length) throw new Error('não achei a tabela na imagem');
+      if (L.planilha.unidade === '-') L.planilha.unidade = P().unidade;
+      if (L.planilha.tst === '-') L.planilha.tst = P().tst;
+      const duvidas = new Set([...(L.duvidas || []).map(d => d.linha), ...L.linhas.map((l, i) => (linhaBoa(l) ? null : i)).filter(i => i != null)]);
+      if (duvidas.size) {
+        abrirEdicao(L, `<p class="t-ed-aviso"><i data-lucide="scan-text"></i>Li <b>${L.linhas.length} linhas</b> da imagem. <b>${duvidas.size} ${duvidas.size === 1 ? 'ficou' : 'ficaram'} em dúvida</b> (marcadas em amarelo): confira só elas e salve.</p>`, duvidas);
         return;
       }
-      const L = j.leitura, faltam = L.total && L.total !== L.linhas.length;
-      abrirEdicao(L, `<p class="t-ed-aviso"><i data-lucide="sparkles"></i>A IA leu <b>${L.linhas.length} linhas</b> da imagem${faltam ? ` (ela contou ${L.total} na tabela: confira se faltou alguma)` : ''}. Confira com a planilha antes de salvar.</p>
-        ${L.ilegiveis?.length ? `<p class="t-ed-aviso erro"><i data-lucide="eye-off"></i>Ilegíveis: ${L.ilegiveis.map(esc).join(' · ')}</p>` : ''}`);
-    } catch (ex) { alert(`Não consegui ler a imagem: ${ex.message}`); }
-    finally { bt.disabled = false; rot.textContent = orig; }
+      const antes = estado.dados;
+      rot.textContent = 'Salvando…';
+      const onde = await salvar(L);
+      renderTudo();
+      aviso(`<b>Planilha atualizada pela imagem</b>${onde === 'navegador' ? ' (só neste navegador)' : ''}: ${resumoTxt(L.linhas)}.`, antes);
+    } catch (ex) { alert(`Não consegui ler a imagem: ${ex.message}. Use um print da planilha inteira, reto e nítido.`); }
+    finally { bt.disabled = false; rot.textContent = orig; raiz.classList.remove('t-lendo'); }
   });
   $('#t-atualizar').addEventListener('click', () => $('#t-arquivo').click());
   $('#t-editar').addEventListener('click', () => abrirEdicao(estado.dados));

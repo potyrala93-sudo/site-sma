@@ -322,3 +322,16 @@
 .p-pdf-pag .tp-d-perto { color: #b45309 !important; }
 .p-pdf-pag .tp-cals h2 { color: #1f4d36 !important; }
 .p-pdf-pag .tp-pe, .p-pdf-pag .p-pdf-rodape { color: #6b8a80 !important; }
+
+/* ---------- Atualizar pela imagem: dúvidas e aviso ---------- */
+.t-ed tr.t-ed-duvida td { background: rgba(245,158,11,.18); }
+.t-ed tr.t-ed-duvida td:first-child { box-shadow: inset 4px 0 0 #f59e0b; }
+#aba-termac.t-lendo #t-atualizar { box-shadow: 0 0 0 2px var(--neon), 0 0 24px -6px var(--neon); }
+.t-toast { position: fixed; left: 50%; bottom: 22px; z-index: 80; transform: translateX(-50%); display: flex; align-items: center; gap: .8rem; width: min(680px, calc(100vw - 32px)); padding: .8rem .9rem .8rem 1rem; border-radius: 16px; color: var(--texto); background: rgba(4,18,17,.95); border: 1px solid rgba(61,255,168,.5); box-shadow: 0 16px 40px rgba(0,0,0,.5); backdrop-filter: blur(10px); animation: t-toast-entra .4s ease both; }
+.t-toast > svg { width: 22px; height: 22px; flex: none; color: var(--neon); }
+.t-toast > div { flex: 1; font-size: .9rem; line-height: 1.4; }
+.t-toast b { color: var(--texto-forte); }
+.t-toast-x { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border: 0; border-radius: 50%; cursor: pointer; color: var(--texto-suave); background: rgb(var(--tinta-rgb) / .08); }
+.t-toast-x svg { width: 16px; height: 16px; }
+@keyframes t-toast-entra { from { opacity: 0; transform: translate(-50%, 14px); } }
+@media (max-width: 640px) { .t-toast { flex-wrap: wrap; bottom: 90px; } }
