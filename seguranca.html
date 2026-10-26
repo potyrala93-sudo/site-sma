@@ -23,6 +23,7 @@
   <script src="js/main.js" defer></script>
   <script src="js/pdf.js" defer></script>
   <script src="js/seguranca.js" defer></script>
+  <script src="js/termac.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
 </head>
@@ -38,11 +39,11 @@
       <div class="container fat-hero-inner">
         <div>
           <span class="pill reveal"><span class="tag">Painel</span><span>Segurança · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
-          <h1 class="fat-titulo reveal" id="s-titulo" style="--d:.08s">Segurança · <span class="serif">Notas SSQV</span></h1>
-          <p class="fat-sub reveal" style="--d:.16s">Nota mensal de Segurança, Saúde e Qualidade de Vida em relação à meta, mês a mês, direto da planilha. Quanto maior, melhor.</p>
-          <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="s-status">Carregando notas…</span></p>
+          <h1 class="fat-titulo reveal" id="s-titulo" style="--d:.08s">Segurança · <span class="serif" id="s-titulo-aba">Notas SSQV</span></h1>
+          <p class="fat-sub reveal" id="s-sub" style="--d:.16s">Nota mensal de Segurança, Saúde e Qualidade de Vida em relação à meta, mês a mês, direto da planilha. Quanto maior, melhor.</p>
+          <p class="fat-status reveal" id="s-fonte" style="--d:.24s"><i data-lucide="database"></i> Google Sheets · <span id="s-status">Carregando notas…</span></p>
         </div>
-        <div class="q-hero-legenda glass reveal" style="--d:.2s" aria-label="Status do mês">
+        <div class="q-hero-legenda glass reveal" id="s-legenda-ssqv" style="--d:.2s" aria-label="Status do mês">
           <span class="eyebrow">Status do mês · meta <b id="s-meta-rot">—</b></span>
           <div class="q-faixas">
             <span style="--c:#22e07a"><b>na meta ou acima</b>Acima da meta</span>
@@ -53,6 +54,15 @@
       </div>
     </section>
 
+    <!-- ===== Abas: SSQV e TERMAC ===== -->
+    <div class="container s-abas-wrap">
+      <div class="s-abas glass" role="tablist" aria-label="Painéis de segurança">
+        <button type="button" role="tab" id="s-tab-ssqv" data-aba="ssqv" aria-selected="true" aria-controls="aba-ssqv"><i data-lucide="shield-check"></i><span>Notas SSQV</span></button>
+        <button type="button" role="tab" id="s-tab-termac" data-aba="termac" aria-selected="false" aria-controls="aba-termac"><i data-lucide="truck"></i><span>Inspeções TERMAC</span></button>
+      </div>
+    </div>
+
+    <div id="aba-ssqv" role="tabpanel" aria-labelledby="s-tab-ssqv">
     <!-- ===== Filtros ===== -->
     <div class="fat-barra-wrap">
       <div class="container">
@@ -109,8 +119,85 @@
         <p class="s-rodape" id="s-rodape"></p>
       </section>
     </div>
+    </div>
+
+    <!-- ===== Inspeções TERMAC (js/termac.js) ===== -->
+    <div id="aba-termac" class="fat-conteudo" role="tabpanel" aria-labelledby="s-tab-termac" hidden>
+      <section class="container fat-secao">
+        <div class="t-cab glass" id="t-cab"></div>
+        <div class="t-resumo glass" id="t-resumo"></div>
+      </section>
+
+      <section class="container fat-secao" aria-label="Indicadores das inspeções">
+        <div class="t-kpis" id="t-kpis"></div>
+      </section>
+
+      <section class="container fat-secao t-dupla">
+        <div>
+          <div class="fat-sec-head"><div><span class="eyebrow">Por equipamento</span><h2 class="fat-sec-titulo">Situação por <span class="serif">categoria</span></h2></div></div>
+          <div class="fat-painel glass"><div class="fat-grafico"><canvas id="t-g-cat" role="img" aria-label="Situação por categoria de equipamento"></canvas></div></div>
+        </div>
+        <div>
+          <div class="fat-sec-head"><div><span class="eyebrow">Calendário</span><h2 class="fat-sec-titulo">Vencimentos por <span class="serif">mês</span></h2></div></div>
+          <div class="fat-painel glass"><div class="fat-grafico"><canvas id="t-g-mes" role="img" aria-label="Vencimentos por mês e situação"></canvas></div></div>
+        </div>
+      </section>
+
+      <section class="container fat-secao">
+        <div class="fat-sec-head"><div><span class="eyebrow">Não operar</span><h2 class="fat-sec-titulo">Equipamentos <span class="serif">bloqueados</span></h2></div><p class="fat-sec-sub" id="t-bloq-sub"></p></div>
+        <div class="fat-painel glass tabela-wrap" id="t-bloq"></div>
+      </section>
+
+      <section class="container fat-secao">
+        <div class="fat-sec-head"><div><span class="eyebrow">Renovar a inspeção</span><h2 class="fat-sec-titulo">Agenda de <span class="serif">renovação</span></h2></div><p class="fat-sec-sub" id="t-agenda-sub"></p></div>
+        <div class="fat-painel glass tabela-wrap" id="t-agenda"></div>
+      </section>
+
+      <section class="container fat-secao" id="t-todos-sec">
+        <div class="fat-sec-head"><div><span class="eyebrow">Planilha completa</span><h2 class="fat-sec-titulo">Todos os <span class="serif">equipamentos</span></h2></div><p class="fat-sec-sub" id="t-todos-sub"></p></div>
+        <div class="t-ferr">
+          <label class="t-busca"><i data-lucide="search"></i><input type="search" id="t-busca" placeholder="Buscar frota, placa, tipo, observação…" aria-label="Buscar equipamento"></label>
+          <div class="t-filtros" id="t-filtros" role="group" aria-label="Filtrar por situação">
+            <button type="button" data-filtro="">Todos</button>
+            <button type="button" data-filtro="vencido" style="--c:#dc2626">Vencido</button>
+            <button type="button" data-filtro="reprovado" style="--c:#f87171">Reprovado</button>
+            <button type="button" data-filtro="atencao" style="--c:#f59e0b">Atenção</button>
+            <button type="button" data-filtro="liberado" style="--c:#22c55e">Liberado</button>
+          </div>
+        </div>
+        <div class="fat-painel glass tabela-wrap" id="t-todos"></div>
+      </section>
+
+      <section class="container fat-secao">
+        <div class="fat-sec-head"><div><span class="eyebrow">Conferência</span><h2 class="fat-sec-titulo">Pontos de <span class="serif">atenção</span> na planilha</h2></div></div>
+        <div class="fat-painel glass t-conf" id="t-conf"></div>
+      </section>
+    </div>
   </main>
 
   <footer class="site-footer" id="site-footer"></footer>
+  <script>
+    // Abas da Segurança: SSQV e TERMAC (lembra a aba pelo endereço: seguranca.html#termac)
+    (function () {
+      var TEXTOS = {
+        ssqv: { titulo: 'Notas SSQV', sub: 'Nota mensal de Segurança, Saúde e Qualidade de Vida em relação à meta, mês a mês, direto da planilha. Quanto maior, melhor.' },
+        termac: { titulo: 'Inspeções TERMAC', sub: 'Vencimento das inspeções TERMAC dos caminhões, muncks, tratores, implementos e Thomaz: o que está bloqueado, o que precisa renovar e o que está liberado.' }
+      };
+      function abrir(aba, rolar) {
+        document.querySelectorAll('.s-abas [data-aba]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.aba === aba)); });
+        document.getElementById('aba-ssqv').hidden = aba !== 'ssqv';
+        document.getElementById('aba-termac').hidden = aba !== 'termac';
+        document.getElementById('s-legenda-ssqv').hidden = aba !== 'ssqv';
+        document.getElementById('s-fonte').hidden = aba !== 'ssqv';
+        document.getElementById('s-titulo-aba').textContent = TEXTOS[aba].titulo;
+        document.getElementById('s-sub').textContent = TEXTOS[aba].sub;
+        if (aba === 'termac' && window.SMA_TERMAC) window.SMA_TERMAC.mostrar();
+        if (history.replaceState) history.replaceState(null, '', aba === 'termac' ? '#termac' : location.pathname + location.search);
+        if (rolar) document.querySelector('.s-abas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      document.querySelector('.s-abas').addEventListener('click', function (e) { var b = e.target.closest('[data-aba]'); if (b) abrir(b.dataset.aba, false); });
+      document.addEventListener('DOMContentLoaded', function () { abrir(location.hash === '#termac' ? 'termac' : 'ssqv', false); });
+    })();
+  </script>
 </body>
 </html>
