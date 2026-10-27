@@ -36,10 +36,9 @@
     atencao:   { nome: 'Atenção',          cor: '#fbbf24', ordem: 2 },
     prazo:     { nome: 'No prazo',         cor: '#22e07a', ordem: 3 },
     semBase:   { nome: 'Sem data base',    cor: '#94a3b8', ordem: 4 },
-    antiga:    { nome: 'Pendência antiga', cor: '#b07a4a', ordem: 5 },
-    concluida: { nome: 'Concluída',        cor: '#64748b', ordem: 6 }
+    concluida: { nome: 'Concluída',        cor: '#64748b', ordem: 5 }
   };
-  const ORDEM_CARDS = ['vencida', 'hoje', 'atencao', 'prazo', 'semBase', 'antiga', 'concluida'];
+  const ORDEM_CARDS = ['vencida', 'hoje', 'atencao', 'prazo', 'semBase', 'concluida'];
   const CARDS = ORDEM_CARDS;   // todas as situações têm cartão (clique para esconder ou mostrar)
   const URGENTES = new Set(['vencida', 'hoje', 'atencao']);
 
@@ -127,15 +126,18 @@
     if (x.r[2] && x.r[1] && x.r[2] < x.r[1]) avisos.push('R3 antes da R2');
     const diasPlantio = x.plantio ? entre(x.plantio, ref) : null;
     const base = { ...x, avisos, diasPlantio, prev: [null, null, null], prox: null, venc: null, resta: null };
-    if (x.r.every(Boolean)) return { ...base, sit: 'concluida' };
-    const prox = x.r.findIndex(d => !d);
+    // Remonta com data = feita. A próxima é a que vem depois da última lançada
+    // (se a R3 tem data, a UP está concluída mesmo que a R2 esteja em branco)
+    const ultima = x.r.reduce((u, d, i) => (d ? i : u), -1);
+    if (ultima === 2) return { ...base, sit: 'concluida' };
+    const prox = ultima + 1;
     const anterior = prox === 0 ? x.pp : x.r[prox - 1];
     if (!anterior) return { ...base, prox, sit: 'semBase' };
     const venc = somar(anterior, dias[prox]);
     const prev = [null, null, null];
     let p = venc; for (let j = prox + 1; j < 3; j++) { p = somar(p, dias[j]); prev[j] = p; }
     const resta = entre(ref, venc);
-    const sit = resta < 0 ? (-resta > +par.antiga ? 'antiga' : 'vencida') : resta === 0 ? 'hoje' : resta <= +par.alerta ? 'atencao' : 'prazo';
+    const sit = resta < 0 ? 'vencida' : resta === 0 ? 'hoje' : resta <= +par.alerta ? 'atencao' : 'prazo';
     return { ...base, prox, venc, prev, resta, sit };
   }
   function calcular() {
@@ -158,7 +160,7 @@
     estado.calc = calc;
     estado.fazendas = [...porFaz.entries()].map(([nome, ups]) => {
       const urg = ups.filter(u => URGENTES.has(u.sit)), junto = ups.filter(u => u.junto);
-      const comVenc = ups.filter(u => u.venc && u.sit !== 'antiga' && u.sit !== 'concluida');
+      const comVenc = ups.filter(u => u.venc && u.sit !== 'concluida');
       const pior = Math.min(...ups.map(u => SIT[u.sit].ordem));
       const maisCurto = [...urg].sort((a, b) => a.venc - b.venc)[0] || null;
       return { nome, ups, urg, junto, pior, maisCurto, prox: comVenc.length ? new Date(Math.min(...comVenc.map(u => u.venc))) : null,
@@ -207,7 +209,7 @@
   }
   function renderParam() {
     const f = $('#rm-param');
-    ['r1', 'r2', 'r3', 'alerta', 'junto', 'antiga'].forEach(k => { if (document.activeElement !== f[k]) f[k].value = par[k]; });
+    ['r1', 'r2', 'r3', 'alerta', 'junto'].forEach(k => { if (document.activeElement !== f[k]) f[k].value = par[k]; });
     if (document.activeElement !== f.ref) f.ref.value = iso(refData());
     $('#rm-hoje').hidden = !par.ref;
   }

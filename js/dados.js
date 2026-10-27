@@ -162,7 +162,7 @@ const PRODUCAO = {
     planilha: '1SIhbYLG8Qg6LXS4_APPul7Q9pzEtHshT',
     aba: 1247467033,
     // Valores padrão dos parâmetros (o usuário muda no topo da aba e fica salvo no navegador)
-    padrao: { r1: 20, r2: 20, r3: 20, alerta: 5, junto: 10, antiga: 30 }
+    padrao: { r1: 20, r2: 20, r3: 20, alerta: 5, junto: 10 }
   },
 
   // Produção Realizada: aba de apontamentos da planilha do Faturamento (cabeçalho achado pelo nome, não pela linha)
