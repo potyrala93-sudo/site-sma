@@ -58,7 +58,8 @@
   try { metodos = JSON.parse(localStorage.getItem(CHAVE_MET) || '{}') || {}; } catch { metodos = {}; }
   const salvarMetodos = () => { try { localStorage.setItem(CHAVE_MET, JSON.stringify(metodos)); } catch { /* opcional */ } };
 
-  const estado = { ordem: { k: 'venc', dir: 1 }, linhas: [], calc: [], fazendas: [], visao: 'lista', busca: '', ativos: new Set(ORDEM_CARDS), lido: null, carregando: false, iniciado: false };
+  const estado = { ordem: { k: 'venc', dir: 1 }, linhas: [], calc: [], fazendas: [], visao: 'lista', busca: '', ativos: new Set(ORDEM_CARDS), todas: [],
+    f: { ano: new Set(), mes: new Set(), faz: new Set(), met: new Set() }, aberto: '', lido: null, carregando: false, iniciado: false };
 
   /* ---------- Leitura ---------- */
   // dd/mm/aaaa → Date; "-", vazio, "#VALUE!" e datas antes de 2000 (29/01/1900) = vazio
@@ -162,7 +163,11 @@
   function calcular() {
     const ref = refData();
     const escolhidas = new Set((par.remontas?.length ? par.remontas : [1, 2, 3]).map(Number));
-    const calc = estado.linhas.map(x => calcularUP(x, ref)).filter(u => u.prox == null || escolhidas.has(u.prox + 1));
+    const todas = estado.linhas.map(x => calcularUP(x, ref)).filter(u => u.prox == null || escolhidas.has(u.prox + 1));
+    // Data usada no filtro de ano e mês: o vencimento da próxima remonta; sem vencimento, a última aplicação
+    todas.forEach(u => { u.dataF = u.venc || [...u.r].reverse().find(Boolean) || u.pp || null; });
+    estado.todas = todas;
+    const calc = todas.filter(passaPeriodo);
     // Fazer junto: UPs "No prazo" que vencem até X dias depois do maior vencimento entre as urgentes da fazenda
     const porFaz = new Map();
     calc.forEach(u => (porFaz.get(u.fazenda) || porFaz.set(u.fazenda, []).get(u.fazenda)).push(u));
@@ -183,6 +188,15 @@
     });
   }
 
+  // Ano, mês e fazenda (seleção múltipla; nada marcado = todos): valem para cartões, "Programar agora" e tabelas
+  function passaPeriodo(u) {
+    const { ano, mes, faz } = estado.f, d = u.dataF;
+    if (faz.size && !faz.has(u.fazenda)) return false;
+    if (ano.size && !(d && ano.has(d.getFullYear()))) return false;
+    if (mes.size && !(d && mes.has(d.getMonth() + 1))) return false;
+    return true;
+  }
+
   /* ---------- Tela ---------- */
   // Ordem cronológica: o vencimento mais próximo (ou mais atrasado) primeiro; sem vencimento vai para o fim
   const porVenc = (a, b) => (a.venc ? +a.venc : Infinity) - (b.venc ? +b.venc : Infinity) || SIT[a.sit].ordem - SIT[b.sit].ordem || a.fazenda.localeCompare(b.fazenda) || a.up.localeCompare(b.up);
@@ -198,20 +212,20 @@
   const ordenarUPs = (a, b) => (ORDENS[estado.ordem.k] || porVenc)(a, b) * estado.ordem.dir;
   const passaBusca = u => { const t = semAcento(estado.busca).toUpperCase().trim(); return !t || semAcento(`${u.fazenda} ${u.up}`).toUpperCase().includes(t); };
   const visivelSemMetodo = u => estado.ativos.has(u.sit) && passaBusca(u);
-  const passaMetodo = u => !estado.metodo || (estado.metodo === 'nenhum' ? !metodos[u.chave] : metodos[u.chave] === estado.metodo);
+  const passaMetodo = u => !estado.f.met.size || estado.f.met.has(metodos[u.chave] || 'nenhum');
   const visivel = u => visivelSemMetodo(u) && passaMetodo(u);
 
   function render() {
     const ref = refData();
     $('#rm-ref-txt').textContent = dmy(ref) + (par.ref ? '' : ' (hoje)');
     $('#rm-lido').textContent = estado.lido ? estado.lido.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-    renderParam(); renderRemontas(); renderCards(); renderProgramar(); renderFiltroSit(); renderLista(); renderMetodos();
+    renderParam(); renderRemontas(); renderCards(); renderProgramar(); renderFiltros(); renderLista(); renderMetodos();
     icones();
   }
   function renderRemontas() {
     const sel = new Set((par.remontas || [1, 2, 3]).map(Number));
     $$('#rm-remontas [data-r]').forEach(b => { const on = b.dataset.r === 'todas' ? sel.size === 3 : sel.has(+b.dataset.r); b.classList.toggle('ativo', on); b.setAttribute('aria-pressed', String(on)); });
-    $('#rm-remontas-info').textContent = sel.size === 3 ? 'Todas as remontas' : `Só ${[...sel].sort().map(n => `Remonta ${n}`).join(' e ')}: cartões, "Programar agora" e a ordem das fazendas consideram só ${sel.size > 1 ? 'elas' : 'ela'}`;
+    $('#rm-remontas-info').textContent = sel.size === 3 ? 'Todas as remontas · clique para marcar ou desmarcar cada uma' : `Só ${[...sel].sort().map(n => `Remonta ${n}`).join(' e ')}: cartões, "Programar agora" e a ordem das fazendas consideram só ${sel.size > 1 ? 'elas' : 'ela'}`;
   }
   function renderParam() {
     const f = $('#rm-param');
@@ -323,12 +337,49 @@
     }).join('');
   }
 
-  // Filtro de situação na própria tabela (anda junto com os cartões)
-  function renderFiltroSit() {
-    const sel = $('#rm-f-sit'), um = estado.ativos.size === 1 ? [...estado.ativos][0] : '';
-    sel.innerHTML = `<option value="">Todas as situações</option>${CARDS.map(k => `<option value="${k}" ${um === k ? 'selected' : ''}>${SIT[k].nome} (${estado.calc.filter(u => u.sit === k).length})</option>`).join('')}${!um && estado.ativos.size !== CARDS.length ? '<option value="mix" selected>Escolhidas nos cartões</option>' : ''}`;
-    $('#rm-f-met').value = estado.metodo || '';
+  // Filtros de seleção múltipla (caixinhas): nada marcado = todos
+  const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const conta = (lista, f) => lista.reduce((m, u) => { const k = f(u); if (k != null) m.set(k, (m.get(k) || 0) + 1); return m; }, new Map());
+  // UPs que passam por ano/mês/fazenda ignorando um deles (para contar as opções daquele filtro)
+  const semFiltro = k => estado.todas.filter(u => { const s = estado.f[k]; estado.f[k] = new Set(); const ok = passaPeriodo(u); estado.f[k] = s; return ok; });
+  function opcoesFiltros() {
+    const comPeriodo = estado.todas.filter(passaPeriodo);
+    const nAno = conta(semFiltro('ano'), u => u.dataF?.getFullYear()), nMes = conta(semFiltro('mes'), u => (u.dataF ? u.dataF.getMonth() + 1 : null)), nFaz = conta(semFiltro('faz'), u => u.fazenda);
+    const nSit = conta(comPeriodo.filter(u => passaBusca(u) && passaMetodo(u)), u => u.sit);
+    const nMet = conta(comPeriodo.filter(u => estado.ativos.has(u.sit) && passaBusca(u)), u => metodos[u.chave] || 'nenhum');
+    const anos = [...new Set([...nAno.keys(), ...estado.f.ano])].sort((a, b) => b - a);
+    return {
+      ano: { rot: 'Ano', icone: 'calendar', sel: estado.f.ano, op: anos.map(v => ({ v, t: String(v), n: nAno.get(v) || 0 })) },
+      mes: { rot: 'Mês', icone: 'calendar-days', sel: estado.f.mes, op: MESES.map((t, i) => ({ v: i + 1, t, n: nMes.get(i + 1) || 0 })) },
+      faz: { rot: 'Fazenda', icone: 'tractor', sel: estado.f.faz, op: [...new Set([...nFaz.keys(), ...estado.f.faz])].sort((a, b) => a.localeCompare(b, 'pt-BR')).map(v => ({ v, t: v, n: nFaz.get(v) || 0 })) },
+      sit: { rot: 'Situação', icone: 'filter', sel: estado.ativos, cheio: true, op: ORDEM_CARDS.map(k => ({ v: k, t: SIT[k].nome, n: nSit.get(k) || 0, cor: SIT[k].cor })) },
+      met: { rot: 'Quem faz', icone: 'users', sel: estado.f.met, op: [['barrao', 'Barrão'], ['drone', 'Drone'], ['nenhum', 'A definir']].map(([v, t]) => ({ v, t, n: nMet.get(v) || 0 })) }
+    };
   }
+  // Texto do botão: "Todos", o item escolhido ou "3 escolhidos"
+  function resumoFiltro(o) {
+    const marcados = o.op.filter(x => o.sel.has(x.v));
+    if (o.cheio ? marcados.length === o.op.length : !marcados.length) return 'Todos';
+    if (!marcados.length) return 'Nenhum';
+    return marcados.length === 1 ? marcados[0].t : `${marcados.length} escolhidos`;
+  }
+  const filtrosAtivos = () => estado.f.ano.size || estado.f.mes.size || estado.f.faz.size || estado.f.met.size || estado.ativos.size !== ORDEM_CARDS.length;
+  function renderFiltros() {
+    const el = $('#rm-filtros'); if (!el) return;
+    el.innerHTML = Object.entries(opcoesFiltros()).map(([k, o]) => {
+      const ativo = o.cheio ? o.sel.size !== o.op.length : o.sel.size > 0, aberto = estado.aberto === k;
+      return `<div class="rm-ms ${ativo ? 'ativo' : ''}" data-f="${k}">
+        <button type="button" class="rm-ms-bt" aria-haspopup="true" aria-expanded="${aberto}"><i data-lucide="${o.icone}"></i><span>${o.rot}</span><b>${esc(resumoFiltro(o))}</b><i data-lucide="chevron-down" class="rm-ms-seta"></i></button>
+        <div class="rm-ms-pop" role="group" aria-label="${o.rot}" ${aberto ? '' : 'hidden'}>
+          <div class="rm-ms-acoes"><button type="button" data-todos>Marcar todos</button><button type="button" data-limpar>${o.cheio ? 'Desmarcar' : 'Limpar'}</button></div>
+          <div class="rm-ms-lista">${o.op.length ? o.op.map(x => `<label class="${x.n ? '' : 'vazio'}"><input type="checkbox" value="${esc(x.v)}" ${o.sel.has(x.v) ? 'checked' : ''}>${x.cor ? `<i class="rm-ms-cor" style="--c:${x.cor}"></i>` : ''}<span>${esc(x.t)}</span><small>${x.n}</small></label>`).join('') : '<p class="rm-ms-nada">Sem opções</p>'}</div>
+        </div>
+      </div>`;
+    }).join('') + (filtrosAtivos() ? '<button type="button" class="rm-ms-zerar" id="rm-zerar"><i data-lucide="x"></i>Limpar filtros</button>' : '');
+  }
+  // Valor da caixinha volta ao tipo certo (ano e mês são números)
+  const valorFiltro = (k, v) => (k === 'ano' || k === 'mes' ? +v : v);
+  const conjunto = k => (k === 'sit' ? estado.ativos : estado.f[k]);
 
   // Tabelas de Barrão e de Drone: UPs marcadas, agrupadas por fazenda na ordem de prioridade
   function renderMetodos() {
@@ -364,8 +415,7 @@
     const b = e.target.closest('[data-r]'); if (!b) return;
     const n = +b.dataset.r, sel = new Set((par.remontas || [1, 2, 3]).map(Number));
     if (b.dataset.r === 'todas') { par.remontas = [1, 2, 3]; }
-    else if (e.ctrlKey || e.metaKey || e.shiftKey) { sel.has(n) ? sel.delete(n) : sel.add(n); par.remontas = sel.size ? [...sel].sort() : [n]; }
-    else par.remontas = sel.size === 1 && sel.has(n) ? [1, 2, 3] : [n];   // clique escolhe só uma; clicar de novo volta a todas
+    else { sel.has(n) ? sel.delete(n) : sel.add(n); par.remontas = sel.size ? [...sel].sort() : [1, 2, 3]; }   // clique marca ou desmarca (várias ao mesmo tempo)
     salvar(); calcular(); render();
   });
   $('#rm-hoje').addEventListener('click', () => { par.ref = ''; salvar(); calcular(); render(); });
@@ -374,8 +424,28 @@
   $('#rm-cards').addEventListener('click', e => {
     const b = e.target.closest('[data-sit]'); if (!b) return;
     const k = b.dataset.sit; estado.ativos.has(k) ? estado.ativos.delete(k) : estado.ativos.add(k);
-    renderCards(); renderFiltroSit(); renderLista(); renderMetodos(); icones();
+    renderCards(); renderFiltros(); renderLista(); renderMetodos(); icones();
   });
+  // Filtros de seleção múltipla: abrir/fechar, marcar, marcar todos, limpar
+  const atualizarFiltros = () => { calcular(); render(); };
+  const fecharFiltros = () => { estado.aberto = ''; renderFiltros(); icones(); };
+  $('#rm-filtros').addEventListener('click', e => {
+    if (e.target.closest('#rm-zerar')) { Object.values(estado.f).forEach(s => s.clear()); estado.ativos = new Set(ORDEM_CARDS); estado.aberto = ''; atualizarFiltros(); return; }
+    const caixa = e.target.closest('.rm-ms'), k = caixa?.dataset.f; if (!k) return;
+    if (e.target.closest('.rm-ms-bt')) { estado.aberto = estado.aberto === k ? '' : k; renderFiltros(); icones(); return; }
+    const s = conjunto(k);
+    if (e.target.closest('[data-todos]')) { $$('.rm-ms-lista input', caixa).forEach(i => s.add(valorFiltro(k, i.value))); atualizarFiltros(); }
+    else if (e.target.closest('[data-limpar]')) { s.clear(); atualizarFiltros(); }
+  });
+  $('#rm-filtros').addEventListener('change', e => {
+    const i = e.target.closest('.rm-ms-lista input'); if (!i) return;
+    const k = i.closest('.rm-ms').dataset.f, s = conjunto(k), v = valorFiltro(k, i.value);
+    i.checked ? s.add(v) : s.delete(v);
+    atualizarFiltros();
+  });
+  // composedPath: o clique dentro do filtro redesenha a caixa, e o alvo já não está mais na página
+  document.addEventListener('click', e => { if (estado.aberto && !e.composedPath().some(n => n.id === 'rm-filtros')) fecharFiltros(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && estado.aberto) fecharFiltros(); });
   let espera;
   // Quem faz: clicar marca; clicar de novo (ou no X das tabelas de Barrão/Drone) tira
   aba.addEventListener('click', e => {
@@ -391,14 +461,8 @@
     estado.ordem = estado.ordem.k === k ? { k, dir: -estado.ordem.dir } : { k, dir: 1 };
     renderLista(); renderMetodos(); icones();
   });
-  $('#rm-f-sit').addEventListener('change', e => {
-    const v = e.target.value; if (v === 'mix') return;
-    estado.ativos = v ? new Set([v]) : new Set(CARDS);
-    renderCards(); renderFiltroSit(); renderLista(); renderMetodos(); icones();
-  });
-  $('#rm-f-met').addEventListener('change', e => { estado.metodo = e.target.value; renderLista(); renderMetodos(); icones(); });
 
-  $('#rm-busca').addEventListener('input', e => { clearTimeout(espera); espera = setTimeout(() => { estado.busca = e.target.value; renderLista(); renderMetodos(); icones(); }, 150); });
+  $('#rm-busca').addEventListener('input', e => { clearTimeout(espera); espera = setTimeout(() => { estado.busca = e.target.value; renderFiltros(); renderLista(); renderMetodos(); icones(); }, 150); });
   $('.rm-visao').addEventListener('click', e => {
     const b = e.target.closest('[data-visao]'); if (!b) return;
     estado.visao = b.dataset.visao;
@@ -409,7 +473,7 @@
     const b = e.target.closest('[data-ir]'); if (!b) return;
     if (estado.visao !== 'fazenda') $('.rm-visao [data-visao="fazenda"]').click();
     const alvo = document.getElementById(`rm-faz-${encodeURIComponent(b.dataset.ir)}`);
-    if (!alvo) { estado.ativos = new Set(CARDS); estado.busca = ''; $('#rm-busca').value = ''; render(); }
+    if (!alvo) { estado.ativos = new Set(ORDEM_CARDS); estado.busca = ''; $('#rm-busca').value = ''; render(); }
     document.getElementById(`rm-faz-${encodeURIComponent(b.dataset.ir)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   $('#rm-programar').addEventListener('click', irParaFazenda);
@@ -425,7 +489,8 @@
     const cont = CARDS.map(k => { const l = estado.calc.filter(u => u.sit === k); return `${SIT[k].nome}: ${l.length} UPs (${ha(l.reduce((s, u) => s + u.area, 0))} ha)`; }).join('; ');
     const faz = ordemFazendas(estado.fazendas.map(f => ({ ...f, vis: f.ups.filter(u => URGENTES.has(u.sit) || u.sit === 'prazo').sort(ordenarUPs) })).filter(f => f.vis.length)).slice(0, 8)
       .map((f, i) => `${i + 1}º ${f.nome}: ${f.vis.slice(0, 4).map(u => `${u.up} ${nomeRemonta(u.prox)} ${dmy(u.venc)} (${SIT[u.sit].nome}${metodos[u.chave] ? `, ${METODOS[metodos[u.chave]].nome}` : ''})`).join(', ')}`).join('\n');
-    return `Painel Controle de Remonta Pré-Emergente (data de referência ${dmy(refData())}; R1 ${par.r1} d após Pós+Pré, R2 ${par.r2} d, R3 ${par.r3} d; filtro de remonta: ${(par.remontas || [1, 2, 3]).join(', ')}).
+    const filtros = [['Ano', [...estado.f.ano]], ['Mês', [...estado.f.mes].map(m => MESES[m - 1])], ['Fazenda', [...estado.f.faz]]].filter(([, l]) => l.length).map(([n, l]) => `${n}: ${l.join(', ')}`).join('; ');
+    return `Painel Controle de Remonta Pré-Emergente (data de referência ${dmy(refData())};${filtros ? ` filtros: ${filtros};` : ''} R1 ${par.r1} d após Pós+Pré, R2 ${par.r2} d, R3 ${par.r3} d; filtro de remonta: ${(par.remontas || [1, 2, 3]).join(', ')}).
 ${cont}.
 Ordem sugerida das fazendas:
 ${faz || 'nenhuma com remonta pendente'}`;

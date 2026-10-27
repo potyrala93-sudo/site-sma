@@ -373,6 +373,7 @@
           <button type="button" data-r="3" aria-pressed="true">Remonta 3</button>
           <small id="rm-remontas-info"></small>
         </div>
+        <div class="rm-filtros" id="rm-filtros" role="group" aria-label="Filtros: ano, mês, fazenda, situação e quem faz"></div>
         <div class="rm-cards" id="rm-cards"></div>
       </section>
       <section class="container fat-secao" aria-labelledby="rm-prog-tit">
@@ -384,8 +385,6 @@
           <div><span class="eyebrow">UPs</span><h2 class="fat-sec-titulo" id="rm-lista-tit">Remontas <span class="serif">por vencimento</span></h2></div>
           <div class="rm-ferramentas">
             <label class="p-busca rm-busca"><i data-lucide="search"></i><input type="search" id="rm-busca" placeholder="Buscar fazenda ou UP" aria-label="Buscar fazenda ou UP"></label>
-            <label class="rm-sel"><i data-lucide="filter"></i><select id="rm-f-sit" aria-label="Filtrar por situação"></select></label>
-            <label class="rm-sel"><i data-lucide="users"></i><select id="rm-f-met" aria-label="Filtrar por quem faz"><option value="">Barrão e Drone</option><option value="barrao">Só Barrão</option><option value="drone">Só Drone</option><option value="nenhum">A definir</option></select></label>
             <div class="rm-visao" role="group" aria-label="Visão">
               <button type="button" data-visao="lista" aria-pressed="true"><i data-lucide="calendar-arrow-up"></i>Ordem de vencimento</button>
               <button type="button" data-visao="fazenda" aria-pressed="false"><i data-lucide="tractor"></i>Agrupar por fazenda</button>
