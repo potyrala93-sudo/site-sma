@@ -161,6 +161,8 @@ const PRODUCAO = {
   remonta: {
     planilha: '1SIhbYLG8Qg6LXS4_APPul7Q9pzEtHshT',
     aba: 1247467033,
+    // Aba BD (apontamentos): completa as UPs que ainda não foram lançadas na BASE
+    bd: 1364890849,
     // Valores padrão dos parâmetros (o usuário muda no topo da aba e fica salvo no navegador)
     padrao: { r1: 20, r2: 20, r3: 20, alerta: 5, junto: 10, antiga: 30 }
   },
