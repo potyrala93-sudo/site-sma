@@ -75,11 +75,24 @@
 
   /* ---------- Leitura ---------- */
   // dd/mm/aaaa → Date; "-", vazio, "#VALUE!" e datas antes de 2000 (29/01/1900) = vazio
-  function data(t) {
-    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(t ?? '').trim());
+  // Data escrita sem ano ("02/09") ou com ano de 2 dígitos ("02/09/26"): o ano vem da data anterior da UP
+  // (ou de hoje); se assim cair mais de 2 meses antes dela, é do ano seguinte. Fica marcada em semAno.
+  function data(t, base = null) {
+    const m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?$/.exec(String(t ?? '').trim());
     if (!m) return null;
-    const d = new Date(+m[3], +m[2] - 1, +m[1]);
-    return d.getFullYear() < 2000 || d.getDate() !== +m[1] ? null : d;
+    let ano = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : (base || new Date()).getFullYear();
+    let d = new Date(ano, +m[2] - 1, +m[1]);
+    if (!m[3] && base && entre(d, base) > 60) d = new Date(++ano, +m[2] - 1, +m[1]);
+    if (d.getFullYear() < 2000 || d.getDate() !== +m[1]) return null;
+    if (!m[3]) d.semAno = true;
+    return d;
+  }
+  // Datas da UP em ordem (Pós + Pré → R1 → R2 → R3): cada uma dá o ano para a seguinte, se vier sem ano
+  function datasUP(l) {
+    const plantio = data(l[COL.plantio]), pp = data(l[COL.pp], plantio);
+    const r = []; let base = pp || plantio;
+    [COL.r1, COL.r2, COL.r3].forEach(c => { const d = data(l[c], base); r.push(d); if (d) base = d; });
+    return { plantio, pp, r };
   }
   const nomeFazenda = t => String(t ?? '').replace(/\s+/g, ' ').replace(/\s+\)/g, ')').trim();
   // Colunas pelo nome (sem acento, maiúsculas); "Plantio" é a coluna exata (não "Dias do Plantio" nem "Replantio")
@@ -95,7 +108,7 @@
       if (faltam.length) throw new Error(`coluna(s) não encontrada(s): ${faltam.join(', ')}`);
       estado.linhas = linhas.map((l, i) => ({
         id: i, fazenda: nomeFazenda(l[COL.faz]), up: String(l[COL.up] ?? '').trim().toUpperCase(), area: P.num(l[COL.area]),
-        plantio: data(l[COL.plantio]), pp: data(l[COL.pp]), r: [data(l[COL.r1]), data(l[COL.r2]), data(l[COL.r3])]
+        ...datasUP(l)
       })).filter(x => x.fazenda && x.up && x.up !== '-');
       const vistos = new Map();
       estado.linhas.forEach(x => { const k = `${x.fazenda}|${x.up}`; const n = (vistos.get(k) || 0) + 1; vistos.set(k, n); x.chave = `${k}|${n}`; });
@@ -119,6 +132,7 @@
     const dias = [+par.r1, +par.r2, +par.r3];
     const avisos = [];
     [['Pós + Pré', x.pp], ['R1', x.r[0]], ['R2', x.r[1]], ['R3', x.r[2]]].forEach(([n, d]) => { if (d && d > ref) avisos.push(`${n} com data no futuro (${dm(d)})`); });
+    [['Pós + Pré', x.pp], ['R1', x.r[0]], ['R2', x.r[1]], ['R3', x.r[2]]].forEach(([n, d]) => { if (d?.semAno) avisos.push(`${n} sem o ano na planilha (lido como ${dmy(d)})`); });
     if (x.r[2] && !x.r[1]) avisos.push('R3 lançada sem R2');
     if (x.r[1] && !x.r[0]) avisos.push('R2 lançada sem R1');
     if (x.r[0] && x.pp && x.r[0] < x.pp) avisos.push('R1 antes do Pós + Pré');
