@@ -61,6 +61,19 @@
   const estado = { ordem: { k: 'venc', dir: 1 }, linhas: [], calc: [], fazendas: [], visao: 'lista', busca: '', ativos: new Set(ORDEM_CARDS), todas: [],
     f: { ano: new Set(), mes: new Set(), faz: new Set(), met: new Set() }, aberto: '', lido: null, carregando: false, iniciado: false };
 
+  // Filtros escolhidos (ano, mês, fazenda, quem faz e situação): salvos no navegador, voltam ao recarregar
+  const CHAVE_FILTROS = 'remonta:filtros';
+  try {
+    const s = JSON.parse(localStorage.getItem(CHAVE_FILTROS) || 'null');
+    if (s) {
+      ['ano', 'mes', 'faz', 'met'].forEach(k => { if (Array.isArray(s[k])) estado.f[k] = new Set(s[k]); });
+      if (Array.isArray(s.sit)) estado.ativos = new Set(s.sit.filter(k => ORDEM_CARDS.includes(k)));
+    }
+  } catch { /* sem filtros salvos */ }
+  const salvarFiltros = () => {
+    try { localStorage.setItem(CHAVE_FILTROS, JSON.stringify({ ...Object.fromEntries(Object.entries(estado.f).map(([k, s]) => [k, [...s]])), sit: [...estado.ativos] })); } catch { /* opcional */ }
+  };
+
   /* ---------- Leitura ---------- */
   // dd/mm/aaaa → Date; "-", vazio, "#VALUE!" e datas antes de 2000 (29/01/1900) = vazio
   function data(t) {
@@ -72,37 +85,6 @@
   const nomeFazenda = t => String(t ?? '').replace(/\s+/g, ' ').replace(/\s+\)/g, ')').trim();
   // Colunas pelo nome (sem acento, maiúsculas); "Plantio" é a coluna exata (não "Dias do Plantio" nem "Replantio")
   const COL = { faz: 'FAZENDA', up: 'UP NOVA', area: 'AREA DA UP', plantio: 'PLANTIO', pp: 'POS + PRE EMERGENTE', r1: 'APLIC HERB MECAN PRE EMERGENTE REMONT 1', r2: 'APLIC HERB MECAN PRE EMERGENTE REMONT 2', r3: 'APLIC HERB MECAN PRE EMERGENTE REMONT 3' };
-  // UPs que estão só na aba BD (apontamentos), ainda sem linha na BASE:
-  // Pós + Pré = último dia do último bloco de "POS + PRE EMERG"; R1, R2 e R3 = blocos de "PRE EMERGENTE REMONT"
-  // depois dele (um bloco termina quando passam mais de 7 dias sem apontamento); área = soma apontada no Pós + Pré.
-  const BLOCO = 7;
-  const blocos = datas => {
-    const l = [...datas].sort((a, b) => a - b), r = [];
-    l.forEach(x => { const b = r.at(-1); if (b && entre(b.fim, x) <= BLOCO) b.fim = x; else r.push({ ini: x, fim: x }); });
-    return r;
-  };
-  async function lerBD(fresco, naBase) {
-    if (!CFG.bd) return [];
-    const ap = await P.lerPlanilha(CFG.planilha, CFG.bd, { fresco, coluna: 'ATIVIDADE', cabecalho: true });
-    const porUP = new Map();
-    ap.forEach(l => {
-      const at = semAcento(l.ATIVIDADE).toUpperCase(), up = String(l.UP ?? '').trim().toUpperCase(), dt = data(l.DATA);
-      const tipo = /^APLIC HERB.*POS \+ PRE EMERG/.test(at) ? 'pp' : /^APLIC HERB.*PRE EMERGENTE REMONT/.test(at) ? 'r' : '';
-      if (!tipo || !up || !dt) return;
-      const fazenda = nomeFazenda(l.FAZENDA);
-      if (!fazenda || naBase.has(up)) return;
-      const x = porUP.get(up) || porUP.set(up, { fazenda, up, pp: [], r: [] }).get(up);
-      x[tipo].push({ dt, area: P.num(l['AREA APONTADA']) });
-    });
-    return [...porUP.values()].map(x => {
-      const bp = blocos(x.pp.map(a => a.dt)).at(-1);
-      const pp = bp?.fim || null;
-      const area = bp ? x.pp.filter(a => a.dt >= bp.ini && a.dt <= bp.fim).reduce((s, a) => s + a.area, 0) : 0;
-      const r = blocos(x.r.map(a => a.dt).filter(dt => !pp || dt > pp)).slice(0, 3).map(b => b.fim);
-      return { fazenda: x.fazenda, up: x.up, area: Math.max(area, 0), plantio: null, pp, r: [r[0] || null, r[1] || null, r[2] || null], doBD: true };
-    });
-  }
-
   async function carregar(fresco = false) {
     if (estado.carregando) return;
     estado.carregando = true;
@@ -116,16 +98,12 @@
         id: i, fazenda: nomeFazenda(l[COL.faz]), up: String(l[COL.up] ?? '').trim().toUpperCase(), area: P.num(l[COL.area]),
         plantio: data(l[COL.plantio]), pp: data(l[COL.pp]), r: [data(l[COL.r1]), data(l[COL.r2]), data(l[COL.r3])]
       })).filter(x => x.fazenda && x.up && x.up !== '-');
-      let doBD = [], avisoBD = '';
-      try { doBD = await lerBD(fresco, new Set(estado.linhas.map(x => x.up))); }
-      catch (e) { console.warn('Remonta: falha ao ler a aba BD', e); avisoBD = ' · aba BD indisponível'; }
-      estado.linhas.push(...doBD.map((x, i) => ({ ...x, id: estado.linhas.length + i })));
       const vistos = new Map();
       estado.linhas.forEach(x => { const k = `${x.fazenda}|${x.up}`; const n = (vistos.get(k) || 0) + 1; vistos.set(k, n); x.chave = `${k}|${n}`; });
       estado.lido = new Date();
       $('#rm-erros').hidden = true;
       const cache = P.avisoCache?.();
-      $('#rm-status').textContent = `${estado.linhas.length - doBD.length} UPs da aba BASE${doBD.length ? ` + ${doBD.length} só nos apontamentos (aba BD)` : ''}${avisoBD}${cache ? ' · última leitura salva no navegador' : ''}`;
+      $('#rm-status').textContent = `${estado.linhas.length} UPs · aba BASE${cache ? ' · última leitura salva no navegador' : ''}`;
     } catch (erro) {
       console.warn('Remonta: falha ao ler a planilha', erro);
       const el = $('#rm-erros'); el.hidden = false;
@@ -268,14 +246,13 @@
     if (u.resta === 0) return 'vence hoje';
     return u.resta < 0 ? `venceu há ${-u.resta} d` : `vence em ${u.resta} d`;
   }
-  const seloBD = u => (u.doBD ? '<span class="rm-bd" title="UP ainda não lançada na aba BASE: datas e área montadas pelos apontamentos da aba BD">BD</span>' : '');
   const atencao = u => (u.avisos.length ? `<span class="rm-atencao" role="img" tabindex="0" aria-label="Atenção: ${esc(u.avisos.join('; '))}" title="${esc(u.avisos.join('\n'))}">⚠</span>` : '');
   function linhaUP(u, comFazenda, n) {
     const s = SIT[u.sit];
     return `<tr class="rm-l-${u.sit}" style="--c:${s.cor}">
       <td data-rotulo="Ordem" class="rm-n">${n}º</td>
       ${comFazenda ? `<td data-rotulo="Fazenda" class="rm-faz-cel">${esc(u.fazenda)}</td>` : ''}
-      <td data-rotulo="UP" class="rm-up-cel"><span class="q-up">${esc(u.up)}</span>${seloBD(u)}${atencao(u)}${u.junto ? '<span class="rm-junto" title="Vence perto das UPs urgentes desta fazenda: aproveite a ida">junto</span>' : ''}</td>
+      <td data-rotulo="UP" class="rm-up-cel"><span class="q-up">${esc(u.up)}</span>${atencao(u)}${u.junto ? '<span class="rm-junto" title="Vence perto das UPs urgentes desta fazenda: aproveite a ida">junto</span>' : ''}</td>
       <td data-rotulo="Área (ha)" class="num">${mono(ha(u.area))}</td>
       <td data-rotulo="Pós + Pré emergente">${celulaData(u.pp)}</td>
       <td data-rotulo="Remonta 1">${celulaR(u, 0)}</td><td data-rotulo="Remonta 2">${celulaR(u, 1)}</td><td data-rotulo="Remonta 3">${celulaR(u, 2)}</td>
@@ -293,7 +270,7 @@
   }
 
   const tabela = (ups, comFazenda) => `<table class="q-tab rm-tab ${comFazenda ? 'com-fazenda' : ''}">${cabecalho(comFazenda)}<tbody>${ups.map((u, i) => linhaUP(u, comFazenda, i + 1)).join('')}</tbody></table>`;
-  const legenda = '<p class="rm-legenda"><span><span class="rm-feita">✓ 01/10/26</span> aplicada</span><span><span class="rm-proxima" style="--c:#fbbf24">01/10/26</span> próxima a vencer</span><span><span class="rm-prev">prev. 01/10/26</span> prevista</span><span><span class="rm-atencao">⚠</span> data a conferir na planilha (passe o mouse)</span><span><span class="rm-bd">BD</span> UP ainda não lançada na BASE (datas pelos apontamentos)</span></p>';
+  const legenda = '<p class="rm-legenda"><span><span class="rm-feita">✓ 01/10/26</span> aplicada</span><span><span class="rm-proxima" style="--c:#fbbf24">01/10/26</span> próxima a vencer</span><span><span class="rm-prev">prev. 01/10/26</span> prevista</span><span><span class="rm-atencao">⚠</span> data a conferir na planilha (passe o mouse)</span></p>';
 
   // Ordem das fazendas: primeiro as que têm UP vencida/vencendo/em atenção (a mais atrasada antes),
   // depois as que só têm UPs no prazo, pela data mais próxima; por último as sem data base
@@ -366,6 +343,7 @@
   const filtrosAtivos = () => estado.f.ano.size || estado.f.mes.size || estado.f.faz.size || estado.f.met.size || estado.ativos.size !== ORDEM_CARDS.length;
   function renderFiltros() {
     const el = $('#rm-filtros'); if (!el) return;
+    salvarFiltros();   // toda mudança de filtro (caixas, cartões, limpar) passa por aqui
     el.innerHTML = Object.entries(opcoesFiltros()).map(([k, o]) => {
       const ativo = o.cheio ? o.sel.size !== o.op.length : o.sel.size > 0, aberto = estado.aberto === k;
       return `<div class="rm-ms ${ativo ? 'ativo' : ''}" data-f="${k}">
@@ -395,7 +373,7 @@
         ${fazendas.length ? fazendas.map((f, i) => `<section class="rm-met-faz">
           <h4><span class="rm-seq-n" style="background:${SIT[f.vis[0].sit].cor}">${i + 1}º</span>${esc(f.nome)}<small>${f.vis.length} UP${f.vis.length > 1 ? 's' : ''} · ${mono(ha(f.vis.reduce((t, u) => t + u.area, 0)))} ha</small></h4>
           <table class="q-tab rm-tab rm-tab-mini"><thead><tr><th>UP</th><th class="num">Área (ha)</th><th>Remonta</th><th>Vencimento</th><th>Situação</th><th></th></tr></thead><tbody>${f.vis.map(u => `<tr style="--c:${SIT[u.sit].cor}">
-            <td data-rotulo="UP"><span class="q-up">${esc(u.up)}</span>${seloBD(u)}${atencao(u)}</td><td data-rotulo="Área (ha)" class="num">${mono(ha(u.area))}</td>
+            <td data-rotulo="UP"><span class="q-up">${esc(u.up)}</span>${atencao(u)}</td><td data-rotulo="Área (ha)" class="num">${mono(ha(u.area))}</td>
             <td data-rotulo="Remonta">${u.prox != null ? nomeRemonta(u.prox) : '—'}</td><td data-rotulo="Vencimento">${u.venc ? `<span class="rm-proxima" style="--c:${SIT[u.sit].cor}">${mono(dmy(u.venc))}</span>` : '—'}</td>
             <td data-rotulo="Situação"><span class="rm-selo" style="--c:${SIT[u.sit].cor}">${SIT[u.sit].nome}</span> <small class="rm-sit-txt">${textoSituacao(u)}</small></td>
             <td><button type="button" class="rm-tirar" data-met="${k}" data-chave="${esc(u.chave)}" title="Tirar desta tabela" aria-label="Tirar a UP ${esc(u.up)} da tabela ${x.nome}"><i data-lucide="x"></i></button></td></tr>`).join('')}</tbody></table>

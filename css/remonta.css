@@ -186,7 +186,6 @@
 .rm-a-definir b { color: var(--texto-forte); }
 @media (max-width: 1100px) { .rm-metodos { grid-template-columns: 1fr; } }
 @media (max-width: 1280px) and (min-width: 761px) { .rm-tab .rm-met button span { display: none; } .rm-tab .rm-met button { padding: .3rem .4rem; } }
-.rm-bd { display: inline-block; margin-left: .35rem; padding: .05rem .4rem; border-radius: 6px; font-size: .64rem; font-weight: 800; letter-spacing: .04em; color: #04201a; background: #38bdf8; vertical-align: middle; cursor: help; }
 /* Filtros de seleção múltipla */
 .rm-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .7rem 0; position: relative; z-index: 5; }
 .rm-ms { position: relative; }
