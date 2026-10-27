@@ -24,6 +24,7 @@
   <script src="js/estoque.js" defer></script>
   <script src="js/almox-desenhos.js" defer></script>
   <script src="js/almoxarifado.js" defer></script>
+  <script src="js/pneus.js" defer></script>
   <script src="js/estoque-abas.js" defer></script>
   <script src="js/folhito-consultas.js" defer></script>
   <script src="js/folhito.js" defer></script>
@@ -39,10 +40,11 @@
       <div class="container fat-hero-inner">
         <div>
           <span class="pill reveal"><span class="tag">Painel</span><span>Estoque · Unidade São Miguel</span><span class="dot" aria-hidden="true"></span></span>
-          <h1 class="fat-titulo reveal" id="e-titulo" style="--d:.08s">Estoque · <span class="serif">Insumos e almoxarifado</span></h1>
-          <p class="fat-sub reveal" style="--d:.16s">Quantidade de cada insumo agora, somando as entradas e descontando as retiradas registradas no App de Estoque e no App Almoxarifado. Escolha abaixo o que quer ver e clique no produto para ver a movimentação.</p>
+          <h1 class="fat-titulo reveal" id="e-titulo" style="--d:.08s">Estoque · <span class="serif">Insumos, almoxarifado e pneus</span></h1>
+          <p class="fat-sub reveal" style="--d:.16s">Quantidade de cada insumo agora, somando as entradas e descontando as retiradas registradas no App de Estoque, no App Almoxarifado e no App de Pneus. Escolha abaixo o que quer ver e clique no produto para ver a movimentação.</p>
           <p class="fat-status reveal" style="--d:.24s"><i data-lucide="database"></i> Insumos · <span id="e-status">Conectando…</span></p>
           <p class="fat-status reveal" style="--d:.28s"><i data-lucide="package"></i> Almoxarifado · <span id="a-status">Conectando…</span></p>
+          <p class="fat-status reveal" style="--d:.32s"><i data-lucide="circle-dot"></i> Pneus · <span id="p-status">Conectando…</span></p>
         </div>
         <div class="a-apps">
           <a class="btn btn-primary reveal" style="--d:.2s" href="https://potyrala93-sudo.github.io/APP-estoque/" target="_blank" rel="noopener noreferrer">
@@ -50,6 +52,9 @@
           </a>
           <a class="btn btn-primary reveal" style="--d:.26s" href="https://potyrala93-sudo.github.io/APP-almoxarifado/" target="_blank" rel="noopener noreferrer">
             Abrir o App Almoxarifado <span class="btn-arrow"><i data-lucide="external-link"></i></span>
+          </a>
+          <a class="btn btn-primary reveal" style="--d:.32s" href="https://potyrala93-sudo.github.io/APP-pneus/" target="_blank" rel="noopener noreferrer">
+            Abrir o App de Pneus <span class="btn-arrow"><i data-lucide="external-link"></i></span>
           </a>
         </div>
       </div>
@@ -63,6 +68,8 @@
               <i data-lucide="sprout"></i><span>Insumos</span><small id="aba-insumos-n"></small></button>
             <button type="button" class="est-aba" role="tab" id="aba-almox" aria-controls="alm" aria-selected="false" data-aba="almoxarifado" tabindex="-1">
               <i data-lucide="package"></i><span>Almoxarifado</span><small id="aba-almox-n"></small></button>
+            <button type="button" class="est-aba" role="tab" id="aba-pneus" aria-controls="pne" aria-selected="false" data-aba="pneus" tabindex="-1">
+              <i data-lucide="circle-dot"></i><span>Pneus</span><small id="aba-pneus-n"></small></button>
           </div>
           <div class="fat-barra-dir">
             <button type="button" class="fat-btn fat-atualizar" id="e-atualizar"><i data-lucide="refresh-cw"></i><span>Atualizar dados</span></button>
@@ -107,7 +114,52 @@
         <div class="fat-painel glass tabela-wrap" id="a-tabela"><div class="esqueleto tabela-esq"></div></div>
       </section>
     </div>
+
+    <!-- Pneus (App de Pneus) -->
+    <div class="fat-conteudo carregando est-painel" id="pne" role="tabpanel" aria-labelledby="aba-pneus" hidden>
+      <section class="container fat-secao" aria-label="Resumo dos pneus">
+        <div class="p-kpis" id="p-kpis"></div>
+      </section>
+      <section class="container fat-secao" aria-labelledby="p-tab-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Saldo atual</span><h2 class="fat-sec-titulo" id="p-tab-tit">Pneus em <span class="serif">estoque</span></h2></div>
+          <p class="fat-sec-sub" id="p-resumo"></p>
+        </div>
+        <div class="fat-barra glass a-barra" role="toolbar" aria-label="Filtros dos pneus">
+          <label class="e-busca"><i data-lucide="search"></i><input type="search" id="p-busca" placeholder="Buscar medida (ex.: 275/80)" aria-label="Buscar medida de pneu"></label>
+          <div class="p-veiculos" id="p-veiculos" role="group" aria-label="Tipo de veículo">
+            <button type="button" data-v="Caminhão" aria-pressed="false"><i data-lucide="truck"></i>Caminhão</button>
+            <button type="button" data-v="Trator" aria-pressed="false"><i data-lucide="tractor"></i>Trator</button>
+          </div>
+          <div class="fat-barra-dir">
+            <label class="e-zerados"><input type="checkbox" id="p-zerados"> Mostrar zeradas</label>
+            <button type="button" class="fat-btn" id="p-csv"><i data-lucide="file-spreadsheet"></i><span>CSV</span></button>
+          </div>
+        </div>
+        <div class="fat-erros a-erros" id="p-erros" role="alert" hidden></div>
+        <div class="fat-painel glass tabela-wrap" id="p-tabela"><div class="esqueleto tabela-esq"></div></div>
+      </section>
+      <section class="container fat-secao" aria-labelledby="p-ult-tit">
+        <div class="fat-sec-head">
+          <div><span class="eyebrow">Entradas e retiradas</span><h2 class="fat-sec-titulo" id="p-ult-tit">Últimas <span class="serif">movimentações</span></h2></div>
+          <p class="fat-sec-sub">As 15 mais recentes, com o destino e quem pegou.</p>
+        </div>
+        <div class="fat-painel glass tabela-wrap" id="p-ultimas"><div class="esqueleto tabela-esq"></div></div>
+      </section>
+    </div>
   </main>
+
+  <!-- Movimentação de uma medida de pneu -->
+  <dialog class="e-dlg glass" id="p-dlg" aria-labelledby="p-dlg-tit">
+    <div class="e-dlg-in">
+      <div class="e-dlg-head">
+        <div class="e-dlg-prod" id="p-dlg-prod"></div>
+        <button type="button" class="e-fechar" id="p-fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
+      </div>
+      <div class="e-dlg-kpis" id="p-dlg-kpis"></div>
+      <div class="e-dlg-lista" id="p-dlg-lista"></div>
+    </div>
+  </dialog>
 
   <!-- Movimentação do produto -->
   <dialog class="e-dlg glass" id="e-dlg" aria-labelledby="e-dlg-tit">

@@ -1,6 +1,6 @@
 /* ==========================================================================
-   SMA · Silvicultura — Estoque: botões para escolher Insumos ou Almoxarifado
-   A escolha fica no endereço (#insumos / #almoxarifado) e é lembrada.
+   SMA · Silvicultura — Estoque: botões para escolher Insumos, Almoxarifado ou Pneus
+   A escolha fica no endereço (#insumos / #almoxarifado / #pneus) e é lembrada.
    ========================================================================== */
 (() => {
   const abas = [...document.querySelectorAll('.est-aba')];
@@ -41,6 +41,7 @@
   };
   contar('e-resumo', 'aba-insumos-n');
   contar('a-resumo', 'aba-almox-n');
+  contar('p-resumo', 'aba-pneus-n');
 
   let inicial = location.hash.slice(1);
   if (!nomes.includes(inicial)) { try { inicial = localStorage.getItem('sma:estoque:aba') || ''; } catch (_) { inicial = ''; } }
