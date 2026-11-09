@@ -124,7 +124,8 @@
   const carregarFaturamento = (pessoa, fresco) => carregarAba(F.abas[pessoa], fresco);
   const carregarDiario = fresco => carregarAba(F.abas.diario, fresco);
   const carregarFrota = fresco => carregarAba(F.abas.frota, fresco);
-  const carregarEstrutura = async fresco => paraObjetos(await lerAba(F.estrutura.planilha, F.estrutura.gid, fresco));
+  const carregarEstrutura = async fresco => paraObjetos(await lerAba(F.estrutura.planilha, F.estrutura.gid, fresco))
+    .map(e => (F.supervisorFixo?.[e.EQUIPE] ? { ...e, SUPERVISOR: F.supervisorFixo[e.EQUIPE] } : e));
 
   // Todas as abas de uma vez. Pedidos repetidos dentro de 5 minutos reaproveitam o mesmo resultado.
   let ultimo = null;

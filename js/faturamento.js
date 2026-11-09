@@ -103,6 +103,7 @@
 
   // Supervisor de cada equipe: planilha de estrutura (coluna SUPERVISOR) para o RF dela; senão a coluna da própria linha
   function supervisorDe(equipe, linha) {
+    if (F.supervisorFixo?.[equipe]) return F.supervisorFixo[equipe];
     const est = estado.dados.estrutura || [];
     const doRF = est.find(e => e.EQUIPE === equipe && num(e.RF) === estado.rf);
     if (doRF) return doRF.SUPERVISOR;
@@ -117,6 +118,8 @@
     const p = pessoaDoSup(sup);
     (estado.dados[p?.id] || []).filter(doPeriodo).forEach(l => set.add(l.EQUIPE));
     if (!set.size) (estado.dados.estrutura || []).filter(e => e.SUPERVISOR === sup).forEach(e => set.add(e.EQUIPE));
+    // Equipe com supervisor fixo (dados.js) só aparece com ele, mesmo que esteja na aba de outro supervisor
+    Object.entries(F.supervisorFixo || {}).forEach(([eq, s]) => { if (s !== sup) set.delete(eq); });
     return [...set].sort();
   }
 

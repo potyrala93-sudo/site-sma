@@ -99,6 +99,9 @@ const FATURAMENTO = {
   planilha: '1gGcRAaVruH9wq3m531pEcA7iGSfpzJolqne5brBn8Ls',
   abas: { anderson: 1528743316, carina: 1977761092, juliano: 1919415509, joyce: 413617224, diario: 992454151, frota: 476734629 },
   estrutura: { planilha: '1LZRtGcDHSfW4gIB9BhPaL1bjDZ0ekeOdLtXc-0abtYg', gid: 1338625970 },
+  // Supervisor fixo de equipes: vale acima da coluna SUPERVISOR da planilha de estrutura
+  // (BN e BV são da Carina, com o Jefferson de encarregado; o Juliano ficou só com BT / BU)
+  supervisorFixo: { BN: 'Carina', BV: 'Carina' },
   atualizarACadaMin: 5,
   pessoas: [
     { id: 'anderson', nome: 'Anderson', cargo: 'Coordenador', supervisor: null },
