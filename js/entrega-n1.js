@@ -16,8 +16,9 @@
   const semAcento = t => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
   // Texto padronizado: maiúsculas, sem acentos, hífens iguais e espaços simples
   const norm = t => semAcento(t).toUpperCase().replace(/[‐-―−]/g, '-').replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim();
-  // UP: sem espaços e sem o prefixo "UP"; código só com números perde os zeros à esquerda ("UP 0123" = "123")
-  const normUP = t => { let s = norm(t).replace(/^UP\s*[-:]?\s*/, '').replace(/\s+/g, ''); if (/^\d+$/.test(s)) s = String(+s); return s; };
+  // UP: sem o prefixo "UP" e só letras e números ("S1IH-05", "s1ih 05" e "S1IH05" são a mesma);
+  // código só com números perde os zeros à esquerda ("UP 0123" = "123")
+  const normUP = t => { let s = norm(t).replace(/^UP\s*[-:/]?\s*(?=\S)/, '').replace(/[^A-Z0-9]/g, ''); if (/^\d+$/.test(s)) s = String(+s); return s; };
   const ehIrrigacao = desc => /IRRIG/.test(norm(desc));
   const pct = v => `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 
@@ -205,8 +206,8 @@
 
   /* ======================================================================
      3b. COMPARAÇÃO (refeita quando as exceções por equipe mudam)
-     Uma UP com a mesma atividade (ou atividades do mesmo tipo) feita mais de uma vez no RF precisa de
-     uma avaliação para cada realização: conta as datas distintas da UP na base de qualidade.
+     Cada atividade REALIZADA no RF é procurada pela UP na base de qualidade do seu tipo:
+     a UP está na base = Realizado (todas as realizações dela no tipo); não está = Pendente.
      ====================================================================== */
   const CHAVE_ISEN = 'n1:isencoes';   // [{ equipe, atividade ('*' = todas) }]
   let isencoes = [];
@@ -230,12 +231,14 @@
         const aval = enviadas.reduce((s, b) => s + (R.bases[b].aval[up] || 0), 0);
         const onde = enviadas.filter(b => R.bases[b].aval[up]).map(b => BASES[b].nome.replace('Preparo de Solo ', '')).join(' e ');
         l.sort((a, b) => ordemSemana(a.semana) - ordemSemana(b.semana) || a.linhaPlanilha - b.linhaPlanilha);
-        l.forEach((it, i) => {
+        // UP na base do tipo = todas as realizações dela naquele tipo ficam Realizado (não exige uma avaliação por realização)
+        const outras = aval ? '' : Object.keys(R.bases).filter(b => !t.bases.includes(b) && R.bases[b].aval[up]).map(b => BASES[b]?.nome).filter(Boolean).join(', ');
+        l.forEach(it => {
           it.necessarias = l.length; it.avaliacoes = aval;
-          if (i < aval) { it.status = 'ok'; it.onde = `${onde}${l.length > 1 ? ` · avaliação ${i + 1} de ${l.length}` : ''}`; }
+          if (aval) { it.status = 'ok'; it.onde = onde; }
           else {
             it.status = 'pend';
-            it.onde = aval ? `${l.length} realizações e só ${aval} avaliação${aval > 1 ? 'ões' : ''}` : enviadas.length < t.bases.length ? `${t.bases.filter(b => !R.bases[b]).map(b => BASES[b].nome).join(', ')} não enviada` : '';
+            it.onde = outras ? `UP só está na base de ${outras}` : enviadas.length < t.bases.length ? `${t.bases.filter(b => !R.bases[b]).map(b => BASES[b].nome).join(', ')} não enviada` : '';
           }
           itens.push(it);
         });
