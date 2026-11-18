@@ -25,19 +25,18 @@
      TIPOS E LISTA DE ATIVIDADES (nomes oficiais)
      ====================================================================== */
   const ATIV = {
-    mudaPlantio: ['REPLANTIO MANUAL TEC', 'REPLANTIO 2.000 PL/HA', 'REPLANTIO POR GEADA', 'PLANTIO MANUAL', 'PLANTIO MANUAL - PILHA', 'PLANTIO MANUAL 2.000 PL/HA'],
-    preparoMec: ['ADUBACAO DE PLANTIO MECANIZADA', 'ADUBACAO DE PLANTIO MECANIZADA II', 'SUBSOLAGEM SEM ADUBACAO MECANIZADA 60CM', 'SUBSOLAGEM COM ADUBACAO MECANIZADA 45CM', 'SUBSOLAGEM COM ADUB MECAN 45CM - PILHA'],
-    preparoManual: ['ADUBACAO DE PLANTIO MANUAL', 'ADUBACAO DE PLANTIO MANUAL II', 'ADUBACAO DE PLANTIO MANUAL III', 'COVEAMENTO MANUAL'],
-    herbicida: ['APLIC HERBICIDA MECAN NA ENTRELINHA I', 'APLICACAO HERBICIDA MECANICA TOTAL', 'APLIC HERB MECAN POS EMERG AREA TOTAL', 'APLIC HERB MEC POS + PRE EMERG AREA TOTA', 'APLIC HERB MECAN PRE EMERGENTE REMONT', 'APLIC HERB MECAN PRE EMERG AREA TOTAL'],
-    formiga: ['COMBATE A FORMIGAS - MANUTENCAO', 'COMBATE A FORMIGAS - MANUTENCAO III', 'COMBATE A FORMIGAS - MANUTENCAO IV', 'COMBATE A FORMIGAS', 'COMBATE A FORMIGAS I RUA', 'COMBATE A FORMIGAS II', 'COMBATE A FORMIGAS III', 'COMBATE A FORMIGAS - MECANIZADO I', 'COMBATE A FORMIGAS - MECANIZADO II', 'COMBATE A FORMIGAS - MECANIZADO III', 'REPASSE DE FORMIGAS', 'REPASSE DE FORMIGAS II'],
-    brotos: ['SELECAO DE BROTOS MANUAL', 'SELECAO DE BROTOS SEMI MECANIZADO', 'SELECAO DE BROTOS SEMI MECANIZADO II']
+    mudaPlantio: ['PLANTIO MANUAL', 'PLANTIO MANUAL - PILHA', 'PLANTIO MANUAL 2.000 PL/HA'],
+    preparoMec: ['ADUBACAO DE PLANTIO MECANIZADA', 'ADUBACAO DE PLANTIO MECANIZADA II'],
+    preparoManual: ['COVEAMENTO MANUAL'],
+    herbicida: ['APLIC HERB MECAN POS EMERG AREA TOTAL', 'APLIC HERB MEC POS + PRE EMERG AREA TOTA', 'APLIC HERB MECAN PRE EMERG AREA TOTAL', 'APLIC HERB MECAN PRE EMERGENTE REMONT', 'APLICACAO HERBICIDA MECANICA TOTAL', 'APLIC HERBICIDA MECAN NA ENTRELINHA I'],
+    formiga: ['COMBATE A FORMIGAS - MANUTENCAO', 'REPASSE DE FORMIGAS', 'COMBATE A FORMIGAS - MANUTENCAO III', 'COMBATE A FORMIGAS - MANUTENCAO II', 'COMBATE A FORMIGAS', 'REPASSE DE FORMIGAS II', 'COMBATE A FORMIGAS - MECANIZADO I', 'COMBATE A FORMIGAS II', 'COMBATE A FORMIGAS - MANUTENCAO IV', 'COMBATE A FORMIGAS - MECANIZADO II', 'COMBATE A FORMIGAS III', 'COMBATE A FORMIGAS I RUA', 'COMBATE A FORMIGAS - MECANIZADO III'],
+    brotos: ['SELECAO DE BROTOS SEMI MECANIZADO', 'SELECAO DE BROTOS SEMI MECANIZADO II']
   };
   // Bases de qualidade (arquivos) e tipos de verificação (abas). Muda e Plantio verificam as mesmas atividades, cada um na sua base.
   const BASES = {
     muda: { nome: 'Qualidade de Muda', chaves: ['MUDA'] },
     plantio: { nome: 'Plantio', chaves: ['PLANTIO'], exceto: ['PREPARO'] },
     conjugado: { nome: 'Preparo de Solo Conjugado', chaves: ['CONJUGADO'] },
-    convencional: { nome: 'Preparo de Solo Convencional', chaves: ['CONVENCIONAL'] },
     manual: { nome: 'Preparo de Solo Manual', chaves: ['MANUAL'], exige: ['PREPARO'] },
     herbicida: { nome: 'Herbicida', chaves: ['HERBICIDA'] },
     formiga: { nome: 'Formiga', chaves: ['FORMIGA'] },
@@ -46,7 +45,7 @@
   const TIPOS = [
     { id: 'muda', nome: 'Qualidade de Muda', grupo: 'mudaPlantio', bases: ['muda'], cor: '#2dd4bf' },
     { id: 'plantio', nome: 'Plantio', grupo: 'mudaPlantio', bases: ['plantio'], cor: '#22c55e' },
-    { id: 'preparoMec', nome: 'Preparo de Solo (Conjugado / Convencional)', curto: 'Preparo Conj./Conv.', grupo: 'preparoMec', bases: ['conjugado', 'convencional'], cor: '#fb923c' },
+    { id: 'preparoMec', nome: 'Preparo de Solo Conjugado', curto: 'Preparo Conjugado', grupo: 'preparoMec', bases: ['conjugado'], cor: '#fb923c' },
     { id: 'preparoManual', nome: 'Preparo de Solo Manual', curto: 'Preparo Manual', grupo: 'preparoManual', bases: ['manual'], cor: '#f59e0b' },
     { id: 'herbicida', nome: 'Herbicida', grupo: 'herbicida', bases: ['herbicida'], cor: '#c8f560' },
     { id: 'formiga', nome: 'Formiga', grupo: 'formiga', bases: ['formiga'], cor: '#f472b6' },
@@ -61,10 +60,12 @@
   const ROMANOS = new Set(['I', 'II', 'III', 'IV', 'V', 'VI']);
   const tokens = t => norm(t).replace(/(\d)\.(\d{3})/g, '$1$2').replace(/[^A-Z0-9+ ]/g, ' ').split(/\s+/).filter(x => x && !VAZIAS.has(x)).map(x => SINONIMOS[x] || x);
   const LISTA = Object.entries(ATIV).flatMap(([grupo, nomes]) => nomes.map(nome => ({ grupo, nome, tok: tokens(nome) })));
+  const SO_LISTA = true;   // compara só as atividades da lista acima (nome igual, sem acento/maiúsculas)
   function classificar(desc, grupoRF) {
     const t = tokens(desc), chave = t.join(' '), g = norm(grupoRF);
     const exato = LISTA.find(x => x.tok.join(' ') === chave);
     if (exato) return { grupo: exato.grupo, nome: exato.nome, exato: true };
+    if (SO_LISTA) return null;
     const conjunto = new Set(t);
     let melhor = null;
     LISTA.forEach(x => {
@@ -266,7 +267,7 @@
     };
   }
   // Partes da barra de aderência, na ordem em que aparecem
-  const SEGS = () => [{ k: 'ok', nome: 'Encontradas' }, ...MARCAS.map(m => ({ k: m.k, nome: m.rotulo })), { k: 'pend', nome: 'Pendentes' }];
+  const SEGS = () => [{ k: 'ok', nome: 'Realizadas na base' }, ...MARCAS.map(m => ({ k: m.k, nome: m.rotulo })), { k: 'pend', nome: 'Pendentes' }];
   const barraAder = x => {
     const tot = x.ok + x.pend; if (!tot) return '<span class="n1-mudo">—</span>';
     return `<div class="n1-ader-barra ${x.ader >= .9 ? 'boa' : x.ader >= .7 ? 'media' : 'baixa'}"><span class="n1-trilho n1-pilha">${SEGS().filter(g => x.seg[g.k]).map(g => `<i class="s-${g.k}" style="width:${(x.seg[g.k] / tot * 100).toFixed(2)}%" title="${g.nome}: ${x.seg[g.k]}"></i>`).join('')}</span><b>${pct(x.ader)}</b></div>`;
@@ -350,7 +351,7 @@
   /* ======================================================================
      4. TELA
      ====================================================================== */
-  const STATUS = { ok: { nome: 'OK – Encontrada', curto: 'OK', cor: '#22c55e' }, pend: { nome: 'PENDENTE – Não encontrada', curto: 'Pendente', cor: '#ef4444' }, semBase: { nome: 'Base não enviada', curto: 'Sem base', cor: '#94a3b8' }, isento: { nome: 'Sem N1 (equipe dispensada)', curto: 'Sem N1', cor: '#64748b' } };
+  const STATUS = { ok: { nome: 'REALIZADO – UP na base', curto: 'Realizado', cor: '#22c55e' }, pend: { nome: 'PENDENTE – UP não está na base', curto: 'Pendente', cor: '#ef4444' }, semBase: { nome: 'Base não enviada', curto: 'Sem base', cor: '#94a3b8' }, isento: { nome: 'Sem N1 (equipe dispensada)', curto: 'Sem N1', cor: '#64748b' } };
   const tipoDe = id => TIPOS.find(t => t.id === id);
 
   function renderArquivos() {
@@ -364,7 +365,7 @@
     $('#n1-analisar').disabled = !temRF || arquivos.some(a => a.lendo);
     $('#n1-limpar-arq').hidden = !arquivos.length;
     const tem = new Set(arquivos.map(a => a.tipo));
-    $('#n1-envio-status').textContent = !arquivos.length ? '' : !temRF ? 'Falta a Base do RF.' : `Bases recebidas: ${Object.keys(BASES).filter(b => tem.has(b)).length} de 8${Object.keys(BASES).some(b => !tem.has(b)) ? ` · não enviadas: ${Object.entries(BASES).filter(([b]) => !tem.has(b)).map(([, b]) => b.nome).join(', ')}` : ''}`;
+    $('#n1-envio-status').textContent = !arquivos.length ? '' : !temRF ? 'Falta a Base do RF.' : `Bases recebidas: ${Object.keys(BASES).filter(b => tem.has(b)).length} de ${Object.keys(BASES).length}${Object.keys(BASES).some(b => !tem.has(b)) ? ` · não enviadas: ${Object.entries(BASES).filter(([b]) => !tem.has(b)).map(([, b]) => b.nome).join(', ')}` : ''}`;
     icones();
   }
   async function receber(lista) {
@@ -409,14 +410,14 @@
       <details class="n1-det"><summary>Colunas usadas e observações</summary>
         <p><b>Colunas do RF:</b> ${R.colunasUsadas.map(esc).join(' · ')}</p>
         <p><b>Bases de qualidade:</b> ${Object.entries(BASES).map(([k, b]) => R.bases[k] ? `${b.nome} (${R.bases[k].qtd} UPs)` : `<span class="n1-falta">${b.nome}: base não enviada</span>`).join(' · ')}</p>
-        <ul><li>Só linhas com Situação = REALIZADO; duplicadas (mesma UP + atividade + semana) contam uma vez.</li><li>Qualidade de Muda e Plantio verificam as mesmas atividades, cada uma na sua base.</li><li>Preparo de Solo mecanizado: a UP precisa estar em pelo menos uma das bases (Conjugado ou Convencional); a coluna "Base" diz em qual.</li><li>As bases de qualidade são comparadas pela UP (a coluna de aplicação do Herbicida não identifica a atividade do RF).</li>${R.faltam.length ? `<li>Bases não enviadas aparecem como "Base não enviada" e não contam como pendência.</li>` : ''}</ul></details>`;
+        <ul><li>Só linhas com Situação = REALIZADO; duplicadas (mesma UP + atividade + semana) contam uma vez.</li><li>Qualidade de Muda e Plantio verificam as mesmas atividades, cada uma na sua base.</li><li>Só entram as atividades da lista de cada base (nome igual ao do RF); as outras ficam em "Não classificadas".</li><li>Cada atividade REALIZADA no RF é procurada pela UP na base de qualidade do seu tipo: achou = Realizado, não achou = Pendente.</li><li>As bases de qualidade são comparadas pela UP (a coluna de aplicação do Herbicida não identifica a atividade do RF).</li>${R.faltam.length ? `<li>Bases não enviadas aparecem como "Base não enviada" e não contam como pendência.</li>` : ''}</ul></details>`;
     // Cartões
     $('#n1-cards').innerHTML = TIPOS.map(t => {
       const r = resumoTipo(t);
       return `<button type="button" class="n1-card glass ${estado.aba === t.id ? 'ativo' : ''} ${r.semBase ? 'sem-base' : ''}" data-aba="${t.id}" style="--c:${t.cor}">
         <span class="n1-card-tit">${esc(t.curto || t.nome)}</span>
         ${r.semBase ? '<strong class="n1-card-sb">Base não enviada</strong>' : `<strong>${r.ader == null ? '—' : pct(r.ader)}</strong><span class="n1-barra-ader"><i style="width:${(r.ader || 0) * 100}%"></i></span>`}
-        <small>${r.total} realizadas · <b class="ok">${r.ok} OK</b> · <b class="pend">${r.pend} pend.</b>${r.isento ? ` · ${r.isento} sem N1` : ''}</small></button>`;
+        <small>${r.total} no RF · <b class="ok">${r.ok} realizado${r.ok === 1 ? '' : 's'}</b> · <b class="pend">${r.pend} pendente${r.pend === 1 ? '' : 's'}</b>${r.isento ? ` · ${r.isento} sem N1` : ''}</small></button>`;
     }).join('');
     $('#n1-semana').innerHTML = `<option value="">Todas as semanas</option>${R.semanas.map(s => `<option ${s === estado.semana ? 'selected' : ''}>${esc(s)}</option>`).join('')}`;
     $('#n1-envio').classList.add('compacto'); $('#n1-trocar').hidden = false;
@@ -551,7 +552,7 @@
     try {
       const t = tipoDe(estado.aba);
       const titulo = t ? t.nome : ({ equipe: 'Por equipe', aderencia: 'Aderência', naoClass: 'Atividades não classificadas', corresp: 'Correspondências de nomes' })[estado.aba];
-      const resumo = `<div class="n1-img-resumo">${TIPOS.map(x => { const r = resumoTipo(x); return `<div style="--c:${x.cor}"><small>${esc(x.curto || x.nome)}</small><b>${r.semBase ? '—' : r.ader == null ? '—' : pct(r.ader)}</b><span>${r.ok} OK · ${r.pend} pend.${r.isento ? ` · ${r.isento} sem N1` : ''}</span></div>`; }).join('')}</div>`;
+      const resumo = `<div class="n1-img-resumo">${TIPOS.map(x => { const r = resumoTipo(x); return `<div style="--c:${x.cor}"><small>${esc(x.curto || x.nome)}</small><b>${r.semBase ? '—' : r.ader == null ? '—' : pct(r.ader)}</b><span>${r.ok} realiz. · ${r.pend} pend.${r.isento ? ` · ${r.isento} sem N1` : ''}</span></div>`; }).join('')}</div>`;
       let corpo;
       if (t) corpo = `<table class="n1-pdf-tab">${cabTab(false)}<tbody>${R.itens.filter(i => i.tipo === t.id).filter(passa).map(it => linhaPDF(it, false)).join('') || '<tr><td colspan="11">Nenhuma linha com esse filtro.</td></tr>'}</tbody></table>`;
       else if (estado.aba === 'equipe') {
