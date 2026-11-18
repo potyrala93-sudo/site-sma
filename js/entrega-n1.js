@@ -111,7 +111,8 @@
     data: Object.assign([/^DATA FIM$/, /^DATA REALIZACAO$/, /^DATA REALIZADA$/, /^DATA OPERACAO$/, /^DATA INICIO$/], { opcional: true }),
     fazenda: Object.assign([/^FAZENDA$/], { opcional: true })
   };
-  const COLS_QUAL = { up: [/^UP$/, /^COD\.? ?UP$/, /UNIDADE DE PRODUCAO/, /^CODIGO UP$/], data: Object.assign([/^DATA$/, /^DATA AVALIACAO$/, /^DATA DA AVALIACAO$/], { opcional: true }) };
+  // Bases de qualidade exportadas do formulário trazem a UP como "UP/ID Talhão"
+  const COLS_QUAL = { up: [/^UP$/, /^COD\.? ?UP$/, /UNIDADE DE PRODUCAO/, /^CODIGO UP$/, /^UP ?\/ ?ID/, /^ID TALHAO$/, /^TALHAO$/], data: Object.assign([/^DATA$/, /^DATA AVALIACAO$/, /^DATA DA AVALIACAO$/, /^DATA DE AVALIACAO$/], { opcional: true }) };
   const ehRF = cab => cab && 'up' in cab.idx && 'desc' in cab.idx && 'sit' in cab.idx;
 
   // Lê um arquivo e devolve { tipo: 'rf' | id da base | null, linhas, cab, aba }
@@ -119,20 +120,33 @@
     const X = await xlsx(), buf = await arq.arrayBuffer();
     const nomes = X.read(buf, { type: 'array', bookSheets: true }).SheetNames;
     const nome = norm(arq.name.replace(/\.[^.]+$/, ''));
-    // RF: procura a aba com UP + Descrição da Operação + Situação (as abas com nome de programação/RF primeiro)
-    const ordem = [...nomes].sort((a, b) => (/PROGRAM|BASE|RF/.test(norm(b)) - /PROGRAM|BASE|RF/.test(norm(a))));
-    for (const aba of ordem.slice(0, 8)) {
-      const wb = X.read(buf, { type: 'array', sheets: [aba], cellDates: true, dense: true });
-      const linhas = X.utils.sheet_to_json(wb.Sheets[aba], { header: 1, raw: true, defval: '' });
-      const cabRF = acharCabecalho(linhas, COLS_RF);
-      if (ehRF(cabRF)) return { tipo: 'rf', aba, linhas, cab: cabRF };
-      const cabQ = acharCabecalho(linhas, COLS_QUAL);
-      if (cabQ) {
-        const id = Object.entries(BASES).find(([, b]) => [nome, norm(aba)].some(t => b.chaves.some(k => t.includes(k)) && !(b.exceto || []).some(k => t.includes(k)) && (b.exige || []).every(k => t.includes(k))))?.[0] || null;
-        return { tipo: id, aba, linhas, cab: cabQ };
-      }
+    const ler = (aba, sheetRows) => {
+      const wb = X.read(buf, { type: 'array', sheets: [aba], cellDates: true, dense: true, ...(sheetRows ? { sheetRows } : {}) });
+      return X.utils.sheet_to_json(wb.Sheets[aba], { header: 1, raw: true, defval: '' });
+    };
+    // RF: olha TODAS as abas pelo cabeçalho (UP + Descrição da Operação + Situação), sem depender do nome do arquivo
+    // ou da aba (a base do RF11 tem uma aba "RF'10_Realizado" antes da "BASE PROGRAMAÇÃO"). Com mais de uma, vale a com mais REALIZADO.
+    let rf = null;
+    for (const aba of nomes) {
+      if (!ehRF(acharCabecalho(ler(aba, 30), COLS_RF))) continue;
+      const linhas = ler(aba), cab = acharCabecalho(linhas, COLS_RF);
+      const n = linhas.slice(cab.i + 1).filter(l => norm(l[cab.idx.sit]) === 'REALIZADO').length;
+      if (!rf || n > rf.n) rf = { tipo: 'rf', aba, linhas, cab, n };
     }
-    return { tipo: null, aba: nomes[0], linhas: [], cab: null, erro: 'não achei uma aba com a coluna UP' };
+    if (rf) return rf;
+    // Base de qualidade: o tipo sai do nome do arquivo, do nome da aba ou do título acima do cabeçalho;
+    // vale a primeira aba com UP cujo tipo foi reconhecido (senão a primeira aba com UP, para escolher na lista)
+    const tipoDe = textos => Object.entries(BASES).find(([, b]) => textos.some(t => b.chaves.some(k => t.includes(k)) && !(b.exceto || []).some(k => t.includes(k)) && (b.exige || []).every(k => t.includes(k))))?.[0] || null;
+    let primeira = null;
+    for (const aba of nomes) {
+      const linhas = ler(aba), cab = acharCabecalho(linhas, COLS_QUAL);
+      if (!cab) continue;
+      const titulo = norm(linhas.slice(0, cab.i).flat().join(' '));
+      const r = { tipo: tipoDe([nome, norm(aba), titulo]), aba, linhas, cab };
+      if (r.tipo) return r;
+      primeira ||= r;
+    }
+    return primeira || { tipo: null, aba: nomes[0], linhas: [], cab: null, erro: 'não achei uma aba com a coluna UP' };
   }
 
   /* ======================================================================
